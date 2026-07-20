@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://forgeboard.dev/schemas/guardrails.config.schema.json",
+  "title": "ForgeBoard guardrails config",
+  "type": "object",
+  "required": ["appName", "defaultBranch", "components"],
+  "additionalProperties": false,
+  "properties": {
+    "appName": { "type": "string", "minLength": 1 },
+    "defaultBranch": { "type": "string", "minLength": 1 },
+    "statusContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "ticketIdPattern": { "type": "string" }
+      }
+    },
+    "lintStaged": { "$ref": "#/definitions/commandMap" },
+    "repo": { "$ref": "#/definitions/commandMap" },
+    "components": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/component" }
+    }
+  },
+  "definitions": {
+    "commandOrSequence": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 }
+      ]
+    },
+    "commandMap": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/commandOrSequence" }
+    },
+    "component": {
+      "type": "object",
+      "required": ["paths"],
+      "additionalProperties": false,
+      "properties": {
+        "paths": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "build": { "$ref": "#/definitions/commandOrSequence" },
+        "unitTest": { "$ref": "#/definitions/commandOrSequence" },
+        "integrationTest": { "$ref": "#/definitions/commandOrSequence" },
+        "e2eTest": { "$ref": "#/definitions/commandOrSequence" },
+        "e2eSmokeTest": { "$ref": "#/definitions/commandOrSequence" },
+        "lintStaged": { "$ref": "#/definitions/commandMap" }
+      }
+    }
+  }
+}
