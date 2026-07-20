@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://forgeboard.dev/schemas/status.v1.json",
+  "type": "object",
+  "required": ["schemaVersion", "ticketId", "updatedAt", "commit", "branch", "build", "tests", "activity"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "ticketId": { "type": "string" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "commit": { "type": "string" },
+    "branch": { "type": "string" },
+    "build": {
+      "type": "object",
+      "required": ["status", "warnings", "errors"],
+      "properties": {
+        "status": { "enum": ["pass", "fail", "unknown"] },
+        "warnings": { "type": "integer" },
+        "errors": { "type": "integer" }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": ["unit", "integration", "e2e", "e2eSmoke"],
+      "properties": {
+        "unit": { "$ref": "#/definitions/testOutcome" },
+        "integration": { "$ref": "#/definitions/testOutcome" },
+        "e2e": { "$ref": "#/definitions/testOutcome" },
+        "e2eSmoke": { "$ref": "#/definitions/testOutcome" }
+      }
+    },
+    "activity": { "type": ["null", "string"] }
+  },
+  "definitions": {
+    "testOutcome": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["pass", "fail", "unknown"] },
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "total": { "type": "integer" }
+      }
+    }
+  }
+}

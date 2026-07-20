@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
+    "ajv-formats": "^3.0.1",
     "cspell": "^10.0.1",
     "markdownlint-cli2": "^0.23.1",
     "minimatch": "^10.2.5",
