@@ -2,5 +2,13 @@
   "version": "0.2",
   "language": "en",
   "dictionaries": ["typescript", "node", "npm", "software-terms"],
-  "ignorePaths": ["node_modules/**", "dist/**"]
+  "words": ["forgeboard", "guardrails"],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "package-lock.json",
+    ".gitignore",
+    ".gitattributes",
+    ".editorconfig"
+  ]
 }

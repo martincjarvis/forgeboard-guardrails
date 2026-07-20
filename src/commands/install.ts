@@ -39,6 +39,7 @@ export async function runInstall(cwd: string): Promise<void> {
   writeIfAbsent(join(cwd, ".gitattributes"), DEFAULT_GITATTRIBUTES);
   writeIfAbsent(join(cwd, ".prettierignore"), DEFAULT_PRETTIER_IGNORE);
   writeIfAbsent(join(cwd, ".secretlintrc.json"), readFileSync(join(packageRoot, ".secretlintrc.json"), "utf8"));
+  writeIfAbsent(join(cwd, "cspell.json"), readFileSync(join(packageRoot, "cspell.json"), "utf8"));
 
   ensureGitignoreEntry(cwd, ".forgeboard/state/");
   writeHookShims(cwd);
