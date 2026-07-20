@@ -17,7 +17,9 @@
     "typescript": "^5.6.0"
   },
   "dependencies": {
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "markdownlint-cli2": "^0.23.1",
-    "minimatch": "^10.2.5"
+    "minimatch": "^10.2.5",
+    "secretlint": "^13.0.2"
   }
 }
