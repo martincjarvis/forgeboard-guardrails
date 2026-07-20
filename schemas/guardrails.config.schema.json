@@ -6,6 +6,7 @@
   "required": ["appName", "defaultBranch", "components"],
   "additionalProperties": false,
   "properties": {
+    "$schema": { "type": "string" },
     "appName": { "type": "string", "minLength": 1 },
     "defaultBranch": { "type": "string", "minLength": 1 },
     "statusContract": {

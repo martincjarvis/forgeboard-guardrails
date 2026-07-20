@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync, copyFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync, copyFileSync, cpSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_PRETTIER_IGNORE } from "../install/defaultPrettierIgnore.ts";
@@ -25,6 +25,7 @@ const DEFAULT_GITATTRIBUTES = `* text=auto eol=lf
 `;
 
 const STARTER_CONFIG = {
+  $schema: "../schemas/guardrails.config.schema.json",
   appName: "my-app",
   defaultBranch: "main",
   statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
@@ -40,6 +41,12 @@ export async function runInstall(cwd: string): Promise<void> {
   writeIfAbsent(join(cwd, ".prettierignore"), DEFAULT_PRETTIER_IGNORE);
   writeIfAbsent(join(cwd, ".secretlintrc.json"), readFileSync(join(packageRoot, ".secretlintrc.json"), "utf8"));
   writeIfAbsent(join(cwd, "cspell.json"), readFileSync(join(packageRoot, "cspell.json"), "utf8"));
+
+  const skillTarget = join(cwd, ".claude", "skills", "guardrails-config");
+  if (!existsSync(skillTarget)) {
+    mkdirSync(dirname(skillTarget), { recursive: true });
+    cpSync(join(packageRoot, "skills", "guardrails-config"), skillTarget, { recursive: true });
+  }
 
   ensureGitignoreEntry(cwd, ".forgeboard/state/");
   writeHookShims(cwd);
