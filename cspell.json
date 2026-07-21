@@ -2,7 +2,16 @@
   "version": "0.2",
   "language": "en",
   "dictionaries": ["typescript", "node", "npm", "software-terms"],
-  "words": ["forgeboard", "guardrails", "semgrep", "winget", "behaviour", "POSIX"],
+  "words": [
+    "ACMR",
+    "behaviour",
+    "forgeBoard",
+    "guardrails",
+    "POSIX",
+    "releaserc",
+    "semgrep",
+    "winget"
+  ],
   "ignorePaths": [
     "node_modules/**",
     "dist/**",
