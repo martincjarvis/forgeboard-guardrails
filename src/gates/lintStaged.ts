@@ -44,17 +44,15 @@ function ruleMatches(rule: LintRule, file: string): boolean {
   return globMatch && pathMatch;
 }
 
-export function runLintStagedPlan(
-  rules: LintRule[],
-  stagedFiles: string[],
-  cwd: string
-): { pass: boolean; output: string } {
-  // Resolve each staged file to the LAST rule that matches it by glob AND path-scope.
-  // "Last wins" is what makes a component rule override a same-glob top-level rule for
-  // that component's files, while a file outside the component falls through to the
-  // top-level rule (which is earlier but the only remaining match).
+/**
+ * Resolves each file to the LAST rule matching it by glob AND path-scope, returning
+ * rule index → files. "Last wins" is what lets a component rule override a same-glob
+ * top-level rule for that component's files while files elsewhere still fall through
+ * to the top-level rule.
+ */
+export function resolveFilesByRule(rules: LintRule[], files: string[]): Map<number, string[]> {
   const filesByRule = new Map<number, string[]>();
-  for (const file of stagedFiles) {
+  for (const file of files) {
     let chosen = -1;
     for (let i = 0; i < rules.length; i++) {
       if (ruleMatches(rules[i], file)) chosen = i;
@@ -65,6 +63,15 @@ export function runLintStagedPlan(
       filesByRule.set(chosen, list);
     }
   }
+  return filesByRule;
+}
+
+export function runLintStagedPlan(
+  rules: LintRule[],
+  stagedFiles: string[],
+  cwd: string
+): { pass: boolean; output: string } {
+  const filesByRule = resolveFilesByRule(rules, stagedFiles);
 
   // Run rules in declared order over their resolved files, fail-fast on the first miss.
   for (let i = 0; i < rules.length; i++) {
