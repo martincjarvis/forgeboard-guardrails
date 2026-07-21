@@ -1,5 +1,4 @@
 import { minimatch } from "minimatch";
-import { runCommandSequence } from "../exec/commandRunner.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
 
 /**
@@ -27,7 +26,7 @@ export function buildLintStagedPlan(config: GuardrailsConfig, changedComponents:
 
   // Then each changed component's entries, scoped to that component's paths. Being
   // later in the list, a component rule overrides a same-glob top-level rule for the
-  // files it is scoped to (see the last-match resolution in runLintStagedPlan).
+  // files it is scoped to (see the last-match resolution in resolveFilesByRule).
   for (const name of changedComponents) {
     const component = config.components[name];
     for (const [glob, command] of Object.entries(component.lintStaged ?? {})) {
@@ -64,30 +63,4 @@ export function resolveFilesByRule(rules: LintRule[], files: string[]): Map<numb
     }
   }
   return filesByRule;
-}
-
-export function runLintStagedPlan(
-  rules: LintRule[],
-  stagedFiles: string[],
-  cwd: string
-): { pass: boolean; output: string } {
-  const filesByRule = resolveFilesByRule(rules, stagedFiles);
-
-  // Run rules in declared order over their resolved files, fail-fast on the first miss.
-  for (let i = 0; i < rules.length; i++) {
-    const files = filesByRule.get(i);
-    if (!files || files.length === 0) continue;
-
-    const commands = rules[i].command;
-    const list = Array.isArray(commands) ? commands : [commands];
-    const withFiles = list.map((command) => `${command} ${files.join(" ")}`);
-    const result = runCommandSequence(withFiles, cwd);
-
-    if (!result.pass) {
-      const failedStep = result.steps.at(-1);
-      return { pass: false, output: `glob "${rules[i].glob}": ${failedStep?.output ?? ""}` };
-    }
-  }
-
-  return { pass: true, output: "" };
 }

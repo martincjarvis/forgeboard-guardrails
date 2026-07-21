@@ -1,22 +1,22 @@
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadConfig } from "../config/load.ts";
 import { getStagedFiles } from "../git/staged.ts";
 import { getCurrentBranch } from "../git/branch.ts";
 import { computeChangedComponents } from "../config/changedComponents.ts";
 import { checkNotDefaultBranch } from "../gates/defaultBranchBlock.ts";
-import { runPrettierFormat } from "../gates/prettierFormat.ts";
-import { runMarkdownLint } from "../gates/markdownLint.ts";
-import { runSecretScan } from "../gates/secretScan.ts";
-import { runSpellCheck } from "../gates/spellCheck.ts";
-import { runSast } from "../gates/sast.ts";
-import { runComponentGates } from "../gates/componentCommands.ts";
-import { runRepoLevelTests } from "../gates/repoLevelTests.ts";
-import { buildLintStagedPlan, runLintStagedPlan } from "../gates/lintStaged.ts";
+import { runStagedPipeline } from "../gates/stagedPipeline.ts";
 import { extractTicketId } from "../status/ticketId.ts";
 import { parseTestOutput } from "../status/testOutputParsers.ts";
 import { writeStatus } from "../status/statusWriter.ts";
 import { appendEvent } from "../status/eventsWriter.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
+import type { ComponentGateReport } from "../commands/gate.ts";
+
+const cliPath = join(dirname(fileURLToPath(import.meta.url)), "..", "cli.ts");
 
 export async function runPreCommitHook(cwd: string): Promise<number> {
   const config = loadConfig(cwd);
@@ -24,78 +24,6 @@ export async function runPreCommitHook(cwd: string): Promise<number> {
 
   try {
     checkNotDefaultBranch(branch, config.defaultBranch);
-
-    const stagedFiles = getStagedFiles(cwd);
-    const markdownFiles = stagedFiles.filter((f) => f.endsWith(".md"));
-    const changedComponents = computeChangedComponents(config, stagedFiles);
-
-    await runPrettierFormat(stagedFiles, cwd);
-    failIf(runMarkdownLint(markdownFiles, cwd), "markdown-lint");
-    failIf(runSecretScan(stagedFiles, cwd), "secret-scan");
-    failIf(runSpellCheck(stagedFiles, cwd), "spell-check");
-    failIf(runSastGate(stagedFiles, cwd), "sast");
-
-    const lintStagedPlan = buildLintStagedPlan(config, changedComponents);
-    failIf(runLintStagedPlan(lintStagedPlan, stagedFiles, cwd), "lint-staged");
-
-    const componentResults = runComponentGates(config, changedComponents, cwd);
-    for (const result of componentResults) {
-      if (!result.build.pass) {
-        throw new GateFailure(`${result.component}.build`, "fix the build error and re-commit.", "build failed");
-      }
-      if (!result.unitTest.pass) {
-        const failedStep = result.unitTest.steps.at(-1);
-        throw new GateFailure(
-          `${result.component}.unitTest`,
-          "fix the failing step and re-commit.",
-          `step ${(failedStep?.index ?? 0) + 1}/${failedStep?.total ?? 1} failed: "${failedStep?.command}"`
-        );
-      }
-    }
-
-    const repoResults = runRepoLevelTests(config, cwd);
-    for (const result of repoResults) {
-      if (!result.pass) {
-        throw new GateFailure("repo-level-test", "fix the failing repo-level check and re-commit.", "repo-level test failed");
-      }
-    }
-
-    if (config.statusContract.enabled) {
-      const ticketId = extractTicketId(branch, config.statusContract.ticketIdPattern);
-      if (ticketId) {
-        const commit = safeHeadSha(cwd);
-        const unitResult = componentResults[0]?.unitTest;
-        const parsedCounts = unitResult?.steps[0] ? parseTestOutput(unitResult.steps[0].output) : null;
-
-        writeStatus(cwd, {
-          schemaVersion: 1,
-          ticketId,
-          updatedAt: new Date().toISOString(),
-          commit,
-          branch,
-          build: { status: "pass", warnings: 0, errors: 0 },
-          tests: {
-            unit: parsedCounts ? { status: "pass", ...parsedCounts } : { status: "pass" },
-            integration: { status: "unknown" },
-            e2e: { status: "unknown" },
-            e2eSmoke: { status: "unknown" }
-          },
-          activity: null
-        });
-
-        appendEvent(cwd, {
-          schemaVersion: 1,
-          ticketId,
-          timestamp: new Date().toISOString(),
-          type: "gate-run",
-          hook: "pre-commit",
-          result: "pass",
-          commit
-        });
-      }
-    }
-
-    return 0;
   } catch (error) {
     if (error instanceof GateFailure) {
       console.error(error.message);
@@ -104,31 +32,81 @@ export async function runPreCommitHook(cwd: string): Promise<number> {
     }
     throw error;
   }
-}
 
-/**
- * Runs the SAST gate, converting a missing-tool error into a failing gate result.
- *
- * semgrep is the one built-in gate resolved from an external (pip-distributed)
- * binary rather than the bundled node_modules/.bin, so `runSast` throws a named
- * "not found" error when it is absent (see runExternalBin / ADR-0011). Translating
- * that into a normal `{ pass: false }` result routes it through the standard named,
- * commit-blocking failure path — the user gets the actionable "install semgrep"
- * message and a clean exit 1, instead of the hook crashing with an unhandled
- * exception. `runSast` keeps its throw contract for its own unit test.
- */
-function runSastGate(files: string[], cwd: string): { pass: boolean; output: string } {
+  const stagedFiles = getStagedFiles(cwd);
+  const changedComponents = computeChangedComponents(config, stagedFiles);
+
+  // Outside the repo on purpose: a report written inside the working tree would sit
+  // in the middle of lint-staged's stash/restore.
+  const reportDir = mkdtempSync(join(tmpdir(), "gr-report-"));
+  const reportPath = join(reportDir, "components.json");
+
   try {
-    return runSast(files, cwd);
-  } catch (error) {
-    return { pass: false, output: error instanceof Error ? error.message : String(error) };
+    const passed = await runStagedPipeline({ config, changedComponents, cliPath, reportPath }, cwd);
+
+    if (!passed) {
+      // The failing gate already printed its own named, actionable message from the
+      // subprocess that ran it — reprinting here would only duplicate it.
+      recordFailureEvent(cwd, config, branch);
+      return 1;
+    }
+
+    if (config.statusContract.enabled) {
+      writeStatusFromReport(cwd, config, branch, readReport(reportPath));
+    }
+    return 0;
+  } finally {
+    rmSync(reportDir, { recursive: true, force: true });
   }
 }
 
-function failIf(result: { pass: boolean; output: string }, gate: string): void {
-  if (!result.pass) {
-    throw new GateFailure(gate, "fix the reported issue and re-commit.", result.output);
+function readReport(reportPath: string): ComponentGateReport | null {
+  try {
+    return JSON.parse(readFileSync(reportPath, "utf8")) as ComponentGateReport;
+  } catch {
+    // No components changed, so the gate wrote nothing. Not an error.
+    return null;
   }
+}
+
+function writeStatusFromReport(
+  cwd: string,
+  config: ReturnType<typeof loadConfig>,
+  branch: string,
+  report: ComponentGateReport | null
+): void {
+  const ticketId = extractTicketId(branch, config.statusContract.ticketIdPattern);
+  if (!ticketId) return;
+
+  const commit = safeHeadSha(cwd);
+  const unitResult = report?.components[0]?.unitTest;
+  const parsedCounts = unitResult?.steps[0] ? parseTestOutput(unitResult.steps[0].output) : null;
+
+  writeStatus(cwd, {
+    schemaVersion: 1,
+    ticketId,
+    updatedAt: new Date().toISOString(),
+    commit,
+    branch,
+    build: { status: "pass", warnings: 0, errors: 0 },
+    tests: {
+      unit: parsedCounts ? { status: "pass", ...parsedCounts } : { status: "pass" },
+      integration: { status: "unknown" },
+      e2e: { status: "unknown" },
+      e2eSmoke: { status: "unknown" }
+    },
+    activity: null
+  });
+
+  appendEvent(cwd, {
+    schemaVersion: 1,
+    ticketId,
+    timestamp: new Date().toISOString(),
+    type: "gate-run",
+    hook: "pre-commit",
+    result: "pass",
+    commit
+  });
 }
 
 function safeHeadSha(cwd: string): string {
