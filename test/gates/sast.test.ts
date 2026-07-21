@@ -40,3 +40,13 @@ test("absent semgrep is surfaced as a named failure, not a silent skip", () => {
     assert.throws(() => runSast(["a.js"], dir), /semgrep.*pip install semgrep/s);
   }
 });
+
+import { SEMGREP_RULESET } from "../../src/gates/sast.ts";
+
+test("pins a named ruleset rather than resolving rules dynamically per commit", () => {
+  // `--config=auto` re-resolves rules from the registry on every commit: a network
+  // round-trip inside the 30s budget, a ruleset that can change under an unchanged
+  // commit, and a hard failure when offline. A pre-commit gate must be deterministic.
+  assert.notEqual(SEMGREP_RULESET, "auto");
+  assert.match(SEMGREP_RULESET, /^p\//);
+});
