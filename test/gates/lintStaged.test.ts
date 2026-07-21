@@ -1,9 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { buildLintStagedPlan, runLintStagedPlan } from "../../src/gates/lintStaged.ts";
+import type { LintRule } from "../../src/gates/lintStaged.ts";
 import type { GuardrailsConfig } from "../../src/config/types.ts";
 
 const config: GuardrailsConfig = {
@@ -17,33 +15,58 @@ const config: GuardrailsConfig = {
   }
 };
 
-test("includes top-level entries for every plan", () => {
-  const plan = buildLintStagedPlan(config, []);
-  assert.equal(plan["**/*.json"], "prettier --write");
+const pass = 'node -e "process.exit(0)"';
+const fail = 'node -e "process.exit(1)"';
+
+test("top-level entries become path-agnostic rules", () => {
+  const rules = buildLintStagedPlan(config, []);
+  assert.deepEqual(rules, [{ glob: "**/*.json", command: "prettier --write" }]);
 });
 
-test("adds a changed component's own entries", () => {
-  const plan = buildLintStagedPlan(config, ["api"]);
-  assert.equal(plan["*.cs"], "dotnet format --include");
+test("a changed component's entries are scoped to that component's paths", () => {
+  const rules = buildLintStagedPlan(config, ["api"]);
+  assert.ok(
+    rules.some(
+      (r) =>
+        r.glob === "*.cs" &&
+        r.command === "dotnet format --include" &&
+        JSON.stringify(r.paths) === JSON.stringify(["src/api/**"])
+    )
+  );
 });
 
-test("a changed component's entry overrides a top-level entry on the same glob", () => {
-  const plan = buildLintStagedPlan(config, ["web"]);
-  assert.equal(plan["**/*.json"], "eslint --fix");
+test("a component-scoped command runs on files inside the component's paths", () => {
+  const rules: LintRule[] = [{ glob: "**/*.json", command: fail, paths: ["src/web/**"] }];
+  const result = runLintStagedPlan(rules, ["src/web/a.json"], process.cwd());
+  assert.equal(result.pass, false); // it ran (and this one fails) on the in-scope file
 });
 
-test("runs the mapped command against matching staged files only", () => {
-  const dir = mkdtempSync(join(tmpdir(), "gr-lintstaged-run-"));
-  writeFileSync(join(dir, "marker.txt"), "");
-
-  const plan = { "*.txt": `node -e "require('fs').writeFileSync('${join(dir, "ran.txt").replace(/\\/g, "\\\\")}', '')"` };
-  const result = runLintStagedPlan(plan, ["marker.txt"], dir);
-
-  assert.equal(result.pass, true);
+test("a component-scoped command does not run on files outside the component's paths", () => {
+  const rules: LintRule[] = [{ glob: "**/*.json", command: fail, paths: ["src/web/**"] }];
+  const result = runLintStagedPlan(rules, ["src/api/b.json"], process.cwd());
+  assert.equal(result.pass, true); // path-scoped out — the failing command never ran
 });
 
-test("skips a glob with no matching staged files entirely", () => {
-  const plan = { "*.cs": 'node -e "process.exit(1)"' }; // would fail if run
-  const result = runLintStagedPlan(plan, ["a.ts"], process.cwd());
+test("a component entry overrides a same-glob top-level entry for the component's own files", () => {
+  const rules: LintRule[] = [
+    { glob: "**/*.json", command: fail }, // top-level would fail
+    { glob: "**/*.json", command: pass, paths: ["src/web/**"] } // component wins for web files
+  ];
+  const result = runLintStagedPlan(rules, ["src/web/a.json"], process.cwd());
+  assert.equal(result.pass, true); // web's passing command overrode the top-level failing one
+});
+
+test("the top-level entry still applies to files outside the overriding component's paths", () => {
+  const rules: LintRule[] = [
+    { glob: "**/*.json", command: fail }, // top-level
+    { glob: "**/*.json", command: pass, paths: ["src/web/**"] } // scoped to web only
+  ];
+  const result = runLintStagedPlan(rules, ["src/api/b.json"], process.cwd());
+  assert.equal(result.pass, false); // api file falls through to the failing top-level rule
+});
+
+test("skips a rule with no matching staged files entirely", () => {
+  const rules: LintRule[] = [{ glob: "*.cs", command: fail }];
+  const result = runLintStagedPlan(rules, ["a.ts"], process.cwd());
   assert.equal(result.pass, true);
 });

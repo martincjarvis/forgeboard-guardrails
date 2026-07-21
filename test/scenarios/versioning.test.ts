@@ -2,8 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { scaffoldFixtureRepo } from "../fixtures/scaffold.ts";
-import { generateReleaseConfigs } from "../../src/versioning/releaseConfig.ts";
+import { generateReleaseConfigs, runSemanticReleaseDryRun } from "../../src/versioning/releaseConfig.ts";
 import { loadConfig } from "../../src/config/load.ts";
+
+const git = (args: string[], cwd: string): string =>
+  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 test("release config computes a release tagFormat for the default branch component", () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
@@ -15,28 +18,43 @@ test("release config computes a release tagFormat for the default branch compone
   fixture.cleanup();
 });
 
-test("rebase replays a tagged commit without the generator implying a re-tag", () => {
+test("a rebase does not make semantic-release rebuild an already-tagged version number", async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
-  execFileSync("git", ["checkout", "-b", "feature/FB-0008-x"], { cwd: fixture.dir });
-  execFileSync("git", ["commit", "--allow-empty", "--no-verify", "-m", "feat: add widget"], { cwd: fixture.dir });
-  const originalTaggedSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: fixture.dir, encoding: "utf8" }).trim();
-  execFileSync("git", ["tag", "fixture-shared-lib@1.1.0"], { cwd: fixture.dir });
+  const releaseConfig = generateReleaseConfigs(loadConfig(fixture.dir))["shared-lib"];
 
-  execFileSync("git", ["checkout", "main"], { cwd: fixture.dir });
-  execFileSync("git", ["commit", "--allow-empty", "--no-verify", "-m", "chore: unrelated main commit"], { cwd: fixture.dir });
-  execFileSync("git", ["checkout", "feature/FB-0008-x"], { cwd: fixture.dir });
-  execFileSync("git", ["rebase", "main"], { cwd: fixture.dir });
-  const rebasedSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: fixture.dir, encoding: "utf8" }).trim();
+  // Release a feat on the default branch and tag it, exactly as a CI release would.
+  git(["commit", "--allow-empty", "--no-verify", "-m", "feat: base feature"], fixture.dir);
+  const released = await runSemanticReleaseDryRun(fixture.dir, releaseConfig, "main");
+  assert.ok(released.nextRelease, "the first feat should compute a release version");
+  assert.equal(released.nextRelease.version, "1.0.0");
+  git(["tag", released.nextRelease.gitTag], fixture.dir);
 
-  // The commit's own content is unchanged by rebase even though its SHA changed —
-  // semantic-release's tag lookup is by tag-name-on-branch-history, not this SHA,
-  // so the existing "fixture-shared-lib@1.1.0" tag remains the answer; no second
-  // tag gets created for the same released change. Assert the rebase actually
-  // produced a new commit object (proving this isn't a no-op rebase) while the
-  // pre-existing tag is still the only tag on the repo.
-  assert.notEqual(originalTaggedSha, rebasedSha);
-  const tags = execFileSync("git", ["tag", "--list"], { cwd: fixture.dir, encoding: "utf8" }).trim().split("\n");
-  assert.deepEqual(tags, ["fixture-shared-lib@1.1.0"]);
+  // Re-running against the same tagged history proposes nothing — the tagged version
+  // is not rebuilt (this is the property that must survive a rebase).
+  const rerun = await runSemanticReleaseDryRun(fixture.dir, releaseConfig, "main");
+  assert.equal(rerun.nextRelease, false);
+
+  // A feature branch adds a new releasable commit; capture its pre-rebase version.
+  git(["checkout", "-b", "feature/FB-0008-x"], fixture.dir);
+  git(["commit", "--allow-empty", "--no-verify", "-m", "fix: feature work"], fixture.dir);
+  const beforeRebase = await runSemanticReleaseDryRun(fixture.dir, releaseConfig, "feature/FB-0008-x");
+  assert.ok(beforeRebase.nextRelease);
+
+  // Advance main and rebase the feature branch onto it — rewriting the feature
+  // commit's SHA while the 1.0.0 tag stays reachable on the mainline.
+  git(["checkout", "main"], fixture.dir);
+  git(["commit", "--allow-empty", "--no-verify", "-m", "chore: main moves on"], fixture.dir);
+  git(["checkout", "feature/FB-0008-x"], fixture.dir);
+  git(["rebase", "main"], fixture.dir);
+  const afterRebase = await runSemanticReleaseDryRun(fixture.dir, releaseConfig, "feature/FB-0008-x");
+  assert.ok(afterRebase.nextRelease);
+
+  // The computed version is stable across the rebase and is an increment above the
+  // already-tagged 1.0.0 — never a rebuild of it. No spurious tag was created.
+  assert.equal(afterRebase.nextRelease.version, beforeRebase.nextRelease.version);
+  assert.notEqual(afterRebase.nextRelease.version, "1.0.0");
+  assert.match(afterRebase.nextRelease.version, /^1\.0\.1-/);
+  assert.deepEqual(git(["tag", "--list"], fixture.dir).split("\n"), ["fixture-shared-lib@1.0.0"]);
 
   fixture.cleanup();
 });

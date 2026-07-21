@@ -14,10 +14,17 @@ import { execFileSync } from "node:child_process";
  */
 export function runExternalBin(binName: string, args: string[], cwd: string): { pass: boolean; output: string } {
   try {
+    // shell:false is deliberate and load-bearing. With shell:true on Windows a
+    // missing binary is resolved by cmd.exe, which reports "is not recognized ..."
+    // as a generic exit status 1 — indistinguishable from "the tool ran and found
+    // an issue" — so absence was silently swallowed instead of raising the named
+    // remediation error below. Without a shell, an absent binary yields a reliable
+    // ENOENT on every platform, while a real executable on PATH (semgrep.exe) still
+    // resolves. It also avoids the shell-argument-injection deprecation (DEP0190).
     const output = execFileSync(binName, args, {
       cwd,
       encoding: "utf8",
-      shell: process.platform === "win32",
+      shell: false,
       stdio: "pipe",
     });
     return { pass: true, output };

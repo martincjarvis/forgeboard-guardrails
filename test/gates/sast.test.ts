@@ -3,16 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import { runSast } from "../../src/gates/sast.ts";
-
-function semgrepAvailable(): boolean {
-  const result = spawnSync("semgrep", ["--version"], {
-    shell: process.platform === "win32",
-    encoding: "utf8",
-  });
-  return result.status === 0;
-}
+import { semgrepAvailable } from "../support/semgrep.ts";
 
 const canRunSemgrep = semgrepAvailable();
 

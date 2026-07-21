@@ -7,9 +7,10 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { scaffoldFixtureRepo } from "../fixtures/scaffold.ts";
 import { runPreCommitHook } from "../../src/hooks/preCommitHook.ts";
+import { skipWithoutSemgrep } from "../support/semgrep.ts";
 import schema from "../../schemas/status.v1.json" with { type: "json" };
 
-test("status.json validates against schema v1, keyed by the ADR-0003 ticket id, reflecting real outcomes", async () => {
+test("status.json validates against schema v1, keyed by the ADR-0003 ticket id, reflecting real outcomes", { skip: skipWithoutSemgrep }, async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: true });
   execFileSync("git", ["checkout", "-b", "feature/FB-0006-x"], { cwd: fixture.dir });
   writeFileSync(join(fixture.dir, "src", "api", "index.js"), "console.log('changed');\n");

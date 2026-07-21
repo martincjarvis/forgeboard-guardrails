@@ -5,8 +5,9 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { scaffoldFixtureRepo } from "../fixtures/scaffold.ts";
 import { runPreCommitHook } from "../../src/hooks/preCommitHook.ts";
+import { skipWithoutSemgrep } from "../support/semgrep.ts";
 
-test("rejects a staged file containing a planted secret", async () => {
+test("rejects a staged file containing a planted secret", { skip: skipWithoutSemgrep }, async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
   execFileSync("git", ["checkout", "-b", "feature/FB-0002-x"], { cwd: fixture.dir });
   // Planted RSA private-key block (preset-recommend's privatekey rule catches this by default;
@@ -31,7 +32,7 @@ test("rejects a staged file containing a planted secret", async () => {
   fixture.cleanup();
 });
 
-test("accepts the commit once the secret is removed", async () => {
+test("accepts the commit once the secret is removed", { skip: skipWithoutSemgrep }, async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
   execFileSync("git", ["checkout", "-b", "feature/FB-0002-x"], { cwd: fixture.dir });
   writeFileSync(join(fixture.dir, "src", "api", "config.js"), "const port = 3000;\n");

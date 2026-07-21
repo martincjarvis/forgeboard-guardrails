@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { runPreCommitHook } from "../../src/hooks/preCommitHook.ts";
+import { skipWithoutSemgrep, semgrepAvailable } from "../support/semgrep.ts";
 
 function initRepoWithConfig(config: unknown): string {
   const dir = mkdtempSync(join(tmpdir(), "gr-precommit-"));
@@ -23,7 +24,7 @@ function initRepoWithConfig(config: unknown): string {
   return dir;
 }
 
-test("passes and writes status/events when statusContract is enabled and all gates pass", async () => {
+test("passes and writes status/events when statusContract is enabled and all gates pass", { skip: skipWithoutSemgrep }, async () => {
   const dir = initRepoWithConfig({
     appName: "acme",
     defaultBranch: "main",
@@ -46,6 +47,29 @@ test("passes and writes status/events when statusContract is enabled and all gat
   assert.ok(existsSync(join(dir, ".forgeboard", "state", "FB-0001", "status.json")));
   assert.ok(existsSync(join(dir, ".forgeboard", "state", "FB-0001", "events.ndjson")));
 });
+
+test(
+  "a missing external SAST tool blocks the commit with a clean exit, not an unhandled crash",
+  { skip: semgrepAvailable() && "requires semgrep to be absent to exercise the missing-tool path" },
+  async () => {
+    const dir = initRepoWithConfig({
+      appName: "acme",
+      defaultBranch: "main",
+      statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
+      components: { web: { paths: ["src/web/**"] } }
+    });
+    mkdirSync(join(dir, "src", "web"), { recursive: true });
+    writeFileSync(join(dir, "src", "web", "index.js"), "console.log('ok');\n");
+    execFileSync("git", ["add", "."], { cwd: dir });
+
+    // semgrep is absent, so the SAST gate's runExternalBin throws a named "not found"
+    // error. The hook must translate that into a named, commit-blocking gate failure
+    // (exit 1) — not let the raw exception escape as an unhandled crash.
+    const exitCode = await runPreCommitHook(dir);
+
+    assert.equal(exitCode, 1);
+  }
+);
 
 test("fails when default branch is checked out, before writing any status", async () => {
   const dir = initRepoWithConfig({

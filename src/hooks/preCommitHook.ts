@@ -33,7 +33,7 @@ export async function runPreCommitHook(cwd: string): Promise<number> {
     failIf(runMarkdownLint(markdownFiles, cwd), "markdown-lint");
     failIf(runSecretScan(stagedFiles, cwd), "secret-scan");
     failIf(runSpellCheck(stagedFiles, cwd), "spell-check");
-    failIf(runSast(stagedFiles, cwd), "sast");
+    failIf(runSastGate(stagedFiles, cwd), "sast");
 
     const lintStagedPlan = buildLintStagedPlan(config, changedComponents);
     failIf(runLintStagedPlan(lintStagedPlan, stagedFiles, cwd), "lint-staged");
@@ -103,6 +103,25 @@ export async function runPreCommitHook(cwd: string): Promise<number> {
       return 1;
     }
     throw error;
+  }
+}
+
+/**
+ * Runs the SAST gate, converting a missing-tool error into a failing gate result.
+ *
+ * semgrep is the one built-in gate resolved from an external (pip-distributed)
+ * binary rather than the bundled node_modules/.bin, so `runSast` throws a named
+ * "not found" error when it is absent (see runExternalBin / ADR-0011). Translating
+ * that into a normal `{ pass: false }` result routes it through the standard named,
+ * commit-blocking failure path — the user gets the actionable "install semgrep"
+ * message and a clean exit 1, instead of the hook crashing with an unhandled
+ * exception. `runSast` keeps its throw contract for its own unit test.
+ */
+function runSastGate(files: string[], cwd: string): { pass: boolean; output: string } {
+  try {
+    return runSast(files, cwd);
+  } catch (error) {
+    return { pass: false, output: error instanceof Error ? error.message : String(error) };
   }
 }
 

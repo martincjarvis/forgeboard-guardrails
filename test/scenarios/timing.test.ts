@@ -5,8 +5,9 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { scaffoldFixtureRepo } from "../fixtures/scaffold.ts";
 import { runPreCommitHook } from "../../src/hooks/preCommitHook.ts";
+import { skipWithoutSemgrep } from "../support/semgrep.ts";
 
-test("pre-commit completes well under the 30s budget with a clean commit", async () => {
+test("pre-commit completes well under the 30s budget with a clean commit", { skip: skipWithoutSemgrep }, async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
   execFileSync("git", ["checkout", "-b", "feature/FB-0009-x"], { cwd: fixture.dir });
   writeFileSync(join(fixture.dir, "src", "api", "index.js"), "console.log('clean change');\n");

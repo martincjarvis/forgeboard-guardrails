@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { scaffoldFixtureRepo } from "../fixtures/scaffold.ts";
 import { runPreCommitHook } from "../../src/hooks/preCommitHook.ts";
+import { skipWithoutSemgrep } from "../support/semgrep.ts";
 
 function setComponentBuildCommand(dir: string, component: string, command: string): void {
   const configPath = join(dir, ".forgeboard", "guardrails.config.json");
@@ -13,7 +14,7 @@ function setComponentBuildCommand(dir: string, component: string, command: strin
   writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
 
-test("rejects when a changed component's build fails", async () => {
+test("rejects when a changed component's build fails", { skip: skipWithoutSemgrep }, async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
   execFileSync("git", ["checkout", "-b", "feature/FB-0003-x"], { cwd: fixture.dir });
   setComponentBuildCommand(fixture.dir, "api", 'node -e "process.exit(1)"');
@@ -26,7 +27,7 @@ test("rejects when a changed component's build fails", async () => {
   fixture.cleanup();
 });
 
-test("passes once the planted build failure is fixed", async () => {
+test("passes once the planted build failure is fixed", { skip: skipWithoutSemgrep }, async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
   execFileSync("git", ["checkout", "-b", "feature/FB-0003-x"], { cwd: fixture.dir });
   writeFileSync(join(fixture.dir, "src", "api", "index.js"), "console.log('changed');\n");
