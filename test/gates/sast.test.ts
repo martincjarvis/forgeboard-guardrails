@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runSast } from "../../src/gates/sast.ts";
+import { runSast, SEMGREP_RULESET } from "../../src/gates/sast.ts";
 import { semgrepAvailable } from "../support/semgrep.ts";
 
 const canRunSemgrep = semgrepAvailable();
@@ -40,8 +40,6 @@ test("absent semgrep is surfaced as a named failure, not a silent skip", () => {
     assert.throws(() => runSast(["a.js"], dir), /semgrep.*pip install semgrep/s);
   }
 });
-
-import { SEMGREP_RULESET } from "../../src/gates/sast.ts";
 
 test("pins a named ruleset rather than resolving rules dynamically per commit", () => {
   // `--config=auto` re-resolves rules from the registry on every commit: a network
