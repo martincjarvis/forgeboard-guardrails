@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { loadConfig } from "../config/load.ts";
-import { getStagedFiles } from "../git/staged.ts";
+import { getStagedPaths } from "../git/staged.ts";
 import { getCurrentBranch } from "../git/branch.ts";
 import { computeChangedComponents } from "../config/changedComponents.ts";
 import { checkNotDefaultBranch } from "../gates/defaultBranchBlock.ts";
@@ -27,8 +27,8 @@ export async function runPreCommitHook(cwd: string): Promise<number> {
     throw error;
   }
 
-  const stagedFiles = getStagedFiles(cwd);
-  const changedComponents = computeChangedComponents(config, stagedFiles);
+  const stagedPaths = getStagedPaths(cwd);
+  const changedComponents = computeChangedComponents(config, stagedPaths);
 
   const { passed, componentResults } = await runStagedPipeline({ config, changedComponents }, cwd);
 

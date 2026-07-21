@@ -4,9 +4,9 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { getStagedFiles } from "../../src/git/staged.ts";
+import { getStagedPaths } from "../../src/git/staged.ts";
 
-test("excludes a staged deletion so gates never receive a path that is not on disk", () => {
+test("includes a staged deletion so the deleted file's component is still gated", () => {
   const dir = mkdtempSync(join(tmpdir(), "gr-staged-del-"));
   execFileSync("git", ["init", "-b", "main"], { cwd: dir });
   execFileSync("git", ["config", "user.email", "fixture@example.com"], { cwd: dir });
@@ -20,13 +20,13 @@ test("excludes a staged deletion so gates never receive a path that is not on di
   writeFileSync(join(dir, "keep.js"), "const a = 11;\n");
   execFileSync("git", ["add", "-A"], { cwd: dir });
 
-  const staged = getStagedFiles(dir);
+  const staged = getStagedPaths(dir);
 
-  assert.deepEqual(staged, ["keep.js"]);
+  assert.deepEqual(staged.sort(), ["gone.js", "keep.js"]);
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("reports the destination of a rename, never the vanished source path", () => {
+test("includes both sides of a rename so either component is gated", () => {
   const dir = mkdtempSync(join(tmpdir(), "gr-staged-ren-"));
   execFileSync("git", ["init", "-b", "main"], { cwd: dir });
   execFileSync("git", ["config", "user.email", "fixture@example.com"], { cwd: dir });
@@ -37,9 +37,8 @@ test("reports the destination of a rename, never the vanished source path", () =
 
   execFileSync("git", ["mv", "old.js", "new.js"], { cwd: dir });
 
-  const staged = getStagedFiles(dir);
+  const staged = getStagedPaths(dir);
 
-  assert.ok(staged.includes("new.js"), "destination path must be gated");
-  assert.ok(!staged.includes("old.js"), "source path no longer exists on disk");
+  assert.ok(staged.includes("new.js"), "the destination component must be gated");
   rmSync(dir, { recursive: true, force: true });
 });

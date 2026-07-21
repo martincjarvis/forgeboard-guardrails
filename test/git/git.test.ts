@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { getStagedFiles } from "../../src/git/staged.ts";
+import { getStagedPaths } from "../../src/git/staged.ts";
 import { getCurrentBranch } from "../../src/git/branch.ts";
 
 function initRepo(): string {
@@ -15,12 +15,12 @@ function initRepo(): string {
   return dir;
 }
 
-test("getStagedFiles lists staged paths", () => {
+test("getStagedPaths lists staged paths", () => {
   const dir = initRepo();
   writeFileSync(join(dir, "a.txt"), "hello");
   execFileSync("git", ["add", "a.txt"], { cwd: dir });
 
-  assert.deepEqual(getStagedFiles(dir), ["a.txt"]);
+  assert.deepEqual(getStagedPaths(dir), ["a.txt"]);
 });
 
 test("getCurrentBranch returns the checked-out branch name", () => {
