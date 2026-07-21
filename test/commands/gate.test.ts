@@ -47,3 +47,47 @@ test("passes an empty file list without invoking any tool", async () => {
   assert.equal(code, 0);
   rmSync(dir, { recursive: true, force: true });
 });
+
+import { mkdirSync } from "node:fs";
+import { runComponentGatesCommand } from "../../src/commands/gate.ts";
+
+function componentFixture(buildCommand: string): string {
+  const dir = mkdtempSync(join(tmpdir(), "gr-comp-"));
+  mkdirSync(join(dir, ".forgeboard"), { recursive: true });
+  writeFileSync(
+    join(dir, ".forgeboard", "guardrails.config.json"),
+    JSON.stringify({
+      appName: "fixture",
+      defaultBranch: "main",
+      repo: {},
+      components: { api: { paths: ["src/api/**"], build: buildCommand, unitTest: 'node -e "console.log(\'2 passing\')"' } }
+    })
+  );
+  return dir;
+}
+
+test("writes a report the caller can read back after the subprocess exits", () => {
+  const dir = componentFixture('node -e "process.exit(0)"');
+  const outPath = join(mkdtempSync(join(tmpdir(), "gr-report-")), "report.json");
+
+  const code = runComponentGatesCommand(["api"], outPath, dir);
+
+  assert.equal(code, 0);
+  const report = JSON.parse(readFileSync(outPath, "utf8"));
+  assert.equal(report.components[0].component, "api");
+  assert.equal(report.components[0].build.pass, true);
+  assert.match(report.components[0].unitTest.steps[0].output, /2 passing/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("returns 1 and still writes the report when a component build fails", () => {
+  const dir = componentFixture('node -e "process.exit(1)"');
+  const outPath = join(mkdtempSync(join(tmpdir(), "gr-report-")), "report.json");
+
+  const code = runComponentGatesCommand(["api"], outPath, dir);
+
+  assert.equal(code, 1);
+  const report = JSON.parse(readFileSync(outPath, "utf8"));
+  assert.equal(report.components[0].build.pass, false);
+  rmSync(dir, { recursive: true, force: true });
+});

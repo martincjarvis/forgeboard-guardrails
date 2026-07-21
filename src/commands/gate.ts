@@ -4,6 +4,11 @@ import { runSecretScan } from "../gates/secretScan.ts";
 import { runSpellCheck } from "../gates/spellCheck.ts";
 import { runSast } from "../gates/sast.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
+import { writeFileSync } from "node:fs";
+import { loadConfig } from "../config/load.ts";
+import { runComponentGates, type ComponentGateResult } from "../gates/componentCommands.ts";
+import { runRepoLevelTests } from "../gates/repoLevelTests.ts";
+import type { CommandSequenceResult } from "../exec/commandRunner.ts";
 
 /**
  * Runs the built-in file-scoped gates over an explicit file list, in the order the
@@ -64,6 +69,63 @@ export async function runGateCommand(args: string[], cwd: string): Promise<numbe
   if (name === "file-gates") {
     return runFileGates(items, cwd);
   }
+  if (name === "components") {
+    const outFlag = args.indexOf("--out");
+    if (outFlag === -1) {
+      console.error("gate components requires --out <path>");
+      return 1;
+    }
+    return runComponentGatesCommand(items, args[outFlag + 1], cwd);
+  }
   console.error(`Unknown gate: ${name}`);
   return 1;
+}
+
+/**
+ * Everything the pre-commit hook needs from the component/repo gates after they have
+ * run in a subprocess. lintStaged() returns only a boolean, so the unit-test output
+ * the status contract parses its counts from would otherwise be lost.
+ */
+export interface ComponentGateReport {
+  components: ComponentGateResult[];
+  repo: CommandSequenceResult[];
+}
+
+export function runComponentGatesCommand(componentNames: string[], outPath: string, cwd: string): number {
+  const config = loadConfig(cwd);
+  const components = runComponentGates(config, componentNames, cwd);
+  const repo = runRepoLevelTests(config, cwd);
+
+  // Written before the failure check so a rejected commit still leaves a readable
+  // report — the failure event the hook records needs it too.
+  const report: ComponentGateReport = { components, repo };
+  writeFileSync(outPath, JSON.stringify(report));
+
+  try {
+    for (const result of components) {
+      if (!result.build.pass) {
+        throw new GateFailure(`${result.component}.build`, "fix the build error and re-commit.", "build failed");
+      }
+      if (!result.unitTest.pass) {
+        const failedStep = result.unitTest.steps.at(-1);
+        throw new GateFailure(
+          `${result.component}.unitTest`,
+          "fix the failing step and re-commit.",
+          `step ${(failedStep?.index ?? 0) + 1}/${failedStep?.total ?? 1} failed: "${failedStep?.command}"`
+        );
+      }
+    }
+    for (const result of repo) {
+      if (!result.pass) {
+        throw new GateFailure("repo-level-test", "fix the failing repo-level check and re-commit.", "repo-level test failed");
+      }
+    }
+    return 0;
+  } catch (error) {
+    if (error instanceof GateFailure) {
+      console.error(error.message);
+      return 1;
+    }
+    throw error;
+  }
 }
