@@ -25,6 +25,7 @@
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "ajv-formats": "^3.0.1",
     "cspell": "^10.0.1",
+    "lint-staged": "^17.1.0",
     "markdownlint-cli2": "^0.23.1",
     "minimatch": "^10.2.5",
     "secretlint": "^13.0.2"

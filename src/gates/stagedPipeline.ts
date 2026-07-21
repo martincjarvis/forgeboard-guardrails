@@ -1,5 +1,6 @@
 import { buildLintStagedPlan, resolveFilesByRule } from "./lintStaged.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
+import lintStaged from "lint-staged";
 
 export interface PipelineContext {
   config: GuardrailsConfig;
@@ -54,4 +55,34 @@ export function buildPipelineCommands(files: string[], ctx: PipelineContext): st
   );
 
   return commands;
+}
+
+/**
+ * Runs every gate for this commit inside lint-staged's git workflow.
+ *
+ * What lint-staged buys, and why the toolkit no longer hand-rolls it: it stashes
+ * unstaged changes (including the unstaged remainder of a partially-staged file)
+ * before running anything, so gates read exactly the content being committed; and it
+ * re-stages whatever the commands modified, so the universal formatter's output lands
+ * in the commit instead of dirtying the tree behind it. Design spec §121 always
+ * specified lint-staged for this; A1 shipped a hand-rolled matcher without the git
+ * workflow, which is what made both defects possible.
+ *
+ * Tradeoff accepted in ADR-0012: component build/test run inside the stash window
+ * too, so they also see staged content. That widens the window during which a hard
+ * kill (not SIGINT — lint-staged restores on that) could leave changes in a stash
+ * entry the user must recover with `git stash list`.
+ *
+ * `concurrent: false` is load-bearing: the spec's gate order (formatter first) is
+ * only meaningful if the commands run in sequence.
+ */
+export async function runStagedPipeline(ctx: PipelineContext, cwd: string): Promise<boolean> {
+  return lintStaged({
+    config: { "*": (files: readonly string[]) => buildPipelineCommands([...files], ctx) },
+    cwd,
+    stash: true,
+    concurrent: false,
+    relative: true,
+    allowEmpty: false
+  });
 }
