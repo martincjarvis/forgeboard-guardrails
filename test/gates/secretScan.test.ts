@@ -5,9 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runSecretScan } from "../../src/gates/secretScan.ts";
 
+// mkdtemp prefix and base64 key fixture, not prose
+// cspell:ignore secretscan IDAQAB
 function setupDir(): string {
   const dir = mkdtempSync(join(tmpdir(), "gr-secretscan-"));
-  copyFileSync(join(process.cwd(), ".secretlintrc.json"), join(dir, ".secretlintrc.json"));
+  copyFileSync(
+    join(process.cwd(), ".secretlintrc.json"),
+    join(dir, ".secretlintrc.json"),
+  );
   return dir;
 }
 
@@ -29,8 +34,8 @@ test("fails on a planted private key block", () => {
       "8p9Ni+iJkUTz4L7+/G9Ljkz9Q7CvSbxgZW0cE+Li8PDarzcH/2DcfXgiT0cDwdaD",
       "3n9+HwIDAQAB",
       "-----END RSA PRIVATE KEY-----",
-      ""
-    ].join("\n")
+      "",
+    ].join("\n"),
   );
 
   const result = runSecretScan(["config.ts"], dir);
