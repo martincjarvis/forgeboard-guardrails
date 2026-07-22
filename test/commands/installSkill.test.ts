@@ -12,7 +12,11 @@ test("install copies the guardrails-config skill and adds a $schema pointer", as
 
   await runInstall(dir);
 
-  assert.ok(existsSync(join(dir, ".claude", "skills", "guardrails-config", "SKILL.md")));
-  const config = JSON.parse(readFileSync(join(dir, ".forgeboard", "guardrails.config.json"), "utf8"));
+  assert.ok(
+    existsSync(join(dir, ".claude", "skills", "guardrails-config", "SKILL.md")),
+  );
+  const config = JSON.parse(
+    readFileSync(join(dir, ".forgeboard", "guardrails.config.json"), "utf8"),
+  );
   assert.match(config.$schema, /guardrails\.config\.schema\.json/);
 });

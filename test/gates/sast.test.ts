@@ -8,21 +8,32 @@ import { semgrepAvailable } from "../support/semgrep.ts";
 
 const canRunSemgrep = semgrepAvailable();
 
-test("passes on innocuous code", { skip: !canRunSemgrep && "semgrep not installed (pip install semgrep)" }, () => {
-  const dir = mkdtempSync(join(tmpdir(), "gr-sast-"));
-  writeFileSync(join(dir, "a.js"), "function add(a, b) { return a + b; }\n");
+test(
+  "passes on innocuous code",
+  { skip: !canRunSemgrep && "semgrep not installed (pip install semgrep)" },
+  () => {
+    const dir = mkdtempSync(join(tmpdir(), "gr-sast-"));
+    writeFileSync(join(dir, "a.js"), "function add(a, b) { return a + b; }\n");
 
-  const result = runSast(["a.js"], dir);
-  assert.equal(result.pass, true);
-});
+    const result = runSast(["a.js"], dir);
+    assert.equal(result.pass, true);
+  },
+);
 
-test("fails on a known-dangerous pattern (eval of dynamic input)", { skip: !canRunSemgrep && "semgrep not installed (pip install semgrep)" }, () => {
-  const dir = mkdtempSync(join(tmpdir(), "gr-sast-"));
-  writeFileSync(join(dir, "a.js"), "function run(input) { return eval(input); }\n");
+test(
+  "fails on a known-dangerous pattern (eval of dynamic input)",
+  { skip: !canRunSemgrep && "semgrep not installed (pip install semgrep)" },
+  () => {
+    const dir = mkdtempSync(join(tmpdir(), "gr-sast-"));
+    writeFileSync(
+      join(dir, "a.js"),
+      "function run(input) { return eval(input); }\n",
+    );
 
-  const result = runSast(["a.js"], dir);
-  assert.equal(result.pass, false);
-});
+    const result = runSast(["a.js"], dir);
+    assert.equal(result.pass, false);
+  },
+);
 
 test("absent semgrep is surfaced as a named failure, not a silent skip", () => {
   if (canRunSemgrep) {
@@ -31,13 +42,22 @@ test("absent semgrep is surfaced as a named failure, not a silent skip", () => {
     // check. Either way, runSast against a planted finding must not return
     // pass:true for a clean file (that would mean semgrep silently failed to run).
     const dir = mkdtempSync(join(tmpdir(), "gr-sast-absent-"));
-    writeFileSync(join(dir, "a.js"), "function run(input) { return eval(input); }\n");
+    writeFileSync(
+      join(dir, "a.js"),
+      "function run(input) { return eval(input); }\n",
+    );
     const result = runSast(["a.js"], dir);
     assert.equal(result.pass, false);
   } else {
     const dir = mkdtempSync(join(tmpdir(), "gr-sast-absent-"));
-    writeFileSync(join(dir, "a.js"), "function run(input) { return eval(input); }\n");
-    assert.throws(() => runSast(["a.js"], dir), /semgrep.*pip install semgrep/s);
+    writeFileSync(
+      join(dir, "a.js"),
+      "function run(input) { return eval(input); }\n",
+    );
+    assert.throws(
+      () => runSast(["a.js"], dir),
+      /semgrep.*pip install semgrep/s,
+    );
   }
 });
 

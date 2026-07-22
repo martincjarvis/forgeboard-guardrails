@@ -2,7 +2,15 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://forgeboard.dev/schemas/event.v1.json",
   "type": "object",
-  "required": ["schemaVersion", "ticketId", "timestamp", "type", "hook", "result", "commit"],
+  "required": [
+    "schemaVersion",
+    "ticketId",
+    "timestamp",
+    "type",
+    "hook",
+    "result",
+    "commit"
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "ticketId": { "type": "string" },

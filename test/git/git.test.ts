@@ -10,7 +10,9 @@ import { getCurrentBranch } from "../../src/git/branch.ts";
 function initRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), "gr-git-"));
   execFileSync("git", ["init", "-b", "main"], { cwd: dir });
-  execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir });
+  execFileSync("git", ["config", "user.email", "test@example.com"], {
+    cwd: dir,
+  });
   execFileSync("git", ["config", "user.name", "Test"], { cwd: dir });
   return dir;
 }

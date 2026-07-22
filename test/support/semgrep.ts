@@ -16,7 +16,10 @@ import { spawnSync } from "node:child_process";
  * shell "not recognized" exit that could be mistaken for a runnable tool.
  */
 export function semgrepAvailable(): boolean {
-  const result = spawnSync("semgrep", ["--version"], { shell: false, encoding: "utf8" });
+  const result = spawnSync("semgrep", ["--version"], {
+    shell: false,
+    encoding: "utf8",
+  });
   return result.status === 0;
 }
 
@@ -24,5 +27,6 @@ export function semgrepAvailable(): boolean {
  * Ready-to-use value for a node:test `skip` option: `false` (run) when semgrep is
  * present, or a reason string (skip) when it is absent. Evaluated once per module.
  */
-export const skipWithoutSemgrep: false | string =
-  semgrepAvailable() ? false : "semgrep not installed (see README > Prerequisites)";
+export const skipWithoutSemgrep: false | string = semgrepAvailable()
+  ? false
+  : "semgrep not installed (see README > Prerequisites)";

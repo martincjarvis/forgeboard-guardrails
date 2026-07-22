@@ -8,7 +8,9 @@ test("scaffolds a three-component repo with hooks installed", () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
 
   assert.ok(existsSync(join(fixture.dir, ".git", "hooks", "pre-commit")));
-  assert.ok(existsSync(join(fixture.dir, ".forgeboard", "guardrails.config.json")));
+  assert.ok(
+    existsSync(join(fixture.dir, ".forgeboard", "guardrails.config.json")),
+  );
   assert.ok(existsSync(join(fixture.dir, "src", "shared", "index.js")));
   assert.ok(existsSync(join(fixture.dir, "src", "api", "index.js")));
   assert.ok(existsSync(join(fixture.dir, "src", "web", "index.js")));

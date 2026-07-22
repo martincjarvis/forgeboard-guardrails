@@ -4,7 +4,10 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { generateReleaseConfigs, runSemanticReleaseDryRun } from "../../src/versioning/releaseConfig.ts";
+import {
+  generateReleaseConfigs,
+  runSemanticReleaseDryRun,
+} from "../../src/versioning/releaseConfig.ts";
 import type { GuardrailsConfig } from "../../src/config/types.ts";
 
 const config: GuardrailsConfig = {
@@ -13,8 +16,8 @@ const config: GuardrailsConfig = {
   statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
   components: {
     api: { paths: ["src/api/**"] },
-    web: { paths: ["src/web/**"] }
-  }
+    web: { paths: ["src/web/**"] },
+  },
 };
 
 test("composes tagFormat from appName and each component key", () => {
@@ -25,7 +28,10 @@ test("composes tagFormat from appName and each component key", () => {
 
 test("configures release on the default branch and prerelease on feature branches", () => {
   const configs = generateReleaseConfigs(config);
-  const branches = configs.api.branches as Array<{ name?: string; prerelease?: boolean | string }>;
+  const branches = configs.api.branches as Array<{
+    name?: string;
+    prerelease?: boolean | string;
+  }>;
   assert.ok(branches.some((b) => b === "main" || b.name === "main"));
   assert.ok(branches.some((b) => typeof b === "object" && b.prerelease));
 });
@@ -35,8 +41,11 @@ function initRepoWithCommit(branch: string, message: string): string {
   execFileSync("git", ["init", "-b", "main"], { cwd: dir });
   execFileSync("git", ["config", "user.email", "t@example.com"], { cwd: dir });
   execFileSync("git", ["config", "user.name", "T"], { cwd: dir });
-  execFileSync("git", ["commit", "--allow-empty", "-m", "chore: initial"], { cwd: dir });
-  if (branch !== "main") execFileSync("git", ["checkout", "-b", branch], { cwd: dir });
+  execFileSync("git", ["commit", "--allow-empty", "-m", "chore: initial"], {
+    cwd: dir,
+  });
+  if (branch !== "main")
+    execFileSync("git", ["checkout", "-b", branch], { cwd: dir });
   execFileSync("git", ["commit", "--allow-empty", "-m", message], { cwd: dir });
   return dir;
 }
@@ -55,7 +64,11 @@ test("dry-run reports a pre-release version for a feat commit on a feature branc
   const dir = initRepoWithCommit("feature/FB-0099-test", "feat: add widget");
   const releaseConfig = generateReleaseConfigs(config).api;
 
-  const result = await runSemanticReleaseDryRun(dir, releaseConfig, "feature/FB-0099-test");
+  const result = await runSemanticReleaseDryRun(
+    dir,
+    releaseConfig,
+    "feature/FB-0099-test",
+  );
 
   assert.ok(result.nextRelease);
   assert.match(result.nextRelease!.version, /^\d+\.\d+\.\d+-/); // has a pre-release identifier

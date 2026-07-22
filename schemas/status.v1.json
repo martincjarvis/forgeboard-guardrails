@@ -2,7 +2,16 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://forgeboard.dev/schemas/status.v1.json",
   "type": "object",
-  "required": ["schemaVersion", "ticketId", "updatedAt", "commit", "branch", "build", "tests", "activity"],
+  "required": [
+    "schemaVersion",
+    "ticketId",
+    "updatedAt",
+    "commit",
+    "branch",
+    "build",
+    "tests",
+    "activity"
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "ticketId": { "type": "string" },

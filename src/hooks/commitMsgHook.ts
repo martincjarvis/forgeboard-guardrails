@@ -10,7 +10,9 @@ export function runCommitMsgHook(cwd: string, messageFilePath: string): number {
   const message = readFileSync(messageFilePath, "utf8");
   const config = loadConfig(cwd);
   const branch = getCurrentBranch(cwd);
-  const ticketId = config.statusContract.enabled ? extractTicketId(branch, config.statusContract.ticketIdPattern) : null;
+  const ticketId = config.statusContract.enabled
+    ? extractTicketId(branch, config.statusContract.ticketIdPattern)
+    : null;
 
   try {
     checkConventionalCommit(message);
@@ -22,7 +24,7 @@ export function runCommitMsgHook(cwd: string, messageFilePath: string): number {
         type: "gate-run",
         hook: "commit-msg",
         result: "pass",
-        commit: "(pending)"
+        commit: "(pending)",
       });
     }
     return 0;
@@ -37,7 +39,7 @@ export function runCommitMsgHook(cwd: string, messageFilePath: string): number {
           type: "gate-run",
           hook: "commit-msg",
           result: "fail",
-          commit: "(pending)"
+          commit: "(pending)",
         });
       }
       return 1;

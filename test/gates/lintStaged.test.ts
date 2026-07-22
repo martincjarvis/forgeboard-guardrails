@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildLintStagedPlan, resolveFilesByRule, type LintRule } from "../../src/gates/lintStaged.ts";
+import {
+  buildLintStagedPlan,
+  resolveFilesByRule,
+  type LintRule,
+} from "../../src/gates/lintStaged.ts";
 import type { GuardrailsConfig } from "../../src/config/types.ts";
 
 const config: GuardrailsConfig = {
@@ -9,9 +13,12 @@ const config: GuardrailsConfig = {
   statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
   lintStaged: { "**/*.json": "prettier --write" },
   components: {
-    api: { paths: ["src/api/**"], lintStaged: { "*.cs": "dotnet format --include" } },
-    web: { paths: ["src/web/**"], lintStaged: { "**/*.json": "eslint --fix" } }
-  }
+    api: {
+      paths: ["src/api/**"],
+      lintStaged: { "*.cs": "dotnet format --include" },
+    },
+    web: { paths: ["src/web/**"], lintStaged: { "**/*.json": "eslint --fix" } },
+  },
 };
 
 test("top-level entries become path-agnostic rules", () => {
@@ -26,15 +33,15 @@ test("a changed component's entries are scoped to that component's paths", () =>
       (r) =>
         r.glob === "*.cs" &&
         r.command === "dotnet format --include" &&
-        JSON.stringify(r.paths) === JSON.stringify(["src/api/**"])
-    )
+        JSON.stringify(r.paths) === JSON.stringify(["src/api/**"]),
+    ),
   );
 });
 
 test("resolves a file to the component rule that overrides a same-glob top-level rule", () => {
   const rules: LintRule[] = [
     { glob: "**/*.json", command: "prettier --write" },
-    { glob: "**/*.json", command: "eslint --fix", paths: ["src/web/**"] }
+    { glob: "**/*.json", command: "eslint --fix", paths: ["src/web/**"] },
   ];
   const resolved = resolveFilesByRule(rules, ["src/web/a.json"]);
   assert.deepEqual(resolved.get(1), ["src/web/a.json"]);
@@ -44,7 +51,7 @@ test("resolves a file to the component rule that overrides a same-glob top-level
 test("leaves files outside the overriding component with the top-level rule", () => {
   const rules: LintRule[] = [
     { glob: "**/*.json", command: "prettier --write" },
-    { glob: "**/*.json", command: "eslint --fix", paths: ["src/web/**"] }
+    { glob: "**/*.json", command: "eslint --fix", paths: ["src/web/**"] },
   ];
   const resolved = resolveFilesByRule(rules, ["src/api/b.json"]);
   assert.deepEqual(resolved.get(0), ["src/api/b.json"]);
@@ -52,7 +59,9 @@ test("leaves files outside the overriding component with the top-level rule", ()
 });
 
 test("does not apply a component-scoped rule to files outside its paths", () => {
-  const rules: LintRule[] = [{ glob: "*.cs", command: "dotnet format", paths: ["src/api/**"] }];
+  const rules: LintRule[] = [
+    { glob: "*.cs", command: "dotnet format", paths: ["src/api/**"] },
+  ];
   const resolved = resolveFilesByRule(rules, ["src/web/x.cs"]);
   assert.equal(resolved.size, 0);
 });

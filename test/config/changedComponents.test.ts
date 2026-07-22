@@ -11,8 +11,8 @@ const config: GuardrailsConfig = {
     "shared-lib": { paths: ["src/shared/**"] },
     api: { paths: ["src/api/**"], dependsOn: ["shared-lib"] },
     web: { paths: ["src/web/**"], dependsOn: ["shared-lib"] },
-    infra: { paths: ["infra/**"] }
-  }
+    infra: { paths: ["infra/**"] },
+  },
 };
 
 test("matches components whose paths glob a staged file", () => {

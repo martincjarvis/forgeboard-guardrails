@@ -40,13 +40,18 @@ test("is idempotent: never overwrites an existing config", async () => {
   const custom = {
     appName: "custom-app",
     defaultBranch: "main",
-    components: { bespoke: { paths: ["src/bespoke/**"] } }
+    components: { bespoke: { paths: ["src/bespoke/**"] } },
   };
-  writeFileSync(join(dir, ".forgeboard", "guardrails.config.json"), JSON.stringify(custom));
+  writeFileSync(
+    join(dir, ".forgeboard", "guardrails.config.json"),
+    JSON.stringify(custom),
+  );
 
   await runInstall(dir);
 
-  const config = JSON.parse(readFileSync(join(dir, ".forgeboard", "guardrails.config.json"), "utf8"));
+  const config = JSON.parse(
+    readFileSync(join(dir, ".forgeboard", "guardrails.config.json"), "utf8"),
+  );
   assert.equal(config.appName, "custom-app");
   assert.deepEqual(Object.keys(config.components), ["bespoke"]);
 });

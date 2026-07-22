@@ -16,7 +16,9 @@ test("rejects a commit attempted on the default branch", async () => {
 
 test("accepts the same change on a feature branch", async () => {
   const fixture = scaffoldFixtureRepo({ statusContractEnabled: false });
-  execFileSync("git", ["checkout", "-b", "feature/FB-0001-x"], { cwd: fixture.dir });
+  execFileSync("git", ["checkout", "-b", "feature/FB-0001-x"], {
+    cwd: fixture.dir,
+  });
 
   const exitCode = await runPreCommitHook(fixture.dir);
 

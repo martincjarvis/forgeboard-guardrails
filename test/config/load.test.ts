@@ -7,7 +7,10 @@ import { loadConfig } from "../../src/config/load.ts";
 
 function writeConfig(dir: string, content: unknown) {
   mkdirSync(join(dir, ".forgeboard"), { recursive: true });
-  writeFileSync(join(dir, ".forgeboard", "guardrails.config.json"), JSON.stringify(content));
+  writeFileSync(
+    join(dir, ".forgeboard", "guardrails.config.json"),
+    JSON.stringify(content),
+  );
 }
 
 test("loadConfig fills in statusContract defaults when omitted", () => {
@@ -15,7 +18,7 @@ test("loadConfig fills in statusContract defaults when omitted", () => {
   writeConfig(dir, {
     appName: "acme",
     defaultBranch: "main",
-    components: { web: { paths: ["src/web/**"] } }
+    components: { web: { paths: ["src/web/**"] } },
   });
 
   const config = loadConfig(dir);

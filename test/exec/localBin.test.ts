@@ -9,5 +9,8 @@ test("runs a resolvable local binary and captures output", () => {
 });
 
 test("throws naming the binary when it cannot be resolved", () => {
-  assert.throws(() => runLocalBin("nonexistent-tool-xyz", [], process.cwd()), /nonexistent-tool-xyz/);
+  assert.throws(
+    () => runLocalBin("nonexistent-tool-xyz", [], process.cwd()),
+    /nonexistent-tool-xyz/,
+  );
 });

@@ -14,11 +14,20 @@ import { runExternalBin } from "../exec/runExternalBin.ts";
  */
 export const SEMGREP_RULESET = "p/default";
 
-export function runSast(files: string[], cwd: string): { pass: boolean; output: string } {
+export function runSast(
+  files: string[],
+  cwd: string,
+): { pass: boolean; output: string } {
   if (files.length === 0) return { pass: true, output: "" };
   return runExternalBin(
     "semgrep",
-    [`--config=${SEMGREP_RULESET}`, "--error", "--quiet", "--metrics=off", ...files],
-    cwd
+    [
+      `--config=${SEMGREP_RULESET}`,
+      "--error",
+      "--quiet",
+      "--metrics=off",
+      ...files,
+    ],
+    cwd,
   );
 }

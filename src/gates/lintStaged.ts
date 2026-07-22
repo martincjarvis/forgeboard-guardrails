@@ -16,7 +16,10 @@ export interface LintRule {
   paths?: string[];
 }
 
-export function buildLintStagedPlan(config: GuardrailsConfig, changedComponents: string[]): LintRule[] {
+export function buildLintStagedPlan(
+  config: GuardrailsConfig,
+  changedComponents: string[],
+): LintRule[] {
   const rules: LintRule[] = [];
 
   // Top-level entries first (app-wide, path-agnostic).
@@ -39,7 +42,9 @@ export function buildLintStagedPlan(config: GuardrailsConfig, changedComponents:
 
 function ruleMatches(rule: LintRule, file: string): boolean {
   const globMatch = minimatch(file, rule.glob, { matchBase: true });
-  const pathMatch = rule.paths ? rule.paths.some((p) => minimatch(file, p)) : true;
+  const pathMatch = rule.paths
+    ? rule.paths.some((p) => minimatch(file, p))
+    : true;
   return globMatch && pathMatch;
 }
 
@@ -49,7 +54,10 @@ function ruleMatches(rule: LintRule, file: string): boolean {
  * top-level rule for that component's files while files elsewhere still fall through
  * to the top-level rule.
  */
-export function resolveFilesByRule(rules: LintRule[], files: string[]): Map<number, string[]> {
+export function resolveFilesByRule(
+  rules: LintRule[],
+  files: string[],
+): Map<number, string[]> {
   const filesByRule = new Map<number, string[]>();
   for (const file of files) {
     let chosen = -1;

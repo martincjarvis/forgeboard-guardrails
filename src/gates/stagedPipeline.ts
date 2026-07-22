@@ -2,7 +2,10 @@ import lintStaged from "lint-staged";
 import { runFileGates } from "./fileGates.ts";
 import { buildLintStagedPlan, resolveFilesByRule } from "./lintStaged.ts";
 import { runCommandSequence } from "../exec/commandRunner.ts";
-import { runComponentGates, type ComponentGateResult } from "./componentCommands.ts";
+import {
+  runComponentGates,
+  type ComponentGateResult,
+} from "./componentCommands.ts";
 import { runRepoLevelTests } from "./repoLevelTests.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
@@ -36,7 +39,7 @@ export function quotePaths(files: string[]): string {
 export function buildUserRuleCommands(
   config: GuardrailsConfig,
   changedComponents: string[],
-  files: string[]
+  files: string[],
 ): string[] {
   const rules = buildLintStagedPlan(config, changedComponents);
   const filesByRule = resolveFilesByRule(rules, files);
@@ -45,7 +48,9 @@ export function buildUserRuleCommands(
   for (let i = 0; i < rules.length; i++) {
     const ruleFiles = filesByRule.get(i);
     if (!ruleFiles || ruleFiles.length === 0) continue;
-    const list = Array.isArray(rules[i].command) ? (rules[i].command as string[]) : [rules[i].command as string];
+    const list = Array.isArray(rules[i].command)
+      ? (rules[i].command as string[])
+      : [rules[i].command as string];
     for (const command of list) {
       commands.push(`${command} ${quotePaths(ruleFiles)}`);
     }
@@ -69,7 +74,10 @@ export function buildUserRuleCommands(
  * content. Tradeoff accepted in ADR-0012: that widens the window in which a hard kill
  * could leave changes in a stash entry recoverable with `git stash list`.
  */
-export async function runStagedPipeline(ctx: PipelineContext, cwd: string): Promise<PipelineResult> {
+export async function runStagedPipeline(
+  ctx: PipelineContext,
+  cwd: string,
+): Promise<PipelineResult> {
   let componentResults: ComponentGateResult[] = [];
 
   const passed = await lintStaged({
@@ -93,43 +101,66 @@ export async function runStagedPipeline(ctx: PipelineContext, cwd: string): Prom
             if (error instanceof GateFailure) console.error(error.message);
             throw error;
           }
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
   return { passed, componentResults };
 }
 
-function runUserRules(ctx: PipelineContext, files: string[], cwd: string): void {
-  for (const command of buildUserRuleCommands(ctx.config, ctx.changedComponents, files)) {
+function runUserRules(
+  ctx: PipelineContext,
+  files: string[],
+  cwd: string,
+): void {
+  for (const command of buildUserRuleCommands(
+    ctx.config,
+    ctx.changedComponents,
+    files,
+  )) {
     const result = runCommandSequence(command, cwd);
     if (!result.pass) {
-      throw new GateFailure("lint-staged", "fix the reported issue and re-commit.", result.steps.at(-1)?.output ?? "");
+      throw new GateFailure(
+        "lint-staged",
+        "fix the reported issue and re-commit.",
+        result.steps.at(-1)?.output ?? "",
+      );
     }
   }
 }
 
-function runComponentAndRepoGates(ctx: PipelineContext, cwd: string): ComponentGateResult[] {
+function runComponentAndRepoGates(
+  ctx: PipelineContext,
+  cwd: string,
+): ComponentGateResult[] {
   const components = runComponentGates(ctx.config, ctx.changedComponents, cwd);
 
   for (const result of components) {
     if (!result.build.pass) {
-      throw new GateFailure(`${result.component}.build`, "fix the build error and re-commit.", "build failed");
+      throw new GateFailure(
+        `${result.component}.build`,
+        "fix the build error and re-commit.",
+        "build failed",
+      );
     }
     if (!result.unitTest.pass) {
       const failedStep = result.unitTest.steps.at(-1);
       throw new GateFailure(
         `${result.component}.unitTest`,
         "fix the failing step and re-commit.",
-        `step ${(failedStep?.index ?? 0) + 1}/${failedStep?.total ?? 1} failed: "${failedStep?.command}"`
+        `step ${(failedStep?.index ?? 0) + 1}/${failedStep?.total ?? 1} failed: "${failedStep?.command}"`,
       );
     }
   }
 
   for (const result of runRepoLevelTests(ctx.config, cwd)) {
     if (!result.pass) {
-      throw new GateFailure("repo-level-test", "fix the failing repo-level check and re-commit.", "repo-level test failed");
+      throw new GateFailure(
+        "repo-level-test",
+        "fix the failing repo-level check and re-commit.",
+        "repo-level test failed",
+      );
     }
   }
 

@@ -13,7 +13,7 @@ component's `paths` when it's just more source for the same lifecycle.
 
 ## dependsOn
 
-Use `dependsOn` when a component's breakage could come from a *different*
+Use `dependsOn` when a component's breakage could come from a _different_
 component's change — typically a shared library. Declare it on the dependent:
 `"web": { "dependsOn": ["shared-lib"] }`. This is gating-only: a `shared-lib`
 change triggers `web`'s build/test gates even with no files of its own staged.
@@ -77,7 +77,7 @@ into `@forgeboard/guardrails` itself and require no separate installation.
 
 ## Adopting into an existing repo
 
-Run `guardrails format` once and commit the result *before* your next real
+Run `guardrails format` once and commit the result _before_ your next real
 commit — otherwise the universal prettier gate will reformat old files the
 first time anyone touches them, burying real changes in reflow noise. The
 default-branch-block gate is an immediate behaviour change if the repo

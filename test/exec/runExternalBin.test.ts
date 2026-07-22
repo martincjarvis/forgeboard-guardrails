@@ -9,7 +9,12 @@ test("throws a named 'not found' error when the external binary is absent (all p
   // with empty output instead. A missing tool must always be an unambiguous, named
   // failure — never confused with "the tool ran and found an issue".
   assert.throws(
-    () => runExternalBin("forgeboard-definitely-absent-bin", ["--version"], process.cwd()),
-    /forgeboard-definitely-absent-bin.*was not found/s
+    () =>
+      runExternalBin(
+        "forgeboard-definitely-absent-bin",
+        ["--version"],
+        process.cwd(),
+      ),
+    /forgeboard-definitely-absent-bin.*was not found/s,
   );
 });

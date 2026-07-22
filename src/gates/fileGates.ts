@@ -14,7 +14,10 @@ import { GateFailure } from "../errors/GateFailure.ts";
  * rejection — lint-staged turns a rejected task into a failed run, which the hook
  * reports as a blocked commit.
  */
-export async function runFileGates(files: string[], cwd: string): Promise<void> {
+export async function runFileGates(
+  files: string[],
+  cwd: string,
+): Promise<void> {
   if (files.length === 0) return;
   const markdownFiles = files.filter((f) => f.endsWith(".md"));
 
@@ -34,16 +37,26 @@ export async function runFileGates(files: string[], cwd: string): Promise<void> 
  * message and a blocked commit instead of an unhandled crash. `runSast` keeps its
  * throw contract for its own unit test.
  */
-function runSastGate(files: string[], cwd: string): { pass: boolean; output: string } {
+function runSastGate(
+  files: string[],
+  cwd: string,
+): { pass: boolean; output: string } {
   try {
     return runSast(files, cwd);
   } catch (error) {
-    return { pass: false, output: error instanceof Error ? error.message : String(error) };
+    return {
+      pass: false,
+      output: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
 function failIf(result: { pass: boolean; output: string }, gate: string): void {
   if (!result.pass) {
-    throw new GateFailure(gate, "fix the reported issue and re-commit.", result.output);
+    throw new GateFailure(
+      gate,
+      "fix the reported issue and re-commit.",
+      result.output,
+    );
   }
 }

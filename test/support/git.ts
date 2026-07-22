@@ -13,12 +13,18 @@ export function commitStaged(dir: string, message: string): void {
 
 /** Contents of a path in the index — what a commit right now would record. */
 export function readStagedFile(dir: string, path: string): string {
-  return execFileSync("git", ["show", `:${path}`], { cwd: dir, encoding: "utf8" });
+  return execFileSync("git", ["show", `:${path}`], {
+    cwd: dir,
+    encoding: "utf8",
+  });
 }
 
 /** Contents of a path in HEAD — what was actually committed. */
 export function readCommittedFile(dir: string, path: string): string {
-  return execFileSync("git", ["show", `HEAD:${path}`], { cwd: dir, encoding: "utf8" });
+  return execFileSync("git", ["show", `HEAD:${path}`], {
+    cwd: dir,
+    encoding: "utf8",
+  });
 }
 
 /**
@@ -29,8 +35,12 @@ export function readCommittedFile(dir: string, path: string): string {
  * signal — `--untracked-files=no` keeps the assertion about what the gates did.
  */
 export function trackedStatus(dir: string): string {
-  return execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
-    cwd: dir,
-    encoding: "utf8"
-  }).trim();
+  return execFileSync(
+    "git",
+    ["status", "--porcelain", "--untracked-files=no"],
+    {
+      cwd: dir,
+      encoding: "utf8",
+    },
+  ).trim();
 }

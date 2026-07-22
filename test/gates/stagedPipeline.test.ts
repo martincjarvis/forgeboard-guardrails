@@ -8,20 +8,31 @@ const config = {
   defaultBranch: "main",
   statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
   lintStaged: { "*.js": "eslint --fix" },
-  components: { api: { paths: ["src/api/**"] } }
+  components: { api: { paths: ["src/api/**"] } },
 } as unknown as GuardrailsConfig;
 
 test("builds a command per matching rule, scoped to the files that rule owns", () => {
-  const commands = buildUserRuleCommands(config, ["api"], ["src/api/a.js", "docs/b.md"]);
+  const commands = buildUserRuleCommands(
+    config,
+    ["api"],
+    ["src/api/a.js", "docs/b.md"],
+  );
 
   assert.equal(commands.length, 1);
   assert.match(commands[0], /^eslint --fix /);
   assert.match(commands[0], /"src\/api\/a\.js"/);
-  assert.ok(!commands[0].includes("b.md"), "a .md file must not be handed to a *.js rule");
+  assert.ok(
+    !commands[0].includes("b.md"),
+    "a .md file must not be handed to a *.js rule",
+  );
 });
 
 test("quotes every path so filenames containing spaces survive shell parsing", () => {
-  const commands = buildUserRuleCommands(config, ["api"], ["src/api/my file.js"]);
+  const commands = buildUserRuleCommands(
+    config,
+    ["api"],
+    ["src/api/my file.js"],
+  );
 
   assert.match(commands[0], /"src\/api\/my file\.js"/);
 });

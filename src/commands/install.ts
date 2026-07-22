@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync, copyFileSync, cpSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  appendFileSync,
+  copyFileSync,
+  cpSync,
+} from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_PRETTIER_IGNORE } from "../install/defaultPrettierIgnore.ts";
@@ -30,22 +38,34 @@ const STARTER_CONFIG = {
   defaultBranch: "main",
   statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
   components: {
-    example: { paths: ["src/**"] }
-  }
+    example: { paths: ["src/**"] },
+  },
 };
 
 export async function runInstall(cwd: string): Promise<void> {
-  writeIfAbsent(join(cwd, ".forgeboard", "guardrails.config.json"), JSON.stringify(STARTER_CONFIG, null, 2), true);
+  writeIfAbsent(
+    join(cwd, ".forgeboard", "guardrails.config.json"),
+    JSON.stringify(STARTER_CONFIG, null, 2),
+    true,
+  );
   writeIfAbsent(join(cwd, ".editorconfig"), DEFAULT_EDITORCONFIG);
   writeIfAbsent(join(cwd, ".gitattributes"), DEFAULT_GITATTRIBUTES);
   writeIfAbsent(join(cwd, ".prettierignore"), DEFAULT_PRETTIER_IGNORE);
-  writeIfAbsent(join(cwd, ".secretlintrc.json"), readFileSync(join(packageRoot, ".secretlintrc.json"), "utf8"));
-  writeIfAbsent(join(cwd, "cspell.json"), readFileSync(join(packageRoot, "cspell.json"), "utf8"));
+  writeIfAbsent(
+    join(cwd, ".secretlintrc.json"),
+    readFileSync(join(packageRoot, ".secretlintrc.json"), "utf8"),
+  );
+  writeIfAbsent(
+    join(cwd, "cspell.json"),
+    readFileSync(join(packageRoot, "cspell.json"), "utf8"),
+  );
 
   const skillTarget = join(cwd, ".claude", "skills", "guardrails-config");
   if (!existsSync(skillTarget)) {
     mkdirSync(dirname(skillTarget), { recursive: true });
-    cpSync(join(packageRoot, "skills", "guardrails-config"), skillTarget, { recursive: true });
+    cpSync(join(packageRoot, "skills", "guardrails-config"), skillTarget, {
+      recursive: true,
+    });
   }
 
   ensureGitignoreEntry(cwd, ".forgeboard/state/");
@@ -58,12 +78,16 @@ export async function runInstall(cwd: string): Promise<void> {
   }
   console.log(
     "guardrails installed. If this is an existing repo (not a fresh bootstrap), run `guardrails format` " +
-    "once and commit the result before your next real commit — otherwise the universal formatter will " +
-    "reformat old files the first time you touch them, burying real changes in reflow noise."
+      "once and commit the result before your next real commit — otherwise the universal formatter will " +
+      "reformat old files the first time you touch them, burying real changes in reflow noise.",
   );
 }
 
-function writeIfAbsent(path: string, content: string, ensureParentDir = false): void {
+function writeIfAbsent(
+  path: string,
+  content: string,
+  ensureParentDir = false,
+): void {
   if (existsSync(path)) return;
   if (ensureParentDir) mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content);
@@ -73,7 +97,10 @@ function ensureGitignoreEntry(cwd: string, entry: string): void {
   const path = join(cwd, ".gitignore");
   const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
   if (existing.includes(entry)) return;
-  appendFileSync(path, (existing.endsWith("\n") || existing === "" ? "" : "\n") + entry + "\n");
+  appendFileSync(
+    path,
+    (existing.endsWith("\n") || existing === "" ? "" : "\n") + entry + "\n",
+  );
 }
 
 function writeHookShims(cwd: string): void {
@@ -85,11 +112,11 @@ function writeHookShims(cwd: string): void {
   writeFileSync(
     join(hooksDir, "commit-msg"),
     `#!/bin/sh\nnpx tsx "${cliPath}" run commit-msg "$1"\n`,
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
   writeFileSync(
     join(hooksDir, "pre-commit"),
     `#!/bin/sh\nnpx tsx "${cliPath}" run pre-commit\n`,
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
 }

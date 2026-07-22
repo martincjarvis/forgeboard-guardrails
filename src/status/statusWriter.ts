@@ -14,8 +14,17 @@ export interface StatusSnapshot {
   updatedAt: string;
   commit: string;
   branch: string;
-  build: { status: "pass" | "fail" | "unknown"; warnings: number; errors: number };
-  tests: { unit: TestOutcome; integration: TestOutcome; e2e: TestOutcome; e2eSmoke: TestOutcome };
+  build: {
+    status: "pass" | "fail" | "unknown";
+    warnings: number;
+    errors: number;
+  };
+  tests: {
+    unit: TestOutcome;
+    integration: TestOutcome;
+    e2e: TestOutcome;
+    e2eSmoke: TestOutcome;
+  };
   activity: null;
 }
 

@@ -16,9 +16,13 @@ import { execFileSync } from "node:child_process";
  * usable filename.
  */
 export function getStagedPaths(cwd: string): string[] {
-  const output = execFileSync("git", ["diff", "--cached", "--name-only", "-z"], {
-    cwd,
-    encoding: "utf8"
-  });
+  const output = execFileSync(
+    "git",
+    ["diff", "--cached", "--name-only", "-z"],
+    {
+      cwd,
+      encoding: "utf8",
+    },
+  );
   return output.split("\0").filter(Boolean);
 }

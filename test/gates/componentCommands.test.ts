@@ -10,14 +10,14 @@ const config: GuardrailsConfig = {
   components: {
     api: {
       paths: ["src/api/**"],
-      build: "node -e \"process.exit(0)\"",
-      unitTest: "node -e \"process.exit(0)\""
+      build: 'node -e "process.exit(0)"',
+      unitTest: 'node -e "process.exit(0)"',
     },
     web: {
       paths: ["src/web/**"],
-      build: "node -e \"process.exit(1)\""
-    }
-  }
+      build: 'node -e "process.exit(1)"',
+    },
+  },
 };
 
 test("runs build and unitTest for each changed component", () => {

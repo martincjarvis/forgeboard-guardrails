@@ -8,8 +8,8 @@ test("runs every repo-block command regardless of which component changed", () =
     appName: "acme",
     defaultBranch: "main",
     statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
-    repo: { architectureTest: "node -e \"process.exit(0)\"" },
-    components: {}
+    repo: { architectureTest: 'node -e "process.exit(0)"' },
+    components: {},
   };
 
   const results = runRepoLevelTests(config, process.cwd());
@@ -22,7 +22,7 @@ test("returns an empty array when no repo block is configured", () => {
     appName: "acme",
     defaultBranch: "main",
     statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
-    components: {}
+    components: {},
   };
 
   assert.deepEqual(runRepoLevelTests(config, process.cwd()), []);

@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
-import { writeStatus, type StatusSnapshot } from "../../src/status/statusWriter.ts";
+import {
+  writeStatus,
+  type StatusSnapshot,
+} from "../../src/status/statusWriter.ts";
 import schema from "../../schemas/status.v1.json" with { type: "json" };
 
 test("writes status.json that validates against the published schema", () => {
@@ -21,14 +24,19 @@ test("writes status.json that validates against the published schema", () => {
       unit: { status: "pass", passed: 42, failed: 0, total: 42 },
       integration: { status: "unknown" },
       e2e: { status: "unknown" },
-      e2eSmoke: { status: "unknown" }
+      e2eSmoke: { status: "unknown" },
     },
-    activity: null
+    activity: null,
   };
 
   writeStatus(dir, snapshot);
 
-  const written = JSON.parse(readFileSync(join(dir, ".forgeboard", "state", "FB-0012", "status.json"), "utf8"));
+  const written = JSON.parse(
+    readFileSync(
+      join(dir, ".forgeboard", "state", "FB-0012", "status.json"),
+      "utf8",
+    ),
+  );
   const ajv = new Ajv();
   addFormats(ajv);
   const validate = ajv.compile(schema);

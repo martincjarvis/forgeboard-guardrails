@@ -14,7 +14,9 @@ export interface ReleaseConfig {
   plugins: unknown[];
 }
 
-export function generateReleaseConfigs(config: GuardrailsConfig): Record<string, ReleaseConfig> {
+export function generateReleaseConfigs(
+  config: GuardrailsConfig,
+): Record<string, ReleaseConfig> {
   const configs: Record<string, ReleaseConfig> = {};
 
   for (const [name, component] of Object.entries(config.components)) {
@@ -22,7 +24,7 @@ export function generateReleaseConfigs(config: GuardrailsConfig): Record<string,
       tagFormat: `${config.appName}-${name}@\${version}`,
       branches: [
         config.defaultBranch,
-        { name: "feature/*", prerelease: "beta" }
+        { name: "feature/*", prerelease: "beta" },
       ],
       plugins: [
         ["@semantic-release/commit-analyzer", { releaseRules: [] }],
@@ -30,10 +32,10 @@ export function generateReleaseConfigs(config: GuardrailsConfig): Record<string,
         [
           "@semantic-release/git",
           {
-            assets: [] // component's own paths are scoped via monorepo-plugin config at execution time
-          }
-        ]
-      ]
+            assets: [], // component's own paths are scoped via monorepo-plugin config at execution time
+          },
+        ],
+      ],
     };
     // component.paths informs the monorepo-scoping plugin's include list at execution time —
     // recorded here so the generator stays the single source of truth for per-component config.
@@ -56,7 +58,7 @@ export interface DryRunResult {
 export async function runSemanticReleaseDryRun(
   cwd: string,
   releaseConfig: ReleaseConfig,
-  _branch = "main"
+  _branch = "main",
 ): Promise<DryRunResult> {
   // Write a per-call .releaserc so the CLI picks up tagFormat/branches/plugins exactly.
   const rcPath = join(cwd, ".releaserc.json");
@@ -71,15 +73,20 @@ export async function runSemanticReleaseDryRun(
         plugins: releaseConfig.plugins.filter((p) => {
           const name = Array.isArray(p) ? p[0] : p;
           return name !== "@semantic-release/git";
-        })
+        }),
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 
   const ext = process.platform === "win32" ? ".cmd" : "";
-  const bin = join(packageRoot, "node_modules", ".bin", `semantic-release${ext}`);
+  const bin = join(
+    packageRoot,
+    "node_modules",
+    ".bin",
+    `semantic-release${ext}`,
+  );
 
   let stdout = "";
   let exitCode = 0;
@@ -99,9 +106,9 @@ export async function runSemanticReleaseDryRun(
           GIT_AUTHOR_NAME: "fixture",
           GIT_AUTHOR_EMAIL: "fixture@example.com",
           GIT_COMMITTER_NAME: "fixture",
-          GIT_COMMITTER_EMAIL: "fixture@example.com"
-        }
-      }
+          GIT_COMMITTER_EMAIL: "fixture@example.com",
+        },
+      },
     );
   } catch (error: unknown) {
     // semantic-release exits non-zero both on real errors and on "no release needed".

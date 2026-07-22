@@ -9,16 +9,23 @@ export interface FixtureRepo {
   cleanup: () => void;
 }
 
-export function scaffoldFixtureRepo(options: { statusContractEnabled: boolean }): FixtureRepo {
+export function scaffoldFixtureRepo(options: {
+  statusContractEnabled: boolean;
+}): FixtureRepo {
   const dir = mkdtempSync(join(tmpdir(), "gr-fixture-"));
 
   execFileSync("git", ["init", "-b", "main"], { cwd: dir });
-  execFileSync("git", ["config", "user.email", "fixture@example.com"], { cwd: dir });
+  execFileSync("git", ["config", "user.email", "fixture@example.com"], {
+    cwd: dir,
+  });
   execFileSync("git", ["config", "user.name", "Fixture"], { cwd: dir });
 
   for (const name of ["shared", "api", "web"]) {
     mkdirSync(join(dir, "src", name), { recursive: true });
-    writeFileSync(join(dir, "src", name, "index.js"), `console.log("${name}");\n`);
+    writeFileSync(
+      join(dir, "src", name, "index.js"),
+      `console.log("${name}");\n`,
+    );
   }
 
   mkdirSync(join(dir, "tests"), { recursive: true });
@@ -31,41 +38,46 @@ export function scaffoldFixtureRepo(options: { statusContractEnabled: boolean })
       {
         appName: "fixture",
         defaultBranch: "main",
-        statusContract: { enabled: options.statusContractEnabled, ticketIdPattern: "[A-Z]+-\\d+" },
+        statusContract: {
+          enabled: options.statusContractEnabled,
+          ticketIdPattern: "[A-Z]+-\\d+",
+        },
         repo: { architectureTest: "node tests/architecture.js" },
         components: {
           "shared-lib": {
             paths: ["src/shared/**"],
-            build: "node -e \"process.exit(0)\"",
-            unitTest: "node -e \"process.exit(0)\""
+            build: 'node -e "process.exit(0)"',
+            unitTest: 'node -e "process.exit(0)"',
           },
           api: {
             paths: ["src/api/**"],
-            build: "node -e \"process.exit(0)\"",
-            unitTest: "node -e \"process.exit(0)\""
+            build: 'node -e "process.exit(0)"',
+            unitTest: 'node -e "process.exit(0)"',
           },
           web: {
             paths: ["src/web/**"],
             dependsOn: ["shared-lib"],
-            build: "node -e \"process.exit(0)\"",
-            unitTest: "node -e \"process.exit(0)\""
-          }
-        }
+            build: 'node -e "process.exit(0)"',
+            unitTest: 'node -e "process.exit(0)"',
+          },
+        },
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 
   // Bootstrap commit BEFORE installing hooks — otherwise the just-installed
   // default-branch-block gate would reject this scaffold commit on main.
   execFileSync("git", ["add", "."], { cwd: dir });
-  execFileSync("git", ["commit", "-m", "chore: scaffold fixture repo"], { cwd: dir });
+  execFileSync("git", ["commit", "-m", "chore: scaffold fixture repo"], {
+    cwd: dir,
+  });
 
   runInstall(dir);
 
   return {
     dir,
-    cleanup: () => rmSync(dir, { recursive: true, force: true })
+    cleanup: () => rmSync(dir, { recursive: true, force: true }),
   };
 }

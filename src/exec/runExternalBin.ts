@@ -12,7 +12,11 @@ import { execFileSync } from "node:child_process";
  * Throws on absence — the doctor preflight is the user-facing early warning;
  * this is the authoritative gate-time check.
  */
-export function runExternalBin(binName: string, args: string[], cwd: string): { pass: boolean; output: string } {
+export function runExternalBin(
+  binName: string,
+  args: string[],
+  cwd: string,
+): { pass: boolean; output: string } {
   try {
     // shell:false is deliberate and load-bearing. With shell:true on Windows a
     // missing binary is resolved by cmd.exe, which reports "is not recognized ..."
@@ -30,17 +34,23 @@ export function runExternalBin(binName: string, args: string[], cwd: string): { 
     return { pass: true, output };
   } catch (error: unknown) {
     // ENOENT — binary not on PATH. Surface a clear, named failure.
-    if (error instanceof Error && "code" in error && (error as { code?: string }).code === "ENOENT") {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code?: string }).code === "ENOENT"
+    ) {
       throw new Error(
         `Required tool "${binName}" was not found on PATH — install it before re-running. ` +
           (binName === "semgrep"
             ? 'semgrep is OSS (MPL-2.0) but Python-distributed: "pip install semgrep" (Python 3 LTS required).'
-            : "")
+            : ""),
       );
     }
     // Non-zero exit — the tool ran and reported findings. Capture output.
     const output =
-      error instanceof Error && "stdout" in error ? String((error as { stdout?: unknown }).stdout ?? "") : "";
+      error instanceof Error && "stdout" in error
+        ? String((error as { stdout?: unknown }).stdout ?? "")
+        : "";
     return { pass: false, output };
   }
 }

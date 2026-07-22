@@ -5,9 +5,15 @@ export interface ParsedCounts {
 }
 
 export function parseTestOutput(output: string): ParsedCounts | null {
-  const dotnetMatch = output.match(/Failed:\s*(\d+),\s*Passed:\s*(\d+),\s*Skipped:\s*\d+,\s*Total:\s*(\d+)/);
+  const dotnetMatch = output.match(
+    /Failed:\s*(\d+),\s*Passed:\s*(\d+),\s*Skipped:\s*\d+,\s*Total:\s*(\d+)/,
+  );
   if (dotnetMatch) {
-    return { failed: Number(dotnetMatch[1]), passed: Number(dotnetMatch[2]), total: Number(dotnetMatch[3]) };
+    return {
+      failed: Number(dotnetMatch[1]),
+      passed: Number(dotnetMatch[2]),
+      total: Number(dotnetMatch[3]),
+    };
   }
 
   const mochaPassing = output.match(/(\d+)\s+passing/);
