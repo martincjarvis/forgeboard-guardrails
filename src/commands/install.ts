@@ -7,7 +7,7 @@ import {
   copyFileSync,
   cpSync,
 } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_PRETTIER_IGNORE } from "../install/defaultPrettierIgnore.ts";
 import { runDoctorCheck } from "./doctor.ts";
@@ -60,8 +60,13 @@ export async function runInstall(cwd: string): Promise<void> {
     readFileSync(join(packageRoot, "cspell.json"), "utf8"),
   );
 
+  // Installing into the toolkit's own repo would create a second copy of
+  // skills/guardrails-config/SKILL.md in the same tree, free to drift from the
+  // original. The repo carries .claude-plugin/plugin.json instead, so the canonical
+  // skills/ directory is loadable directly with `claude --plugin-dir .`.
+  const isSelfInstall = resolve(cwd) === resolve(packageRoot);
   const skillTarget = join(cwd, ".claude", "skills", "guardrails-config");
-  if (!existsSync(skillTarget)) {
+  if (!isSelfInstall && !existsSync(skillTarget)) {
     mkdirSync(dirname(skillTarget), { recursive: true });
     cpSync(join(packageRoot, "skills", "guardrails-config"), skillTarget, {
       recursive: true,

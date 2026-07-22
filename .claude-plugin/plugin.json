@@ -1,0 +1,8 @@
+{
+  "name": "forgeboard-guardrails",
+  "description": "Delivery guardrails toolkit: conventional commits, staged-content gates, and the status/event contract.",
+  "version": "0.0.0",
+  "author": {
+    "name": "ForgeBoard"
+  }
+}

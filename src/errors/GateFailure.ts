@@ -4,7 +4,10 @@ export class GateFailure extends Error {
     public remediation: string,
     public detail?: string,
   ) {
-    super(`[${gate}] ${detail ?? ""} ${remediation}`.trim());
+    // Detail and remediation are separate sentences: detail states what is wrong,
+    // remediation what to do. Joined by a space they read as one run-on sentence,
+    // which is the first thing a developer sees when a commit is blocked.
+    super(`[${gate}] ${detail ? `${detail} — ${remediation}` : remediation}`);
     this.name = "GateFailure";
   }
 }

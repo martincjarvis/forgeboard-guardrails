@@ -20,3 +20,17 @@ test("install copies the guardrails-config skill and adds a $schema pointer", as
   );
   assert.match(config.$schema, /guardrails\.config\.schema\.json/);
 });
+
+test("does not copy the skill into the toolkit's own repo", async () => {
+  // packageRoot is the repo root when the suite runs, so installing into cwd is the
+  // self-install case: the canonical skills/ directory is already right there.
+  const packageRoot = process.cwd();
+
+  await runInstall(packageRoot);
+
+  assert.equal(
+    existsSync(join(packageRoot, ".claude", "skills", "guardrails-config")),
+    false,
+    "self-install must not duplicate the skill it already owns",
+  );
+});
