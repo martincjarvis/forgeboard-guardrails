@@ -1,0 +1,12 @@
+{
+  "$schema": "../schemas/guardrails.config.schema.json",
+  "appName": "forgeboard-guardrails",
+  "defaultBranch": "main",
+  "statusContract": { "enabled": false },
+  "components": {
+    "toolkit": {
+      "paths": ["src/**", "schemas/**", "skills/**"],
+      "unitTest": "npm test"
+    }
+  }
+}

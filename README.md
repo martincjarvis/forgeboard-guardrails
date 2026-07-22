@@ -38,6 +38,12 @@ installable package is an A2 deliverable.
   `npm`, `az`, `azd`) — these are whatever your consuming repo's own stack
   requires; the toolkit never auto-installs them.
 
+> **Contributing to this repo:** forgeboard-guardrails dogfoods its own
+> tooling — run `npx tsx src/cli.ts install` after clone to install the
+> hooks locally (they live in `.git/hooks/`, which is not committed). Every
+> commit here runs the full gate suite, so `semgrep` (above) is mandatory:
+> without it the SAST gate blocks every commit by design.
+
 ## Install (from source, A1)
 
 From the consuming repo's root:
@@ -64,12 +70,12 @@ cd forgeboard-guardrails
 npm install
 pip install semgrep       # required for the SAST tests; see Prerequisites
 npm test                  # full unit + scenario suite (74 tests)
-npm run test:harness      # the fixture-repo scenario matrix only (A1's single AC-verification script)
+npm run test:harness      # the fixture-repo scenario matrix (A1 AC check)
 ```
 
 ## Repository layout
 
-```
+```text
 src/
   cli.ts                          argv parsing, dispatches to commands
   commands/                       install, format, run, doctor
@@ -82,7 +88,7 @@ src/
                                   componentCommands, repoLevelTests
   status/                         ticketId, testOutputParsers, statusWriter, eventsWriter
   hooks/                          commitMsgHook, preCommitHook
-  versioning/                     releaseConfig (per-component semantic-release configs)
+  versioning/                     releaseConfig (semantic-release configs)
   install/                        defaultPrettierIgnore
 schemas/
   guardrails.config.schema.json   the consuming-repo config schema
