@@ -24,7 +24,10 @@ export interface CommandSequenceResult {
  * there is no privilege boundary crossed here. Do not "harden" this into an argv-array
  * exec: that would break the documented command-sequence feature.
  */
-export function runCommandSequence(commands: string | string[] | undefined, cwd: string): CommandSequenceResult {
+export function runCommandSequence(
+  commands: string | string[] | undefined,
+  cwd: string,
+): CommandSequenceResult {
   if (commands === undefined) {
     return { pass: true, steps: [] };
   }
@@ -35,10 +38,22 @@ export function runCommandSequence(commands: string | string[] | undefined, cwd:
   for (let index = 0; index < list.length; index++) {
     const command = list[index];
     try {
-      const output = execSync(command, { cwd, encoding: "utf8", stdio: "pipe" });
+      // Accepted risk, boundary documented in this file's header: command strings are
+      // repo-author configuration, and anyone who can edit guardrails.config.json
+      // already controls the repo. Hardening this to an argv array would break the
+      // command-sequence feature the toolkit exists to provide.
+      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
+      const output = execSync(command, {
+        cwd,
+        encoding: "utf8",
+        stdio: "pipe",
+      });
       steps.push({ command, index, total: list.length, pass: true, output });
     } catch (error: unknown) {
-      const output = error instanceof Error && "stdout" in error ? String((error as { stdout?: unknown }).stdout ?? "") : "";
+      const output =
+        error instanceof Error && "stdout" in error
+          ? String((error as { stdout?: unknown }).stdout ?? "")
+          : "";
       steps.push({ command, index, total: list.length, pass: false, output });
       return { pass: false, steps };
     }

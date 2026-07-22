@@ -4,9 +4,11 @@
   "dictionaries": ["typescript", "node", "npm", "software-terms"],
   "words": [
     "ACMR",
+    "allerrors",
     "behaviour",
     "forgeBoard",
     "guardrails",
+    "nosemgrep",
     "POSIX",
     "releaserc",
     "semgrep",
