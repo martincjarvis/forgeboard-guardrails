@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, copyFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import { runSecretScan } from "../../src/gates/secretScan.ts";
 
@@ -40,4 +40,24 @@ test("fails on a planted private key block", () => {
 
   const result = runSecretScan(["config.ts"], dir);
   assert.equal(result.pass, false);
+});
+
+test("rejects content containing the author's own home directory path", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gr-homedir-"));
+  copyFileSync(
+    join(process.cwd(), ".secretlintrc.json"),
+    join(dir, ".secretlintrc.json"),
+  );
+  // Built from os.homedir() so the test asserts the real behaviour on whatever
+  // machine runs it, rather than hard-coding a path (which would itself be the
+  // leak this gate exists to prevent).
+  writeFileSync(
+    join(dir, "notes.md"),
+    `Plan step: cd ${join(homedir(), "Projects", "example")}\n`,
+  );
+
+  const result = runSecretScan(["notes.md"], dir);
+
+  assert.equal(result.pass, false);
+  assert.match(result.output, /homedir/i);
 });
