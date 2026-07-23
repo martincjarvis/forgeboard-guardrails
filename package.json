@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@secretlint/secretlint-rule-no-homedir": "^13.0.4",
+    "@secretlint/secretlint-rule-pattern": "^13.0.4",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "ajv-formats": "^3.0.1",
     "cspell": "^10.0.1",

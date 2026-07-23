@@ -61,3 +61,58 @@ test("rejects content containing the author's own home directory path", () => {
   assert.equal(result.pass, false);
   assert.match(result.output, /homedir/i);
 });
+
+// cspell:ignore carol
+// Local machine paths leak the OS username and host layout into committed files
+// and are treated like PII. `secretlint-rule-no-homedir` only matches the
+// scanning machine's own os.homedir() (backslash form on Windows); the generic
+// pattern rule closes the forward-slash (git-bash / WSL) and any-other-user
+// gaps. The path literals below are assembled at runtime from `BS` / `U` / `H`
+// so this test file does not itself contain contiguous path forms — otherwise
+// the dogfood secretlint gate would block the very commit that adds the rule.
+const BS = "\\";
+const U = "Users";
+const H = "home";
+const LOCAL_PATH_MUST_CATCH: Array<[string, string]> = [
+  [`Deploy to C:${BS}${U}${BS}bob${BS}app`, "windows backslash"],
+  [`see /c/${U}/bob/app`, "git-bash forward-slash"],
+  [`logs in /${H}/alice/app`, "linux home"],
+  [`mac path /${U}/carol/app`, "macos home"],
+];
+const LOCAL_PATH_MUST_NOT_FLAG: Array<[string, string]> = [
+  // Documentation placeholders: the user segment begins with "<", which the
+  // pattern's character class deliberately excludes.
+  [
+    `Paths like C:${BS}${U}${BS}<name>${BS}... leak the username.`,
+    "windows placeholder",
+  ],
+  [`The /${H}/<user>/ convention.`, "linux placeholder"],
+  [`Use <guardrails-repo> as a placeholder.`, "bracketed placeholder"],
+  // Prose mentioning "users" / "home" without forming a path.
+  [`A normal sentence about users and home pages.`, "prose"],
+];
+
+for (const [content, label] of LOCAL_PATH_MUST_CATCH) {
+  test(`rejects a local machine path in ${label} form`, () => {
+    const dir = setupDir();
+    writeFileSync(join(dir, "leak.txt"), `${content}\n`);
+
+    const result = runSecretScan(["leak.txt"], dir);
+
+    assert.equal(result.pass, false, `expected rejection for: ${content}`);
+    // secretlint masks both the pattern name and the matched value in its
+    // default output, so assert on the rule id rather than the message body.
+    assert.match(result.output, /@secretlint\/secretlint-rule-pattern/);
+  });
+}
+
+for (const [content, label] of LOCAL_PATH_MUST_NOT_FLAG) {
+  test(`does not flag a ${label}`, () => {
+    const dir = setupDir();
+    writeFileSync(join(dir, "prose.md"), `${content}\n`);
+
+    const result = runSecretScan(["prose.md"], dir);
+
+    assert.equal(result.pass, true, `unexpected rejection for: ${content}`);
+  });
+}
