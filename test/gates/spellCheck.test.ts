@@ -31,3 +31,14 @@ test("fails on an obvious misspelling", () => {
   const result = runSpellCheck(["notes.md"], dir);
   assert.equal(result.pass, false);
 });
+
+test("accepts British spelling under the bundled en-GB config", () => {
+  const dir = setupDir();
+  writeFileSync(
+    join(dir, "notes.md"),
+    "The colour of our defence artefacts; we recognise the behaviour.\n",
+  );
+
+  const result = runSpellCheck(["notes.md"], dir);
+  assert.equal(result.pass, true);
+});
