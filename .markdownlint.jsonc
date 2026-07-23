@@ -1,0 +1,7 @@
+{
+  // The universal formatter is prettier (proseWrap: preserve), which never wraps
+  // prose — so enforcing a line-length limit would reject prose the formatter will
+  // never fix. Line width is the formatter's job; markdownlint keeps the structural
+  // rules (heading levels, list and fence spacing, code-fence languages).
+  "MD013": false,
+}

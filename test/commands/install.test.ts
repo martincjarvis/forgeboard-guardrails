@@ -21,6 +21,7 @@ test("scaffolds config, editorconfig, gitattributes, prettierignore, and hook sh
   assert.ok(existsSync(join(dir, ".editorconfig")));
   assert.ok(existsSync(join(dir, ".gitattributes")));
   assert.ok(existsSync(join(dir, ".prettierignore")));
+  assert.ok(existsSync(join(dir, ".markdownlint.jsonc")));
   assert.ok(existsSync(join(dir, ".git", "hooks", "commit-msg")));
   assert.ok(existsSync(join(dir, ".git", "hooks", "pre-commit")));
 });

@@ -32,6 +32,15 @@ const DEFAULT_GITATTRIBUTES = `* text=auto eol=lf
 *.ico binary
 `;
 
+const DEFAULT_MARKDOWNLINT = `{
+  // The universal formatter is prettier (proseWrap: preserve), which never wraps
+  // prose — so enforcing a line-length limit would reject prose the formatter will
+  // never fix. Line width is the formatter's job; markdownlint keeps the structural
+  // rules (heading levels, list and fence spacing, code-fence languages).
+  "MD013": false
+}
+`;
+
 const STARTER_CONFIG = {
   $schema: "../schemas/guardrails.config.schema.json",
   appName: "my-app",
@@ -51,6 +60,7 @@ export async function runInstall(cwd: string): Promise<void> {
   writeIfAbsent(join(cwd, ".editorconfig"), DEFAULT_EDITORCONFIG);
   writeIfAbsent(join(cwd, ".gitattributes"), DEFAULT_GITATTRIBUTES);
   writeIfAbsent(join(cwd, ".prettierignore"), DEFAULT_PRETTIER_IGNORE);
+  writeIfAbsent(join(cwd, ".markdownlint.jsonc"), DEFAULT_MARKDOWNLINT);
   writeIfAbsent(
     join(cwd, ".secretlintrc.json"),
     readFileSync(join(packageRoot, ".secretlintrc.json"), "utf8"),
