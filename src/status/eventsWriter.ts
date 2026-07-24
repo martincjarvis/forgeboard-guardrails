@@ -6,7 +6,7 @@ export interface GateRunEvent {
   ticketId: string;
   timestamp: string;
   type: "gate-run";
-  hook: "commit-msg" | "pre-commit";
+  hook: "commit-msg" | "pre-commit" | "pre-push";
   result: "pass" | "fail";
   commit: string;
 }
