@@ -19,6 +19,13 @@
     },
     "lintStaged": { "$ref": "#/definitions/commandMap" },
     "repo": { "$ref": "#/definitions/commandMap" },
+    "coverage": {
+      "description": "Repo-wide coverage command(s) run by the pre-push hook. The command owns the coverage threshold and must exit non-zero when coverage is below it.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
     "components": {
       "type": "object",
       "additionalProperties": { "$ref": "#/definitions/component" }

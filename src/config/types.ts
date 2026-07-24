@@ -20,5 +20,6 @@ export interface GuardrailsConfig {
   statusContract: StatusContractConfig;
   lintStaged?: Record<string, string | string[]>;
   repo?: Record<string, string | string[]>;
+  coverage?: string | string[];
   components: Record<string, ComponentConfig>;
 }

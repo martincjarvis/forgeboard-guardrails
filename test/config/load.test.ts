@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig } from "../../src/config/load.ts";
@@ -36,4 +36,22 @@ test("loadConfig throws on schema-invalid config", () => {
   const dir = mkdtempSync(join(tmpdir(), "gr-config-"));
   writeConfig(dir, { appName: "acme" }); // missing defaultBranch, components
   assert.throws(() => loadConfig(dir), /defaultBranch|components/);
+});
+
+test("loadConfig accepts a top-level coverage command", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gr-cfg-"));
+  mkdirSync(join(dir, ".forgeboard"), { recursive: true });
+  writeFileSync(
+    join(dir, ".forgeboard", "guardrails.config.json"),
+    JSON.stringify({
+      appName: "x",
+      defaultBranch: "main",
+      statusContract: { enabled: false, ticketIdPattern: "[A-Z]+-\\d+" },
+      coverage: ["npm run cov", "lcov-check --min 80"],
+      components: {},
+    }),
+  );
+  const config = loadConfig(dir);
+  assert.deepEqual(config.coverage, ["npm run cov", "lcov-check --min 80"]);
+  rmSync(dir, { recursive: true, force: true });
 });
