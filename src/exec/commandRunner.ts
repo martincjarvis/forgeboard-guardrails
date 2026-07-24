@@ -24,6 +24,29 @@ export interface CommandSequenceResult {
  * there is no privilege boundary crossed here. Do not "harden" this into an argv-array
  * exec: that would break the documented command-sequence feature.
  */
+/**
+ * Git exports GIT_DIR, GIT_INDEX_FILE, GIT_WORK_TREE and friends into hook
+ * processes. Gate commands are the consuming repo's own build/test commands, which
+ * routinely run their own git operations (and our test suite scaffolds throwaway git
+ * fixtures) — if they inherit the hook's git env those operations target the outer
+ * repo's transient index instead of their own working tree, failing spuriously. Strip
+ * the git-hook env so every gate command runs against a clean git context.
+ */
+function gateEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const key of [
+    "GIT_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_WORK_TREE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_PREFIX",
+  ]) {
+    delete env[key];
+  }
+  return env;
+}
+
 export function runCommandSequence(
   commands: string | string[] | undefined,
   cwd: string,
@@ -47,6 +70,7 @@ export function runCommandSequence(
         cwd,
         encoding: "utf8",
         stdio: "pipe",
+        env: gateEnv(),
       });
       steps.push({ command, index, total: list.length, pass: true, output });
     } catch (error: unknown) {
