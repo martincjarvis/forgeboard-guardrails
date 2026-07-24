@@ -112,7 +112,7 @@ test/
   3. markdownlint over `.md` files.
   4. secretlint over all staged files (preset-recommend rules).
   5. cspell over all staged files.
-  6. semgrep SAST over all staged files (`--config=auto`).
+  6. semgrep SAST over all staged files (`--config=p/default`, `--metrics=off`).
   7. `lintStaged` plan: top-level entries, then per-changed-component entries
      (component entries override same-glob top-level entries).
   8. Per-component `build` and `unitTest` for each component whose `paths`
@@ -123,6 +123,28 @@ test/
 The `statusContract` feature is opt-in (default off). When enabled, the
 pre-commit hook writes `.forgeboard/state/<ticket-id>/status.json` (schema
 v1) and appends to `events.ndjson` after each run. Both are gitignored.
+
+## Acceptance-criteria coverage (A1)
+
+Each A1 acceptance criterion (ForgeBoard `docs/streams/stream-a-guardrails.md`)
+maps to fixture scenarios under `test/scenarios/`, all run by
+`npm run test:harness` (the single script of AC8). Every row is a test that
+fails if the behaviour regresses.
+
+| A1 AC                                                     | Evidencing scenario test(s)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 — conventional commit                                   | `commitMsg`: _rejects a non-conventional commit message naming the expected format_ / _accepts a conforming conventional-commit message_                                                                                                                                                                                                                                                                                                                                                                                 |
+| 2 — default-branch block                                  | `defaultBranch`: _rejects a commit attempted on the default branch_ / _accepts the same change on a feature branch_                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 3 — secret scan                                           | `secretScan`: _rejects a staged file containing a planted secret_ / _accepts the commit once the secret is removed_                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 4 — lint / spell / SAST / build-warning / unit-test, <30s | `lintError`: _rejects a staged markdown file with a lint error (two top-level headings)_ / accept · `spellCheck`: _rejects a staged file containing a misspelling_ / accept · `sast`: _rejects a staged file with a SAST finding_ / accept · `buildWarnings`: _a warnings-as-errors build that emits a warning rejects the commit_ · `unitTestFailure`: _a failing unit test rejects the commit_ / _passes once the unit test is green_ · `timing`: _pre-commit completes well under the 30s budget with a clean commit_ |
+| 5 — status schema + append-only                           | `statusContract`: _status.json validates against schema v1, keyed by the ADR-0003 ticket id, reflecting real outcomes_ · `eventsAppendOnly`: _events.ndjson is append-only across a scripted double-run — no rewritten history_                                                                                                                                                                                                                                                                                          |
+| 6 — status reflects outcome                               | `statusContract`: _…reflecting real outcomes_ (asserts build/test values match the actual run)                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 7 — versioning                                            | [ADR-0001](../ForgeBoard/docs/decisions/0001-versioning-tooling.md) is Accepted · `versioning`: _release config computes a release tagFormat for the default branch component_, release/pre-release dry-run, _a rebase does not make semantic-release rebuild an already-tagged version number_                                                                                                                                                                                                                          |
+| 8 — single script                                         | `npm run test:harness` runs all of the above (33 tests) and is green                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+Staged-content correctness (the A1 remediation, [ADR-0012](../ForgeBoard/docs/decisions/0012-staged-content-isolation.md))
+is additionally pinned by `formatting`, `stagedContent`, `deletionGating`,
+`localPaths`, and `markdownLongLine` scenarios.
 
 ## Versioning
 
