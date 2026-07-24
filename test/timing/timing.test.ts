@@ -1,3 +1,8 @@
+// Run via `npm run test:timing` (CI / on demand), NOT the commit-gate `npm test`.
+// This measures pre-commit wall-clock, which is only meaningful in isolation: inside
+// the parallel suite — or worse, inside the dogfood pre-commit gate that runs npm
+// test concurrently with semgrep and the other file gates — CPU contention inflates
+// a ~5s pre-commit past the 30s budget and flakes. Alone, the number is honest.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
