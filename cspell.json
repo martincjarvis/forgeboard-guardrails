@@ -14,7 +14,9 @@
     "POSIX",
     "releaserc",
     "semgrep",
-    "winget"
+    "winget",
+    "worktree",
+    "worktrees"
   ],
   "ignorePaths": [
     "node_modules/**",

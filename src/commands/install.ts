@@ -7,8 +7,9 @@ import {
   copyFileSync,
   cpSync,
 } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import { DEFAULT_PRETTIER_IGNORE } from "../install/defaultPrettierIgnore.ts";
 import { runDoctorCheck } from "./doctor.ts";
 import { loadConfig } from "../config/load.ts";
@@ -118,8 +119,26 @@ function ensureGitignoreEntry(cwd: string, entry: string): void {
   );
 }
 
+/**
+ * The git hooks directory for `cwd`. In a normal checkout this is `.git/hooks`, but
+ * in a worktree `.git` is a pointer *file*, not a directory, so a hardcoded path
+ * breaks with ENOTDIR. Ask git for the real location (it returns the common
+ * `.git/hooks`), falling back to the literal path if git is unavailable.
+ */
+function resolveHooksDir(cwd: string): string {
+  try {
+    const path = execFileSync("git", ["rev-parse", "--git-path", "hooks"], {
+      cwd,
+      encoding: "utf8",
+    }).trim();
+    return isAbsolute(path) ? path : join(cwd, path);
+  } catch {
+    return join(cwd, ".git", "hooks");
+  }
+}
+
 function writeHookShims(cwd: string): void {
-  const hooksDir = join(cwd, ".git", "hooks");
+  const hooksDir = resolveHooksDir(cwd);
   mkdirSync(hooksDir, { recursive: true });
 
   const cliPath = join(packageRoot, "src", "cli.ts");
