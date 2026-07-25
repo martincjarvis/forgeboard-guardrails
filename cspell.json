@@ -20,6 +20,8 @@
     "quotepath",
     "releaserc",
     "semgrep",
+    "unconfigured",
+    "unparseable",
     "winget",
     "worktree",
     "worktrees"
