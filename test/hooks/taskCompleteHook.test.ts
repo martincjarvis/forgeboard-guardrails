@@ -81,3 +81,40 @@ test("an over-length file blocks with exit 2", async () => {
   assert.equal(await runTaskCompleteHook(dir, STDIN), 2);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test("PR-size ignores docs and tests, counts only production+config", async () => {
+  const dir = initRepo({ prSize: { warn: 5, error: 8 } });
+  git(dir, ["checkout", "-b", "feature"]);
+  // 30 lines of docs + 30 lines of tests — well over error 8, but neither counts.
+  writeFileSync(join(dir, "notes.md"), "l\n".repeat(30));
+  mkdirSync(join(dir, "test"), { recursive: true });
+  writeFileSync(join(dir, "test", "a.test.ts"), "l\n".repeat(30));
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "docs and tests", "--no-verify"]);
+  assert.equal(await runTaskCompleteHook(dir, STDIN), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("a large CLAUDE.md blocks via the tiered agent-doc limit", async () => {
+  const dir = initRepo({ agentDocs: { warn: 3, error: 6 } });
+  git(dir, ["checkout", "-b", "feature"]);
+  writeFileSync(join(dir, "CLAUDE.md"), "l\n".repeat(10)); // 10 >= error 6
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "big claude", "--no-verify"]);
+  assert.equal(await runTaskCompleteHook(dir, STDIN), 2);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("does not crash when the branch deletes a code file", async () => {
+  const dir = initRepo({ prSize: { warn: 1, error: 100000 }, maxFileLines: 5 });
+  // seed a code file on main-equivalent, then delete it on the feature branch.
+  writeFileSync(join(dir, "old.ts"), "a\nb\nc\n");
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "add old", "--no-verify"]);
+  git(dir, ["checkout", "-b", "feature"]);
+  execFileSync("git", ["rm", "old.ts"], { cwd: dir });
+  git(dir, ["commit", "-m", "remove old", "--no-verify"]);
+  // Must not throw; the deletion's removed lines are within the huge error limit.
+  assert.equal(await runTaskCompleteHook(dir, STDIN), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
