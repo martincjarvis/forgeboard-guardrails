@@ -8,6 +8,8 @@
     "bdiff",
     "behaviour",
     "ccn",
+    "clinerules",
+    "cursorrules",
     "dogfoods",
     "finalised",
     "forgeBoard",
@@ -23,6 +25,7 @@
     "unconfigured",
     "unparseable",
     "winget",
+    "windsurfrules",
     "worktree",
     "worktrees"
   ],
