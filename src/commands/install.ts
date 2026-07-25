@@ -11,6 +11,7 @@ import { join, dirname, resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { DEFAULT_PRETTIER_IGNORE } from "../install/defaultPrettierIgnore.ts";
+import { writeClaudeSettings } from "../install/claudeSettings.ts";
 import { runDoctorCheck } from "./doctor.ts";
 import { loadConfig } from "../config/load.ts";
 
@@ -86,6 +87,9 @@ export async function runInstall(cwd: string): Promise<void> {
 
   ensureGitignoreEntry(cwd, ".forgeboard/state/");
   writeHookShims(cwd);
+  if (!isSelfInstall) {
+    writeClaudeSettings(cwd, join(packageRoot, "src", "cli.ts"));
+  }
 
   const config = loadConfig(cwd);
   const warnings = runDoctorCheck(config);
