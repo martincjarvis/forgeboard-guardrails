@@ -8,6 +8,12 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export function runDoctorCheck(config: GuardrailsConfig): string[] {
   const warnings: string[] = [];
 
+  if (config.coverage === undefined) {
+    warnings.push(
+      'no "coverage" command configured — the pre-push coverage gate will be skipped',
+    );
+  }
+
   for (const [name, component] of Object.entries(config.components)) {
     for (const field of [
       "build",
