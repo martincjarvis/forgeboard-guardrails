@@ -78,3 +78,33 @@ test(
     rmSync(dir, { recursive: true, force: true });
   },
 );
+
+test("an over-length agent file fails the scan", async () => {
+  const dir = initRepo({ agentDocs: { warn: 3, error: 6 } });
+  writeFileSync(join(dir, "CLAUDE.md"), "l\n".repeat(10));
+  writeFileSync(join(dir, "ok.ts"), "const x = 1;\n");
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "seed", "--no-verify"]);
+  assert.equal(await runScan(dir), 2);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("an over-length docs file does not fail the scan", async () => {
+  const dir = initRepo({ maxFileLines: 5 });
+  writeFileSync(join(dir, "GUIDE.md"), "l\n".repeat(50)); // 'other' → ungated
+  writeFileSync(join(dir, "ok.ts"), "const x = 1;\n");
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "seed", "--no-verify"]);
+  assert.equal(await runScan(dir), 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("an over-length test file fails the scan (tests are first-class)", async () => {
+  const dir = initRepo({ maxFileLines: 5 });
+  mkdirSync(join(dir, "test"), { recursive: true });
+  writeFileSync(join(dir, "test", "a.test.ts"), "l\n".repeat(20));
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-m", "seed", "--no-verify"]);
+  assert.equal(await runScan(dir), 2);
+  rmSync(dir, { recursive: true, force: true });
+});
