@@ -84,3 +84,31 @@ test("rejects an unknown property inside agentHooks", () => {
   });
   assert.throws(() => loadConfig(dir), /Invalid guardrails.config.json/);
 });
+
+test("accepts the new agentHooks classification fields", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gr-cfg-cls-"));
+  writeConfig(dir, {
+    appName: "x",
+    defaultBranch: "main",
+    components: { c: { paths: ["src/**"] } },
+    agentHooks: {
+      configExtensions: [".json", ".yaml"],
+      testGlobs: ["**/*.spec.ts"],
+      agentDocs: { globs: ["CLAUDE.md"], warn: 150, error: 400 },
+    },
+  });
+  const config = loadConfig(dir);
+  assert.equal(config.agentHooks?.agentDocs?.error, 400);
+  assert.deepEqual(config.agentHooks?.testGlobs, ["**/*.spec.ts"]);
+});
+
+test("rejects an unknown property inside agentDocs", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gr-cfg-cls-bad-"));
+  writeConfig(dir, {
+    appName: "x",
+    defaultBranch: "main",
+    components: { c: { paths: ["src/**"] } },
+    agentHooks: { agentDocs: { bogus: true } },
+  });
+  assert.throws(() => loadConfig(dir), /Invalid guardrails.config.json/);
+});

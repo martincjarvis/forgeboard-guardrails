@@ -20,6 +20,9 @@ export interface AgentHooksConfig {
   codeExtensions?: string[];
   exclude?: string[];
   complexity?: { ccn?: number; functionLines?: number; params?: number };
+  configExtensions?: string[];
+  testGlobs?: string[];
+  agentDocs?: { globs?: string[]; warn?: number; error?: number };
 }
 
 export interface GuardrailsConfig {

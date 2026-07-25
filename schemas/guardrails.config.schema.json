@@ -49,6 +49,17 @@
             "functionLines": { "type": "integer", "minimum": 1 },
             "params": { "type": "integer", "minimum": 1 }
           }
+        },
+        "configExtensions": { "type": "array", "items": { "type": "string" } },
+        "testGlobs": { "type": "array", "items": { "type": "string" } },
+        "agentDocs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "globs": { "type": "array", "items": { "type": "string" } },
+            "warn": { "type": "integer", "minimum": 1 },
+            "error": { "type": "integer", "minimum": 1 }
+          }
         }
       }
     },
