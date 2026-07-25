@@ -9,7 +9,8 @@
   "scripts": {
     "test": "node --import tsx --test test/scenarios/*.test.ts test/config/*.test.ts test/git/*.test.ts test/exec/*.test.ts test/gates/*.test.ts test/status/*.test.ts test/hooks/*.test.ts test/commands/*.test.ts test/versioning/*.test.ts test/fixtures/*.test.ts test/cli.test.ts",
     "test:timing": "node --import tsx --test test/timing/*.test.ts",
-    "test:harness": "node --import tsx --test test/scenarios/*.test.ts"
+    "test:harness": "node --import tsx --test test/scenarios/*.test.ts",
+    "scan": "node --import tsx src/cli.ts scan"
   },
   "devDependencies": {
     "@semantic-release/commit-analyzer": "^13.0.1",

@@ -4,6 +4,7 @@ import { runInstall } from "./commands/install.ts";
 import { runFormat } from "./commands/format.ts";
 import { runHookCommand } from "./commands/run.ts";
 import { runAgentHook } from "./commands/agentHook.ts";
+import { runScan } from "./commands/scan.ts";
 
 const [, , command, ...rest] = process.argv;
 const cwd = process.cwd();
@@ -33,6 +34,8 @@ async function main(): Promise<number> {
       return runHookCommand(rest[0], rest.slice(1), cwd);
     case "agent-hook":
       return runAgentHook(rest[0], cwd, readStdin());
+    case "scan":
+      return runScan(cwd);
     default:
       console.error(`Unknown command: ${command}`);
       return 1;
