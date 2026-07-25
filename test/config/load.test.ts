@@ -55,3 +55,32 @@ test("loadConfig accepts a top-level coverage command", () => {
   assert.deepEqual(config.coverage, ["npm run cov", "lcov-check --min 80"]);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test("accepts an agentHooks block", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gr-cfg-ah-"));
+  writeConfig(dir, {
+    appName: "x",
+    defaultBranch: "main",
+    components: { c: { paths: ["src/**"] } },
+    agentHooks: {
+      prSize: { warn: 300, error: 700 },
+      maxFileLines: 500,
+      codeExtensions: [".ts"],
+      exclude: ["**/vendor/**"],
+      complexity: { ccn: 12, functionLines: 50, params: 4 },
+    },
+  });
+  const config = loadConfig(dir);
+  assert.equal(config.agentHooks?.prSize?.error, 700);
+});
+
+test("rejects an unknown property inside agentHooks", () => {
+  const dir = mkdtempSync(join(tmpdir(), "gr-cfg-ah-bad-"));
+  writeConfig(dir, {
+    appName: "x",
+    defaultBranch: "main",
+    components: { c: { paths: ["src/**"] } },
+    agentHooks: { bogus: true },
+  });
+  assert.throws(() => loadConfig(dir), /Invalid guardrails.config.json/);
+});

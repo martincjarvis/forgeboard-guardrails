@@ -26,6 +26,32 @@
         { "type": "array", "items": { "type": "string" } }
       ]
     },
+    "agentHooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prSize": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "warn": { "type": "integer", "minimum": 1 },
+            "error": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "maxFileLines": { "type": "integer", "minimum": 1 },
+        "codeExtensions": { "type": "array", "items": { "type": "string" } },
+        "exclude": { "type": "array", "items": { "type": "string" } },
+        "complexity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ccn": { "type": "integer", "minimum": 1 },
+            "functionLines": { "type": "integer", "minimum": 1 },
+            "params": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
     "components": {
       "type": "object",
       "additionalProperties": { "$ref": "#/definitions/component" }
