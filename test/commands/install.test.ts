@@ -26,6 +26,13 @@ test("scaffolds config, editorconfig, gitattributes, prettierignore, and hook sh
   assert.ok(existsSync(join(dir, ".git", "hooks", "pre-commit")));
 });
 
+test("install writes a pre-push hook shim", async () => {
+  const dir = initRepo();
+  await runInstall(dir);
+  const shim = readFileSync(join(dir, ".git", "hooks", "pre-push"), "utf8");
+  assert.match(shim, /run pre-push/);
+});
+
 test("adds .forgeboard/state/ to .gitignore", async () => {
   const dir = initRepo();
   await runInstall(dir);

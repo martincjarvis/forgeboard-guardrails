@@ -153,4 +153,9 @@ function writeHookShims(cwd: string): void {
     `#!/bin/sh\nnpx tsx "${cliPath}" run pre-commit\n`,
     { mode: 0o755 },
   );
+  writeFileSync(
+    join(hooksDir, "pre-push"),
+    `#!/bin/sh\nnpx tsx "${cliPath}" run pre-push\n`,
+    { mode: 0o755 },
+  );
 }
