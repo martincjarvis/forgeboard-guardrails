@@ -34,6 +34,14 @@ installable package is an A2 deliverable.
   with a remediation message on every commit it would otherwise scan. All
   other gates (prettier, markdownlint, cspell, secretlint) are npm-bundled.
 
+- **Python 3 + lizard** — required only when a repo enables the optional
+  complexity gate (`agentHooks.complexity`), which the `task-complete` agent
+  hook and `scan` use for a cyclomatic-complexity check. Like semgrep, lizard is
+  Python-distributed rather than npm-bundled — install with `pip install lizard`
+  (verify with `lizard --version`). Without `agentHooks.complexity` configured
+  the gate is skipped, so lizard is not needed. Contributors to this repo need
+  it to run the complexity tests, which self-skip when it is absent.
+
 - **Per-component external commands** your repo declares (e.g. `dotnet`,
   `npm`, `az`, `azd`) — these are whatever your consuming repo's own stack
   requires; the toolkit never auto-installs them.
@@ -69,7 +77,8 @@ git clone https://github.com/martincjarvis/forgeboard-guardrails
 cd forgeboard-guardrails
 npm install
 pip install semgrep       # required for the SAST tests; see Prerequisites
-npm test                  # full unit + scenario suite (74 tests)
+pip install lizard        # required for the complexity tests; see Prerequisites
+npm test                  # full unit + scenario suite
 npm run test:harness      # the fixture-repo scenario matrix (A1 AC check)
 ```
 
