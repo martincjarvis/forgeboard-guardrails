@@ -24,7 +24,14 @@ export function generateReleaseConfigs(
       tagFormat: `${config.appName}-${name}@\${version}`,
       branches: [
         config.defaultBranch,
-        { name: "feature/*", prerelease: "beta" },
+        // Prerelease identifier is the branch name (sanitised to a valid semver
+        // identifier), so each feature branch is its own release channel and
+        // concurrent branches never collide. semantic-release resolves ${name} to
+        // the current branch at run time.
+        {
+          name: "feature/*",
+          prerelease: "${name.replace(/[^a-zA-Z0-9-]/g, '-')}",
+        },
       ],
       plugins: [
         ["@semantic-release/commit-analyzer", { releaseRules: [] }],

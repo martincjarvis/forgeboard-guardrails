@@ -26,14 +26,21 @@ test("composes tagFormat from appName and each component key", () => {
   assert.equal(configs.web.tagFormat, "forgeboard-web@${version}");
 });
 
-test("configures release on the default branch and prerelease on feature branches", () => {
+test("configures release on the default branch and branch-derived prerelease on feature branches", () => {
   const configs = generateReleaseConfigs(config);
   const branches = configs.api.branches as Array<{
     name?: string;
     prerelease?: boolean | string;
   }>;
   assert.ok(branches.some((b) => b === "main" || b.name === "main"));
-  assert.ok(branches.some((b) => typeof b === "object" && b.prerelease));
+  const feature = branches.find(
+    (b) => typeof b === "object" && b.name === "feature/*",
+  );
+  assert.ok(feature, "a feature/* prerelease branch is configured");
+  // The prerelease id is derived from the branch name (not a fixed channel like
+  // "beta"), so each feature branch is its own channel and concurrent branches
+  // never collide. ${name} is resolved by semantic-release at run time.
+  assert.match(String(feature!.prerelease), /\$\{name/);
 });
 
 function initRepoWithCommit(branch: string, message: string): string {
@@ -60,7 +67,7 @@ test("dry-run reports a release version for a feat commit on the default branch"
   assert.match(result.nextRelease!.version, /^\d+\.\d+\.\d+$/); // release, not pre-release
 });
 
-test("dry-run reports a pre-release version for a feat commit on a feature branch", async () => {
+test("dry-run reports a branch-namespaced pre-release version on a feature branch", async () => {
   const dir = initRepoWithCommit("feature/FB-0099-test", "feat: add widget");
   const releaseConfig = generateReleaseConfigs(config).api;
 
@@ -71,5 +78,10 @@ test("dry-run reports a pre-release version for a feat commit on a feature branc
   );
 
   assert.ok(result.nextRelease);
-  assert.match(result.nextRelease!.version, /^\d+\.\d+\.\d+-/); // has a pre-release identifier
+  // The pre-release identifier is the sanitised branch name (`/` → `-`), so two
+  // concurrent feature branches occupy distinct channels and never collide.
+  assert.match(
+    result.nextRelease!.version,
+    /^\d+\.\d+\.\d+-feature-FB-0099-test\./,
+  );
 });
