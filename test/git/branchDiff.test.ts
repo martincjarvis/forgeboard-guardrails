@@ -29,9 +29,7 @@ test("counts added and deleted lines and lists files against the default branch"
   git(dir, ["commit", "-m", "add a", "--no-verify"]);
 
   const result = branchDiff(dir, "main");
-  assert.equal(result.added, 3);
-  assert.equal(result.deleted, 0);
-  assert.deepEqual(result.files, ["a.ts"]);
+  assert.deepEqual(result.files, [{ path: "a.ts", added: 3, deleted: 0 }]);
   assert.ok(result.base && result.base.length > 0);
   rmSync(dir, { recursive: true, force: true });
 });
@@ -46,9 +44,8 @@ test("returns an empty diff with a null base when on the default branch itself",
   git(dir, ["commit", "-m", "seed", "--no-verify"]);
 
   const result = branchDiff(dir, "main");
-  assert.equal(result.added, 0);
-  assert.equal(result.deleted, 0);
   assert.deepEqual(result.files, []);
+  assert.equal(result.base, null);
   assert.equal(resolveBase(dir, "main"), null);
   rmSync(dir, { recursive: true, force: true });
 });

@@ -28,10 +28,8 @@ export async function runTaskCompleteHook(
   if (branch === config.defaultBranch) return 0;
 
   const diff = branchDiff(cwd, config.defaultBranch);
-  if (
-    !diff.base ||
-    (diff.files.length === 0 && diff.added + diff.deleted === 0)
-  ) {
+  const totalLines = diff.files.reduce((s, f) => s + f.added + f.deleted, 0);
+  if (!diff.base || (diff.files.length === 0 && totalLines === 0)) {
     return 0;
   }
 
@@ -43,7 +41,7 @@ export async function runTaskCompleteHook(
     warn: config.agentHooks?.prSize?.warn ?? DEFAULT_PR_SIZE.warn,
     error: config.agentHooks?.prSize?.error ?? DEFAULT_PR_SIZE.error,
   };
-  const lines = diff.added + diff.deleted;
+  const lines = totalLines;
   const hasOverride = branchLog(cwd, diff.base).includes("[large-pr]");
   const verdict = classifyPrSize(lines, thresholds, hasOverride);
   if (verdict === "error") {
@@ -58,7 +56,11 @@ export async function runTaskCompleteHook(
   }
 
   // Shared filtered code-file list for checks B and C.
-  const codeFiles = await filterCodeFiles(diff.files, cwd, config);
+  const codeFiles = await filterCodeFiles(
+    diff.files.map((f) => f.path),
+    cwd,
+    config,
+  );
 
   // Check B — file-length (AC 4)
   const maxLines = config.agentHooks?.maxFileLines ?? DEFAULT_MAX_FILE_LINES;

@@ -31,25 +31,27 @@ export function resolveBase(cwd: string, defaultBranch: string): string | null {
 export function branchDiff(
   cwd: string,
   defaultBranch: string,
-): { base: string | null; added: number; deleted: number; files: string[] } {
+): {
+  base: string | null;
+  files: { path: string; added: number; deleted: number }[];
+} {
   const base = resolveBase(cwd, defaultBranch);
-  if (!base) return { base: null, added: 0, deleted: 0, files: [] };
+  if (!base) return { base: null, files: [] };
 
   const raw = git(cwd, ["diff", "--numstat", `${base}..HEAD`]);
-  let added = 0;
-  let deleted = 0;
-  const files: string[] = [];
+  const files: { path: string; added: number; deleted: number }[] = [];
   for (const line of raw.split("\n")) {
     if (!line.trim()) continue;
     const [a, d, ...pathParts] = line.split("\t");
     const path = pathParts.join("\t");
     // Binary files report "-" for both counts: 0 lines, but still listed. Rename
     // notation ("old => new") and quoted paths (core.quotepath) are not specially
-    // parsed — neither is required by the A2-b ACs, and the line totals that drive
-    // the PR-size check stay accurate regardless.
-    added += a === "-" ? 0 : Number(a);
-    deleted += d === "-" ? 0 : Number(d);
-    files.push(path);
+    // parsed — not required by the ACs, and the line totals stay accurate.
+    files.push({
+      path,
+      added: a === "-" ? 0 : Number(a),
+      deleted: d === "-" ? 0 : Number(d),
+    });
   }
-  return { base, added, deleted, files };
+  return { base, files };
 }
