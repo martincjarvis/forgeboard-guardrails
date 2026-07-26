@@ -7,6 +7,7 @@ import {
   type ComponentGateResult,
 } from "./componentCommands.ts";
 import { runRepoLevelTests } from "./repoLevelTests.ts";
+import { runDocsRepoGate } from "./docsRepoGates.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
 
@@ -94,7 +95,7 @@ export async function runStagedPipeline(
           try {
             await runFileGates(files, cwd);
             runUserRules(ctx, files, cwd);
-            componentResults = runComponentAndRepoGates(ctx, cwd);
+            componentResults = runComponentAndRepoGates(ctx, cwd, files);
           } catch (error) {
             // Printed here so the actionable message reaches the developer regardless
             // of how the task runner chooses to render a rejected task.
@@ -133,6 +134,7 @@ function runUserRules(
 function runComponentAndRepoGates(
   ctx: PipelineContext,
   cwd: string,
+  stagedFiles: string[],
 ): ComponentGateResult[] {
   const components = runComponentGates(ctx.config, ctx.changedComponents, cwd);
 
@@ -162,6 +164,16 @@ function runComponentAndRepoGates(
         "repo-level test failed",
       );
     }
+  }
+
+  const docs = runDocsRepoGate(cwd, stagedFiles, { fix: true });
+  for (const fix of docs.fixes) console.error(`[docs-links] repaired ${fix}`);
+  if (docs.problems.length > 0) {
+    throw new GateFailure(
+      "docs-links",
+      "fix the reported links and re-commit; `guardrails docs --fix` repairs the unambiguous ones.",
+      docs.problems.join("\n"),
+    );
   }
 
   return components;
