@@ -7,7 +7,7 @@
     "guardrails": "./src/cli.ts"
   },
   "scripts": {
-    "test": "node --import tsx --test test/scenarios/*.test.ts test/config/*.test.ts test/git/*.test.ts test/exec/*.test.ts test/gates/*.test.ts test/status/*.test.ts test/hooks/*.test.ts test/commands/*.test.ts test/versioning/*.test.ts test/fixtures/*.test.ts test/cli.test.ts",
+    "test": "node --import tsx --test test/scenarios/*.test.ts test/config/*.test.ts test/docs/*.test.ts test/git/*.test.ts test/exec/*.test.ts test/gates/*.test.ts test/status/*.test.ts test/hooks/*.test.ts test/commands/*.test.ts test/versioning/*.test.ts test/fixtures/*.test.ts test/cli.test.ts",
     "test:timing": "node --import tsx --test test/timing/*.test.ts",
     "test:harness": "node --import tsx --test test/scenarios/*.test.ts",
     "scan": "node --import tsx src/cli.ts scan"
@@ -29,9 +29,16 @@
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "ajv-formats": "^3.0.1",
     "cspell": "^10.0.1",
+    "github-slugger": "^2.0.0",
     "lint-staged": "^17.1.0",
     "markdownlint-cli2": "^0.23.1",
+    "mdast-util-to-string": "^4.0.0",
     "minimatch": "^10.2.5",
-    "secretlint": "^13.0.2"
+    "remark-frontmatter": "^5.0.0",
+    "remark-parse": "^11.0.0",
+    "secretlint": "^13.0.2",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
+    "yaml": "^2.9.0"
   }
 }
