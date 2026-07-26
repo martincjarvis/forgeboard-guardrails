@@ -3,9 +3,10 @@
   "appName": "forgeboard-guardrails",
   "defaultBranch": "main",
   "statusContract": { "enabled": false },
+  "coverage": "npm run test:coverage",
   "components": {
     "toolkit": {
-      "paths": ["src/**", "schemas/**", "skills/**"],
+      "paths": ["src/**", "schemas/**", "skills/**", "scripts/**"],
       "unitTest": "npm test"
     }
   }
