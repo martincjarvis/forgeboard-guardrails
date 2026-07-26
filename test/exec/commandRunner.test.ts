@@ -55,3 +55,46 @@ test("array of commands runs in order, fail-fast on first failure", () => {
   assert.equal(result.steps[1].index, 1);
   assert.equal(result.steps[1].total, 3);
 });
+
+test("a failing command captures stderr as well as stdout", () => {
+  // A command that diagnoses on stderr is the common case — node, dotnet and most
+  // linters do it. Capturing stdout alone leaves the gate reporting a failure with
+  // no statement of what failed, which is the whole reason this is captured at all.
+  const result = runCommandSequence(
+    [
+      "node -e \"console.log('on stdout'); console.error('on stderr'); process.exit(1)\"",
+    ],
+    process.cwd(),
+  );
+
+  assert.equal(result.pass, false);
+  assert.match(result.steps[0].output, /on stdout/);
+  assert.match(result.steps[0].output, /on stderr/);
+});
+
+test("a passing command captures stdout, which is what the parsers read", () => {
+  // Stated limitation, not an oversight: execSync returns stdout only, so a
+  // successful command's stderr is not available to capture. Keeping execSync is
+  // deliberate — spawnSync with `shell: true` trips a second SAST rule, and the
+  // shell is required by the command-sequence feature, so the choice was between
+  // an extra suppression and losing stderr on the path where nothing is wrong.
+  // The failing path, which is the one anyone debugs, captures both.
+  const result = runCommandSequence(
+    ["node -e \"console.log('42 passing')\""],
+    process.cwd(),
+  );
+
+  assert.equal(result.pass, true);
+  assert.match(result.steps[0].output, /42 passing/);
+});
+
+test("a command that writes only to stderr still yields output", () => {
+  // The exact shape that produced an empty gate message: everything on stderr.
+  const result = runCommandSequence(
+    ["node -e \"console.error('lines 72% < 80%'); process.exit(1)\""],
+    process.cwd(),
+  );
+
+  assert.equal(result.pass, false);
+  assert.match(result.steps[0].output, /lines 72% < 80%/);
+});

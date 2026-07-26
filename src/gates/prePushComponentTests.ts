@@ -3,6 +3,7 @@ import {
   type CommandSequenceResult,
 } from "../exec/commandRunner.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
+import { describeFailure } from "../status/testOutputParsers.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
 
 export interface ComponentTestResult {
@@ -50,6 +51,9 @@ function failure(
   return new GateFailure(
     gate,
     `fix the failing ${gate} for component "${component}", then push again`,
-    failed?.output?.trim() || `${gate} failed for ${component}`,
+    describeFailure(
+      failed?.output ?? "",
+      `${gate} failed for ${component} with no output: ${failed?.command ?? "(unknown)"}`,
+    ),
   );
 }

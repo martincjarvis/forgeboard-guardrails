@@ -1,10 +1,46 @@
 import { execSync } from "node:child_process";
 
+/**
+ * A full coverage run over this repo already prints ~40 KB. Node's 1 MB default
+ * truncates a verbose suite mid-report and kills it, which surfaces as a gate
+ * defect rather than as a long log.
+ */
+const MAX_BUFFER = 32 * 1024 * 1024;
+
+/**
+ * Both streams off a failed `execSync`, stdout first.
+ *
+ * Gate commands are third-party tools and most of them put their diagnosis on
+ * stderr — node's test runner, dotnet, every linter. Reading `stdout` alone, as
+ * this did, produced gate failures with nothing to say about what failed.
+ *
+ * `stdio[2]` is a pipe rather than "inherit" so stderr lands here instead of
+ * escaping to the terminal, where lint-staged's renderer swallows it.
+ */
+function combine(error: unknown): string {
+  const streams = error as { stdout?: unknown; stderr?: unknown };
+  const parts = [streams?.stdout, streams?.stderr]
+    .map((s) => (s === undefined || s === null ? "" : String(s)))
+    .filter((s) => s.trim() !== "");
+  // Nothing on either stream means the command never ran — a missing shell, or a
+  // binary that does not exist. The thrown message is then all there is.
+  if (parts.length === 0) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return parts.join("\n");
+}
+
 export interface CommandStepResult {
   command: string;
   index: number;
   total: number;
   pass: boolean;
+  /**
+   * Both streams, stdout first. Gate commands are third-party tools and most of
+   * them diagnose on stderr — node's test runner, dotnet, every linter — so a
+   * stdout-only capture reports a failure with nothing to say about it. Captured
+   * on the passing path too: warnings go to stderr on runs that still exit zero.
+   */
   output: string;
 }
 
@@ -69,15 +105,13 @@ export function runCommandSequence(
       const output = execSync(command, {
         cwd,
         encoding: "utf8",
-        stdio: "pipe",
+        stdio: ["ignore", "pipe", "pipe"],
         env: gateEnv(),
+        maxBuffer: MAX_BUFFER,
       });
       steps.push({ command, index, total: list.length, pass: true, output });
     } catch (error: unknown) {
-      const output =
-        error instanceof Error && "stdout" in error
-          ? String((error as { stdout?: unknown }).stdout ?? "")
-          : "";
+      const output = combine(error);
       steps.push({ command, index, total: list.length, pass: false, output });
       return { pass: false, steps };
     }

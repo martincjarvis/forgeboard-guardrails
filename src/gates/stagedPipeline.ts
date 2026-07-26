@@ -9,6 +9,7 @@ import {
 import { runRepoLevelTests } from "./repoLevelTests.ts";
 import { runDocsRepoGate } from "./docsRepoGates.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
+import { describeFailure } from "../status/testOutputParsers.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
 
 export interface PipelineContext {
@@ -125,7 +126,7 @@ function runUserRules(
       throw new GateFailure(
         "lint-staged",
         "fix the reported issue and re-commit.",
-        result.steps.at(-1)?.output ?? "",
+        describeFailure(result.steps.at(-1)?.output ?? "", "no output"),
       );
     }
   }
