@@ -69,7 +69,40 @@ export function buildArgs(argv) {
   ];
 }
 
+/**
+ * How deep a wrapper run is nested inside another wrapper run.
+ *
+ * One level is legitimate and deliberate: the end-to-end test spawns the wrapper
+ * from inside a run the wrapper started. Two is the runaway case — the nested run
+ * executes the test file that spawns again, without limit.
+ *
+ * The guard is an environment variable rather than a flag on purpose. The obvious
+ * alternative, leaning on `--test-only` to make the nested run execute nothing, is
+ * a positional flag: if caller arguments ever land after the patterns, node
+ * silently drops it, and the guard is disarmed by the very defect this wrapper
+ * exists to prevent. The environment survives argument-order bugs entirely.
+ */
+const DEPTH_VAR = "FORGEBOARD_TEST_DEPTH";
+const MAX_DEPTH = 1;
+
+export function childEnv(env) {
+  return {
+    ...env,
+    [DEPTH_VAR]: String(Number(env[DEPTH_VAR] ?? "0") + 1),
+  };
+}
+
 if (import.meta.main) {
+  const depth = Number(process.env[DEPTH_VAR] ?? "0");
+  if (depth > MAX_DEPTH) {
+    console.error(
+      `run-tests: refusing to run, nested ${depth} levels deep inside itself.\n` +
+        `This means a spawned run executed the suite instead of skipping it — check that\n` +
+        `caller flags still precede the positional patterns in buildArgs().`,
+    );
+    process.exit(1);
+  }
+
   const args = buildArgs(process.argv.slice(2));
 
   // Reporter flags and destination flags are positional pairs: the Nth
@@ -94,7 +127,10 @@ if (import.meta.main) {
     }
   }
 
-  const result = spawnSync(process.execPath, args, { stdio: "inherit" });
+  const result = spawnSync(process.execPath, args, {
+    stdio: "inherit",
+    env: childEnv(process.env),
+  });
 
   // On Windows the lcov reporter emits backslashed SF: paths, which common
   // lcov consumers cannot resolve. Windows is the primary platform.

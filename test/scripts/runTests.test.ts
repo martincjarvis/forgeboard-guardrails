@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildArgs } from "../../scripts/run-tests.mjs";
+import { buildArgs, childEnv } from "../../scripts/run-tests.mjs";
 
 test("caller flags land before the positional patterns", () => {
   const args = buildArgs(["--coverage", "--test-coverage-lines=80"]);
@@ -124,4 +124,35 @@ test("report mode writes both artifacts into a directory that does not yet exist
   }
 
   rmSync(dir, { recursive: true, force: true });
+});
+
+test("the wrapper refuses to recurse beyond one level of nesting", () => {
+  // The end-to-end test above legitimately spawns the wrapper from inside a run
+  // the wrapper started — one level. Beyond that is the runaway case: if the
+  // caller flags ever land after the positional patterns, node drops --test-only,
+  // the nested run executes this very file, and it spawns again without limit.
+  //
+  // The guard must not be a flag: --test-only is itself position-sensitive, so it
+  // is disarmed by the exact defect it would be guarding against. An environment
+  // variable survives argument-order bugs entirely.
+  const result = spawnSync(process.execPath, ["scripts/run-tests.mjs"], {
+    encoding: "utf8",
+    shell: false,
+    env: { ...process.env, FORGEBOARD_TEST_DEPTH: "2" },
+  });
+
+  assert.notEqual(result.status, 0, "a third nesting level must not run");
+  assert.match(result.stderr, /nested/i);
+});
+
+test("each spawned run is handed a depth one greater than its own", () => {
+  // Without this the depth never increases, the guard never trips, and the
+  // recursion is unbounded again.
+  assert.equal(childEnv({}).FORGEBOARD_TEST_DEPTH, "1");
+  assert.equal(
+    childEnv({ FORGEBOARD_TEST_DEPTH: "1" }).FORGEBOARD_TEST_DEPTH,
+    "2",
+  );
+  // Unrelated variables must survive: the child needs PATH and the rest.
+  assert.equal(childEnv({ PATH: "/x" }).PATH, "/x");
 });
