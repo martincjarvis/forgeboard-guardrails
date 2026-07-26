@@ -1,4 +1,5 @@
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { logCommand } from "./commandLog.ts";
 
 /**
  * A full coverage run over this repo already prints ~40 KB. Node's 1 MB default
@@ -8,7 +9,7 @@ import { execSync } from "node:child_process";
 const MAX_BUFFER = 32 * 1024 * 1024;
 
 /**
- * Both streams off a failed `execSync`, stdout first.
+ * Both streams, stdout first.
  *
  * Gate commands are third-party tools and most of them put their diagnosis on
  * stderr — node's test runner, dotnet, every linter. Reading `stdout` alone, as
@@ -17,17 +18,11 @@ const MAX_BUFFER = 32 * 1024 * 1024;
  * `stdio[2]` is a pipe rather than "inherit" so stderr lands here instead of
  * escaping to the terminal, where lint-staged's renderer swallows it.
  */
-function combine(error: unknown): string {
-  const streams = error as { stdout?: unknown; stderr?: unknown };
-  const parts = [streams?.stdout, streams?.stderr]
+export function combine(stdout: unknown, stderr: unknown): string {
+  return [stdout, stderr]
     .map((s) => (s === undefined || s === null ? "" : String(s)))
-    .filter((s) => s.trim() !== "");
-  // Nothing on either stream means the command never ran — a missing shell, or a
-  // binary that does not exist. The thrown message is then all there is.
-  if (parts.length === 0) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  return parts.join("\n");
+    .filter((s) => s.trim() !== "")
+    .join("\n");
 }
 
 export interface CommandStepResult {
@@ -101,17 +96,35 @@ export function runCommandSequence(
       // repo-author configuration, and anyone who can edit guardrails.config.json
       // already controls the repo. Hardening this to an argv array would break the
       // command-sequence feature the toolkit exists to provide.
-      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
-      const output = execSync(command, {
+      // `shell: true` is the command-sequence feature, not an oversight: these are
+      // the consuming repo's own shell strings. The risk is the one the file header
+      // documents and the repo has already accepted; both rules below flag that same
+      // single call.
+      //
+      // Both ids on one line: semgrep applies a nosemgrep comment only to the line
+      // it precedes, so stacked comments silence the nearest rule and leave the
+      // other one firing.
+      // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process, javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
+      const result = spawnSync(command, {
         cwd,
         encoding: "utf8",
+        shell: true,
         stdio: ["ignore", "pipe", "pipe"],
         env: gateEnv(),
         maxBuffer: MAX_BUFFER,
       });
-      steps.push({ command, index, total: list.length, pass: true, output });
+
+      const output = result.error
+        ? result.error.message
+        : combine(result.stdout, result.stderr);
+      logCommand({ command, cwd, status: result.status, output });
+
+      const pass = !result.error && result.status === 0;
+      steps.push({ command, index, total: list.length, pass, output });
+      if (!pass) return { pass: false, steps };
     } catch (error: unknown) {
-      const output = combine(error);
+      const output = error instanceof Error ? error.message : String(error);
+      logCommand({ command, cwd, status: null, output });
       steps.push({ command, index, total: list.length, pass: false, output });
       return { pass: false, steps };
     }

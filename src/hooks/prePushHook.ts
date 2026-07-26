@@ -11,6 +11,7 @@ import {
 import { extractTicketId } from "../status/ticketId.ts";
 import { updateTestOutcomes } from "../status/statusWriter.ts";
 import { appendEvent } from "../status/eventsWriter.ts";
+import { reportLogPath } from "../exec/commandLog.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
 
@@ -41,6 +42,7 @@ export async function runPrePushHook(
   } catch (error) {
     if (error instanceof GateFailure) {
       console.error(error.message);
+      reportLogPath();
       recordFailure(cwd, config, branch);
       return 1;
     }

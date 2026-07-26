@@ -1,4 +1,6 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { combine } from "./commandRunner.ts";
+import { logCommand } from "./commandLog.ts";
 
 /**
  * Runs a binary resolved from the system PATH (not the toolkit's node_modules).
@@ -25,13 +27,28 @@ export function runExternalBin(
     // remediation error below. Without a shell, an absent binary yields a reliable
     // ENOENT on every platform, while a real executable on PATH (semgrep.exe) still
     // resolves. It also avoids the shell-argument-injection deprecation (DEP0190).
-    const output = execFileSync(binName, args, {
+    // Accepted: an argv array with `shell: false`, so there is no command line for
+    // an argument to escape into. Same risk profile as the execFileSync call this
+    // replaces — the change is that both streams are now captured, not how the
+    // process is started.
+    //
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
+    const result = spawnSync(binName, args, {
       cwd,
       encoding: "utf8",
       shell: false,
-      stdio: "pipe",
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    return { pass: true, output };
+    if (result.error) throw result.error;
+
+    const output = combine(result.stdout, result.stderr);
+    logCommand({
+      command: `${binName} ${args.join(" ")}`,
+      cwd,
+      status: result.status,
+      output,
+    });
+    return { pass: result.status === 0, output };
   } catch (error: unknown) {
     // ENOENT — binary not on PATH. Surface a clear, named failure.
     if (
@@ -46,11 +63,16 @@ export function runExternalBin(
             : ""),
       );
     }
-    // Non-zero exit — the tool ran and reported findings. Capture output.
-    const output =
-      error instanceof Error && "stdout" in error
-        ? String((error as { stdout?: unknown }).stdout ?? "")
-        : "";
+    // Anything else means the process could not be started at all. A tool that ran
+    // and reported findings no longer arrives here: spawnSync returns a non-zero
+    // status rather than throwing, and that path is handled above with its output.
+    const output = error instanceof Error ? error.message : String(error);
+    logCommand({
+      command: `${binName} ${args.join(" ")}`,
+      cwd,
+      status: null,
+      output,
+    });
     return { pass: false, output };
   }
 }

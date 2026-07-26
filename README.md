@@ -133,6 +133,29 @@ The `statusContract` feature is opt-in (default off). When enabled, the
 pre-commit hook writes `.forgeboard/state/<ticket-id>/status.json` (schema
 v1) and appends to `events.ndjson` after each run. Both are gitignored.
 
+### Diagnostics log
+
+Every command a gate shells out to is appended — command, exit status, and both
+streams — to one file per run under `.forgeboard/logs/`. Files older than 24 hours
+are removed on the next run. A gate that blocks you prints the path.
+
+It records commands that **succeeded** as well as ones that failed. An exit code
+of zero is not evidence of a clean run: a tool that prints `no configuration
+found, using defaults` and then exits zero looks exactly like one that worked,
+and checking a build for zero warnings needs the output, not the status.
+
+It lives in the repository so that anything confined to the repository can read
+it — a sandboxed coding agent, or a CI container that mounts only the workspace.
+What keeps it out of your history is not its location: the directory is created
+with a `.gitignore` containing `*`, so it excludes itself and everything under it
+without depending on your root ignore file. `git add -A` cannot stage a log;
+committing one takes a deliberate `git add -f`.
+
+That matters because gate output contains whatever the tools printed, which can
+include the material `secretlint` exists to keep out of your history.
+
+`FORGEBOARD_LOG_DIR` moves the directory if you want it elsewhere.
+
 ## Acceptance-criteria coverage (A1)
 
 Each A1 acceptance criterion (ForgeBoard `docs/streams/stream-a-guardrails.md`)
