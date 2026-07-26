@@ -168,3 +168,19 @@ in the ForgeBoard repo for the full decision and consequences.
 
 Proprietary (ForgeBoard programme). Licensing terms will be finalised
 alongside the A2 npm publish.
+
+### `guardrails docs [--fix]`
+
+Checks that every relative link and `#anchor` in the repository markdown resolves.
+`--fix` repairs links whose target has moved and whose basename is unique; ambiguous and
+unresolvable links are reported for a human to settle.
+
+Run it once when adopting the toolkit. The pre-commit gate blocks on pre-existing
+breakage, so a repo that has never had link checking needs one pass to clear its debt:
+
+```bash
+guardrails docs --fix
+```
+
+Directory targets and links that intentionally leave the repository are not reported.
+Links inside fenced code blocks are not links, and are ignored.
