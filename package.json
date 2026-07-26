@@ -10,6 +10,8 @@
     "test": "node scripts/run-tests.mjs",
     "test:timing": "node --import tsx --test test/timing/*.test.ts",
     "test:harness": "node --import tsx --test test/scenarios/*.test.ts",
+    "test:coverage": "node scripts/run-tests.mjs --coverage --report --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80",
+    "test:coverage:report": "node scripts/run-tests.mjs --coverage --report",
     "scan": "node --import tsx src/cli.ts scan"
   },
   "engines": {
