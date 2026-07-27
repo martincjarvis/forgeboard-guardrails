@@ -25,8 +25,20 @@ import { dirname, join } from "node:path";
  * `test/timing` is in neither: it measures the commit budget and has its own
  * script.
  */
-const INTEGRATION = ["test/scenarios/*.test.ts"];
+const INTEGRATION = [
+  // Drive a whole hook against a scaffolded repository.
+  "test/scenarios/*.test.ts",
+  // Exercise our wrapper around a third-party binary — semgrep, cspell,
+  // secretlint, markdownlint, lizard, semantic-release, git. They test real
+  // integration with someone else's tool, and each costs seconds: `sast` alone
+  // was 10.8s for four tests while a genuinely pure file runs in ~300ms.
+  "test/integration/*.test.ts",
+];
 
+/**
+ * Logic only. Nothing here starts a process, which is why the whole tier runs in
+ * about a second.
+ */
 const UNIT = [
   "test/config/*.test.ts",
   "test/docs/*.test.ts",
@@ -36,7 +48,6 @@ const UNIT = [
   "test/status/*.test.ts",
   "test/hooks/*.test.ts",
   "test/commands/*.test.ts",
-  "test/versioning/*.test.ts",
   "test/fixtures/*.test.ts",
   "test/cli.test.ts",
 ];
