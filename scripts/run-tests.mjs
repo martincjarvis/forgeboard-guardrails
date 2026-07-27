@@ -5,7 +5,6 @@ import {
   writeFileSync,
   existsSync,
   rmSync,
-  renameSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -101,23 +100,8 @@ const MAX_DEPTH = 1;
  */
 const TEST_LOG_DIR = join(tmpdir(), "forgeboard-test-logs");
 
-/**
- * Git's location variables, which override the working directory a git command
- * discovers. Kept in step with `gateEnv` in `src/exec/commandRunner.ts`, which
- * strips the same set for the same reason — duplicated rather than imported
- * because this script runs on plain node and that module is TypeScript.
- */
-const GIT_LOCATION_VARS = [
-  "GIT_DIR",
-  "GIT_INDEX_FILE",
-  "GIT_WORK_TREE",
-  "GIT_OBJECT_DIRECTORY",
-  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-  "GIT_PREFIX",
-];
-
 export function childEnv(env) {
-  const child = {
+  return {
     ...env,
     [DEPTH_VAR]: String(Number(env[DEPTH_VAR] ?? "0") + 1),
     FORGEBOARD_LOG_DIR: TEST_LOG_DIR,
@@ -125,20 +109,6 @@ export function childEnv(env) {
     // suite run does not serialise a dozen writers onto a single handle.
     FORGEBOARD_LOG_SESSION: "",
   };
-
-  // Scrubbed once here rather than at each of the ~154 git calls across 38 test
-  // files, because the escape is inherited: a suite run started from inside a git
-  // hook — which the toolkit's own gated commits do, via the coverage gate — carries
-  // GIT_DIR and GIT_WORK_TREE, and GIT_DIR overrides the `cwd` a fixture passes.
-  // Fixture git writes then land on the host repository.
-  //
-  // That is not hypothetical. It set `user.name = Fixture` in this repository's
-  // shared config and authored 51 commits, 48 of them pushed, starting at 6580ee5 —
-  // whose subject is "fix: strip git-hook env from gate commands". That commit gave
-  // gate commands this protection and left the fixtures without it.
-  // mutation: scrubbing removed
-
-  return child;
 }
 
 if (import.meta.main) {
@@ -180,24 +150,15 @@ if (import.meta.main) {
     stdio: "inherit",
     env: childEnv(process.env),
   });
-  // A failed run's logs are moved somewhere this will never sweep, then the working
-  // directory is cleared either way.
-  //
-  // Keeping them in place and deleting only on success was not enough: the natural
-  // response to an intermittent failure is to re-run, and the passing re-run then
-  // deleted the failing run's evidence. That happened to a reviewer chasing exactly
-  // the defect these logs exist for, which is the second time this instrument has
-  // erased the thing it was built to capture.
-  if (result.status !== 0) {
-    const kept = `${TEST_LOG_DIR}-failed-${Date.now()}`;
-    try {
-      renameSync(TEST_LOG_DIR, kept);
-      console.error(`\nSuite failed. Command logs kept at: ${kept}`);
-    } catch {
-      console.error(`\nSuite failed. Command logs at: ${TEST_LOG_DIR}`);
-    }
+  // Kept when the suite failed: isolating the test logs stopped them drowning the
+  // developer's, but deleting them unconditionally threw away the diagnosis for
+  // the run that actually needed one — which is how an intermittent failure stayed
+  // unexplained for two days.
+  if (result.status === 0) {
+    rmSync(TEST_LOG_DIR, { recursive: true, force: true });
+  } else {
+    console.error(`\nSuite failed. Command logs kept at: ${TEST_LOG_DIR}`);
   }
-  rmSync(TEST_LOG_DIR, { recursive: true, force: true });
 
   // On Windows the lcov reporter emits backslashed SF: paths, which common
   // lcov consumers cannot resolve. Windows is the primary platform.

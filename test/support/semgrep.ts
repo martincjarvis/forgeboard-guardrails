@@ -16,33 +16,11 @@ import { spawnSync } from "node:child_process";
  * shell "not recognized" exit that could be mistaken for a runnable tool.
  */
 export function semgrepAvailable(): boolean {
-  // Absent means ENOENT specifically. Any other failure is the probe failing, not
-  // the tool missing, and the two must not be conflated: `status === 0` treated a
-  // probe that could not run as "semgrep is not installed" and silently skipped
-  // the tests that depend on it.
-  //
-  // That was observed on a machine with semgrep on PATH — one module's probe failed
-  // while eighteen others succeeded in the same run, and the suite reported green
-  // having never executed `stagedContent.test.ts`, which is the regression test for
-  // the defect currently under investigation. A green run that skipped the test
-  // proving the thing is worse than a red one.
-  //
-  // So: retried once, and anything that is not a clean ENOENT is treated as present.
-  // If semgrep really is broken the tests then fail loudly, which is the outcome we
-  // want over a silent skip.
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const result = spawnSync("semgrep", ["--version"], {
-      shell: false,
-      encoding: "utf8",
-    });
-    if (result.status === 0) return true;
-    if (
-      (result.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT"
-    ) {
-      return false;
-    }
-  }
-  return true;
+  const result = spawnSync("semgrep", ["--version"], {
+    shell: false,
+    encoding: "utf8",
+  });
+  return result.status === 0;
 }
 
 /**

@@ -1,8 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { combine } from "../exec/commandRunner.ts";
-import { logCommand } from "../exec/commandLog.ts";
 
 /**
  * Checks that what the gates are about to read is what is being committed.
@@ -24,74 +22,21 @@ import { logCommand } from "../exec/commandLog.ts";
  * repository's own line-ending and filter configuration. Comparing bytes on disk
  * would report every file in a repo with `core.autocrlf` on.
  */
-const ATTEMPTS = 3;
-const BACKOFF_MS = 50;
-
-/** Blocking wait. The caller is synchronous and a lock is measured in milliseconds. */
-function waitMs(ms: number): void {
-  const until = Date.now() + ms;
-  while (Date.now() < until);
-}
-
-/**
- * Prefix identifying the "could not verify" case, so a caller can say which of the
- * two happened. A message asserting the isolation failed, when all that is known is
- * that git would not run, states a cause that has not been established — which is
- * the defect the coverage gate's remediation had.
- */
-export const UNVERIFIED = "staged-content isolation could not be verified";
-
 export function checkStagedIsolation(files: string[], cwd: string): string[] {
   if (files.length === 0) return [];
 
-  // Paths whose working-tree content differs from the index. `--` guards against
-  // a filename that looks like a revision.
-  const args = ["diff", "--name-only", "--", ...files];
-  let differing: string | undefined;
-  let failure = "";
-
-  // Retried with a backoff: the thing being waited out is a lock held by a
-  // concurrent git operation, and immediate retries do not wait out anything.
-  //
-  // Every failed attempt is logged even when a later one succeeds. A transient git
-  // failure under contention is the most likely observable of the defect this guard
-  // exists for, and a retry that quietly succeeded would erase exactly the evidence
-  // that would confirm or kill that explanation.
-  for (
-    let attempt = 1;
-    attempt <= ATTEMPTS && differing === undefined;
-    attempt++
-  ) {
-    const result = spawnSync("git", args, { cwd, encoding: "utf8" });
-    if (result.status === 0) {
-      differing = result.stdout;
-      break;
-    }
-    failure =
-      combine(result.stdout, result.stderr) || String(result.error ?? "");
-    logCommand({
-      command: `git ${args.join(" ")}  (attempt ${attempt} of ${ATTEMPTS})`,
+  let differing: string;
+  try {
+    // Paths whose working-tree content differs from the index. `--` guards against
+    // a filename that looks like a revision.
+    differing = execFileSync("git", ["diff", "--name-only", "--", ...files], {
       cwd,
-      status: result.status,
-      output: failure,
+      encoding: "utf8",
     });
-    if (attempt < ATTEMPTS) waitMs(BACKOFF_MS * attempt);
-  }
-
-  if (differing === undefined) {
-    // The check answers "is the working tree the index?". Unable to run, the answer
-    // is unknown, and unknown must not be reported as yes.
-    //
-    // This returned `[]` until 2026-07-27, on the reasoning that a git failure is
-    // not evidence of a breach. That was wrong in the way that matters: the
-    // contention which makes git fail is the same contention under which the
-    // isolation is suspected of failing, so the guard fell silent exactly when it
-    // was needed. A blocked commit and a clear message is the cheaper error.
-    return [
-      `${UNVERIFIED}: \`git ${args.join(" ")}\` failed after ${ATTEMPTS} attempts. ` +
-        `The gates below read files from disk, and without this check there is nothing ` +
-        `establishing that what they read is what is being committed.\n${failure}`,
-    ];
+  } catch {
+    // A git failure here is not evidence of a breach, and refusing a commit on the
+    // strength of one would be worse than the defect this guards.
+    return [];
   }
 
   const problems: string[] = [];

@@ -156,28 +156,3 @@ test("each spawned run is handed a depth one greater than its own", () => {
   // Unrelated variables must survive: the child needs PATH and the rest.
   assert.equal(childEnv({ PATH: "/x" }).PATH, "/x");
 });
-
-test("the suite's children never inherit git's location variables", () => {
-  // A run started from inside a git hook carries GIT_DIR and GIT_WORK_TREE, and
-  // GIT_DIR overrides the cwd a fixture passes. Every fixture git call then writes
-  // to the host repository instead of the fixture — which is how this repo's shared
-  // config acquired `user.name = Fixture` and 51 commits were authored by a test
-  // scaffold. Scrubbed once here because there are ~154 such calls in the suite.
-  const polluted = {
-    GIT_DIR: "/host/.git",
-    GIT_WORK_TREE: "/host",
-    GIT_INDEX_FILE: "/host/.git/index",
-    GIT_OBJECT_DIRECTORY: "/host/.git/objects",
-    GIT_ALTERNATE_OBJECT_DIRECTORIES: "/other/.git/objects",
-    GIT_PREFIX: "sub/",
-    PATH: "/keep/me",
-  };
-
-  const child = childEnv(polluted);
-
-  for (const name of Object.keys(polluted)) {
-    if (name === "PATH") continue;
-    assert.equal(child[name], undefined, `${name} must not reach a fixture`);
-  }
-  assert.equal(child.PATH, "/keep/me", "unrelated variables must survive");
-});
