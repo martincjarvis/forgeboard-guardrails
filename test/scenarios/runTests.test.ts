@@ -183,52 +183,45 @@ test("the suite's children never inherit git's location variables", () => {
   assert.equal(child.PATH, "/keep/me", "unrelated variables must survive");
 });
 
-test("every test file belongs to exactly one tier", () => {
-  // The failure this prevents is a file in neither list: it would stop running at
-  // both gates and in CI, silently, while the suite still reported green. That is
-  // the same silent-coverage-hole shape as the semgrep probe and the glob list
-  // this wrapper already exists to own.
+test("every test file lives in exactly one tier directory", () => {
+  // Membership is the directory, so this asserts the directories stay pure: a
+  // test placed in a unit directory that scaffolds a repo would run at
+  // pre-commit again, which is the defect the split exists to fix. A new
+  // directory matching neither list is the other failure — it would stop running
+  // at both gates and in CI while the suite still reported green.
   const globs = [...TIERS.UNIT, ...TIERS.INTEGRATION];
-  const claimed = new Set<string>();
-
+  const covered = new Set<string>();
   for (const glob of globs) {
-    const dir = glob.includes("/") ? glob.slice(0, glob.lastIndexOf("/")) : ".";
-    const pattern = glob.slice(glob.lastIndexOf("/") + 1);
-    if (pattern.includes("*")) {
-      for (const f of readdirSync(dir)) {
-        if (f.endsWith(".test.ts")) claimed.add(`${dir}/${f}`);
-      }
-    } else {
-      claimed.add(glob);
+    const dir = glob.slice(0, glob.lastIndexOf("/"));
+    if (!glob.includes("*")) {
+      covered.add(glob);
+      continue;
+    }
+    for (const f of readdirSync(dir)) {
+      if (f.endsWith(".test.ts")) covered.add(dir + "/" + f);
     }
   }
 
-  // Every test file on disk, minus the tiers this wrapper deliberately excludes.
   const onDisk: string[] = [];
   const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = `${dir}/${entry.name}`;
-      if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith(".test.ts")) onDisk.push(full);
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const full = dir + "/" + e.name;
+      if (e.isDirectory()) walk(full);
+      else if (e.name.endsWith(".test.ts")) onDisk.push(full);
     }
   };
   walk("test");
 
-  // `test/timing` runs under its own script by design: it measures the budget and
-  // is neither a unit nor an integration gate.
-  const expected = onDisk.filter((f) => !f.startsWith("test/timing/"));
-  const orphans = expected.filter((f) => !claimed.has(f));
-
+  // test/timing has its own script and belongs to neither gate, deliberately.
+  const orphans = onDisk.filter(
+    (f) => !covered.has(f) && !f.startsWith("test/timing/"),
+  );
   assert.deepEqual(
     orphans,
     [],
-    `these test files are in no tier and would never run:\n${orphans.join("\n")}`,
+    `these files are in no tier:\n${orphans.join("\n")}`,
   );
-});
 
-test("the tiers do not overlap", () => {
-  // A file in both would run twice at pre-commit, and the integration tier's whole
-  // point is not running there.
   const both = TIERS.UNIT.filter((g) => TIERS.INTEGRATION.includes(g));
-  assert.deepEqual(both, []);
+  assert.deepEqual(both, [], "no directory may be in both tiers");
 });

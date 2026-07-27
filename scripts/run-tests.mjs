@@ -11,30 +11,22 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 /**
- * The single source of truth for which files the suite runs. Kept in this
- * order deliberately. `npm test`, the coverage gate, and the report run all
- * read this one list — do not re-declare it in package.json.
+ * The two tiers, split by directory.
+ *
+ * An integration test scaffolds a repository and drives a whole hook, or shells
+ * out to semgrep or lizard. Those cost seconds apiece and belong at pre-push,
+ * which is where the toolkit's own config contract puts them — `integrationTest`,
+ * not `unitTest`.
+ *
+ * **Membership is the directory a test lives in.** Nothing here decides it and
+ * there is nothing to filter, which is why the five integration tests that were
+ * living in unit directories were moved rather than listed as exceptions.
+ *
+ * `test/timing` is in neither: it measures the commit budget and has its own
+ * script.
  */
-/**
- * Tests that scaffold a repository and drive a whole hook end to end.
- *
- * These do not belong at pre-commit. They start the entire pipeline — semgrep,
- * cspell, prettier, nested node processes — against a scaffolded repo, and the
- * toolkit's own config contract puts that tier at pre-push (`integrationTest`),
- * not at commit time (`unitTest`).
- *
- * The toolkit was violating its own contract: `unitTest` was `npm test`, which
- * ran everything. 36 of these take 29 seconds against 24 for the other 233.
- *
- * `preCommitHook.test.ts` is named individually because it lives among genuine
- * unit tests but drives the full hook, which is the rule that decides the tier.
- */
-const INTEGRATION = [
-  "test/scenarios/*.test.ts",
-  "test/hooks/preCommitHook.test.ts",
-];
+const INTEGRATION = ["test/scenarios/*.test.ts"];
 
-/** Fast and hermetic: no scaffolded repo, no hook, safe to run on every commit. */
 const UNIT = [
   "test/config/*.test.ts",
   "test/docs/*.test.ts",
@@ -42,18 +34,16 @@ const UNIT = [
   "test/exec/*.test.ts",
   "test/gates/*.test.ts",
   "test/status/*.test.ts",
-  "test/hooks/postEditHook.test.ts",
-  "test/hooks/taskCompleteHook.test.ts",
+  "test/hooks/*.test.ts",
   "test/commands/*.test.ts",
   "test/versioning/*.test.ts",
   "test/fixtures/*.test.ts",
-  "test/scripts/*.test.ts",
   "test/cli.test.ts",
 ];
 
 export const TIERS = { UNIT, INTEGRATION };
 
-const PATTERNS = [...INTEGRATION, ...UNIT];
+const PATTERNS = [...UNIT, ...INTEGRATION];
 
 const COVERAGE = [
   "--experimental-test-coverage",
@@ -220,16 +210,21 @@ if (import.meta.main) {
   // deleted the failing run's evidence. That happened to a reviewer chasing exactly
   // the defect these logs exist for, which is the second time this instrument has
   // erased the thing it was built to capture.
-  if (result.status !== 0) {
-    const kept = `${TEST_LOG_DIR}-failed-${Date.now()}`;
-    try {
-      renameSync(TEST_LOG_DIR, kept);
-      console.error(`\nSuite failed. Command logs kept at: ${kept}`);
-    } catch {
-      console.error(`\nSuite failed. Command logs at: ${TEST_LOG_DIR}`);
+  // Only the outermost run owns the log directory. A nested run — the end-to-end
+  // test spawns one — shares it with every sibling process still writing, and
+  // clearing it from inside cost a run with `ENOTEMPTY, Directory not empty`.
+  if (depth === 0) {
+    if (result.status !== 0) {
+      const kept = `${TEST_LOG_DIR}-failed-${Date.now()}`;
+      try {
+        renameSync(TEST_LOG_DIR, kept);
+        console.error(`\nSuite failed. Command logs kept at: ${kept}`);
+      } catch {
+        console.error(`\nSuite failed. Command logs at: ${TEST_LOG_DIR}`);
+      }
     }
+    rmSync(TEST_LOG_DIR, { recursive: true, force: true });
   }
-  rmSync(TEST_LOG_DIR, { recursive: true, force: true });
 
   // On Windows the lcov reporter emits backslashed SF: paths, which common
   // lcov consumers cannot resolve. Windows is the primary platform.
