@@ -157,15 +157,23 @@ test("a repo with no suppressions and no register passes", () => {
   clean(dir);
 });
 
-test("the register does not license itself", () => {
-  // The register names every rule it governs, so scanning it as source would let
-  // it authorise anything simply by mentioning it.
+test("the register is not scanned as source, so it cannot report itself", () => {
+  // The register is markdown, and a marker in an HTML comment outside a fence is a
+  // real suppression — the test above proves that. So a row that explains a
+  // `markdownlint-disable` in prose would make the register report itself and block
+  // every commit until someone worked out why.
+  //
+  // The fixture needs a marker IN the register for that to be true. An earlier
+  // version had none, so the gate found nothing there whether or not it skipped the
+  // file, and the assertion passed with the skip deleted.
   const dir = repo({
-    "src/a.ts": "const x = 1;\n",
+    "src/a.ts": "// nosemgrep: some.rule.id\n",
     "docs/suppression-register.md":
       [
         ...REGISTER,
         "| `some.rule.id` | `src/a.ts` | Reason. | When X lands. | Someone |",
+        "",
+        "<!-- nosemgrep: other.rule.id -->",
       ].join("\n") + "\n",
   });
 
