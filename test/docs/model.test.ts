@@ -64,3 +64,32 @@ test("collects inline code spans", () => {
     ["src/gates/prSize.ts"],
   );
 });
+
+test("records the character range of every fenced and indented code block", () => {
+  // Documentation about a suppression is not a suppression. Every plan and ADR in
+  // this programme quotes markers inside fences, so a scanner that cannot tell
+  // prose from code reports the documentation as the offence.
+  const src = [
+    "Prose mentioning nosemgrep in passing.",
+    "",
+    "```ts",
+    "// nosemgrep: some.rule.id",
+    "```",
+    "",
+    "Tail.",
+  ].join("\n");
+
+  const model = parseMarkdown(src);
+  assert.equal(model.codeBlocks.length, 1);
+
+  const [block] = model.codeBlocks;
+  const inside = src.indexOf("// nosemgrep");
+  assert.ok(
+    inside > block.start && inside < block.end,
+    "the fenced marker must fall inside the recorded range",
+  );
+  assert.ok(
+    src.indexOf("Prose mentioning") < block.start,
+    "prose before the fence must fall outside it",
+  );
+});

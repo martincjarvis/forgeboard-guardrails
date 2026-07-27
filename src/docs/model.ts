@@ -28,11 +28,23 @@ export interface DocCodeSpan {
   line: number;
 }
 
+export interface DocCodeBlock {
+  /** Character offsets of the whole block, fences included. */
+  start: number;
+  end: number;
+}
+
 export interface DocModel {
   frontmatter?: Record<string, unknown>;
   headings: DocHeading[];
   links: DocLink[];
   codeSpans: DocCodeSpan[];
+  /**
+   * Ranges of fenced and indented code. Text quoted inside one is an example, not
+   * an instruction — a document describing a suppression marker is not itself
+   * suppressing anything.
+   */
+  codeBlocks: DocCodeBlock[];
 }
 
 const processor = unified().use(remarkParse).use(remarkFrontmatter, ["yaml"]);
@@ -51,6 +63,7 @@ export function parseMarkdown(source: string): DocModel {
   const headings: DocHeading[] = [];
   const links: DocLink[] = [];
   const codeSpans: DocCodeSpan[] = [];
+  const codeBlocks: DocCodeBlock[] = [];
   let frontmatter: Record<string, unknown> | undefined;
 
   visit(tree, (node) => {
@@ -79,6 +92,13 @@ export function parseMarkdown(source: string): DocModel {
         });
         break;
       }
+      case "code": {
+        codeBlocks.push({
+          start: node.position?.start.offset ?? 0,
+          end: node.position?.end.offset ?? 0,
+        });
+        break;
+      }
       case "inlineCode": {
         codeSpans.push({
           value: String(node.value),
@@ -89,5 +109,5 @@ export function parseMarkdown(source: string): DocModel {
     }
   });
 
-  return { frontmatter, headings, links, codeSpans };
+  return { frontmatter, headings, links, codeSpans, codeBlocks };
 }

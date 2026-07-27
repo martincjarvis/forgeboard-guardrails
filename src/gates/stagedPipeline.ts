@@ -8,6 +8,10 @@ import {
 } from "./componentCommands.ts";
 import { runRepoLevelTests } from "./repoLevelTests.ts";
 import { runDocsRepoGate } from "./docsRepoGates.ts";
+import {
+  runSuppressionRegisterGate,
+  REGISTER_PATH,
+} from "./suppressionRegister.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
 import { describeFailure } from "../status/testOutputParsers.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
@@ -165,6 +169,15 @@ function runComponentAndRepoGates(
         "repo-level test failed",
       );
     }
+  }
+
+  const suppressions = runSuppressionRegisterGate(cwd);
+  if (suppressions.problems.length > 0) {
+    throw new GateFailure(
+      "suppression-register",
+      `record each one in ${REGISTER_PATH}, or remove the suppression.`,
+      suppressions.problems.join("\n"),
+    );
   }
 
   const docs = runDocsRepoGate(cwd, stagedFiles, { fix: true });
