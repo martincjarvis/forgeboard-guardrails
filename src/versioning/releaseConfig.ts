@@ -3,8 +3,6 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -65,6 +63,7 @@ export interface DryRunResult {
 export async function runSemanticReleaseDryRun(
   cwd: string,
   releaseConfig: ReleaseConfig,
+  // Part of the call contract; this path does not read it.
   _branch = "main",
 ): Promise<DryRunResult> {
   // Write a per-call .releaserc so the CLI picks up tagFormat/branches/plugins exactly.
@@ -96,7 +95,6 @@ export async function runSemanticReleaseDryRun(
   );
 
   let stdout = "";
-  let exitCode = 0;
   try {
     // noCi:true so semantic-release doesn't bail just because we're not on CI.
     // repositoryUrl points at the fixture's local path so git ls-remote works offline.
@@ -122,12 +120,10 @@ export async function runSemanticReleaseDryRun(
     // Distinguish via the captured output and re-throw genuine errors.
     if (error instanceof Error && "stdout" in error) {
       stdout = String((error as { stdout?: unknown }).stdout ?? "");
+      // semantic-release exits 1 or 2 for "no release needed" as well as for real
+      // failures; the captured output distinguishes them, so only other codes rethrow.
       const status = (error as { status?: number }).status;
-      if (status === 1 || status === 2) {
-        exitCode = status ?? 0;
-      } else {
-        throw error;
-      }
+      if (status !== 1 && status !== 2) throw error;
     } else {
       throw error;
     }

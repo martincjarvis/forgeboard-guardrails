@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import Ajv from "ajv";
-import addFormats from "ajv-formats";
+import { Ajv } from "ajv";
+// ajv-formats is CommonJS whose module.exports IS the function, while its types
+// declare `export default`. Under NodeNext those disagree, so the namespace is
+// typed as non-callable even though it is callable at runtime. One cast states
+// the true shape rather than reshaping the import at every call site.
+import * as ajvFormats from "ajv-formats";
+const addFormats = ajvFormats.default as unknown as (ajv: unknown) => void;
 import {
   writeStatus,
   updateTestOutcomes,

@@ -4,7 +4,6 @@ import {
   writeFileSync,
   readFileSync,
   appendFileSync,
-  copyFileSync,
   cpSync,
 } from "node:fs";
 import { join, dirname, resolve, isAbsolute } from "node:path";

@@ -25,6 +25,8 @@ import { GateFailure } from "../errors/GateFailure.ts";
  */
 export async function runTaskCompleteHook(
   cwd: string,
+  // The hook contract passes stdin; this check does not read it. Named with a
+  // leading underscore and declared so the signature still matches the contract.
   _stdinJson: string,
 ): Promise<number> {
   const config = loadConfig(cwd);

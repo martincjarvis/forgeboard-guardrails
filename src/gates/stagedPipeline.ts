@@ -190,7 +190,13 @@ function runComponentAndRepoGates(
       throw new GateFailure(
         `${result.component}.build`,
         "fix the build error and re-commit.",
-        "build failed",
+        // The compiler's own output, not the word "failed". A gate that reports a
+        // failure without the diagnosis makes the developer re-run the command by
+        // hand to find out what broke — the same defect the coverage gate had.
+        describeFailure(
+          result.build.steps.at(-1)?.output ?? "",
+          `build failed for ${result.component} with no output`,
+        ),
       );
     }
     if (!result.unitTest.pass) {

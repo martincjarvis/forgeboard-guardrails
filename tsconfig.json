@@ -6,7 +6,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist"
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "allowJs": true
   },
   "include": ["src", "test"]
 }

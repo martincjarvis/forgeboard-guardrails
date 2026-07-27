@@ -296,6 +296,8 @@ test("processes sharing a session name append to one file", () => {
     const session = process.env.FORGEBOARD_LOG_SESSION;
     assert.ok(session, "the name is published for children to inherit");
     assert.equal(logFiles(dir).length, 1);
-    assert.match(logFiles(dir)[0], new RegExp(session!.replace(/\./g, "\.")));
+    // Compared as a string: the file name IS the session name, so a regular
+    // expression built from it only adds escaping to get wrong.
+    assert.equal(logFiles(dir)[0], session);
   });
 });

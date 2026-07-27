@@ -4,7 +4,6 @@
   "dictionaries": ["typescript", "node", "npm", "software-terms"],
   "words": [
     "ACMR",
-    "POSIX",
     "allerrors",
     "bdiff",
     "behaviour",
@@ -20,8 +19,10 @@
     "minimatch",
     "nosemgrep",
     "numstat",
+    "POSIX",
     "quotepath",
     "releaserc",
+    "sarif",
     "semgrep",
     "unconfigured",
     "ungated",

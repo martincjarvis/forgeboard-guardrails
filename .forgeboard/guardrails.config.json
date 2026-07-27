@@ -10,7 +10,8 @@
     "toolkit": {
       "paths": ["src/**", "schemas/**", "skills/**", "scripts/**"],
       "unitTest": "npm run test:unit",
-      "integrationTest": "npm run test:harness"
+      "integrationTest": "npm run test:harness",
+      "build": "npm run build"
     }
   }
 }

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import Ajv from "ajv";
+import { Ajv } from "ajv";
 import schema from "../../schemas/guardrails.config.schema.json" with { type: "json" };
 import type { GuardrailsConfig } from "./types.ts";
 
@@ -28,7 +28,7 @@ export function loadConfig(cwd: string): GuardrailsConfig {
     throw new Error(`Invalid guardrails.config.json: ${messages}`);
   }
 
-  const config = raw as GuardrailsConfig;
+  const config = raw as unknown as GuardrailsConfig;
   config.statusContract = {
     enabled: config.statusContract?.enabled ?? false,
     ticketIdPattern: config.statusContract?.ticketIdPattern ?? "[A-Z]+-\\d+",

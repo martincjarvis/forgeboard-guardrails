@@ -28,19 +28,23 @@ test("composes tagFormat from appName and each component key", () => {
 
 test("configures release on the default branch and branch-derived prerelease on feature branches", () => {
   const configs = generateReleaseConfigs(config);
-  const branches = configs.api.branches as Array<{
-    name?: string;
-    prerelease?: boolean | string;
-  }>;
-  assert.ok(branches.some((b) => b === "main" || b.name === "main"));
+  // A branch entry is either a bare name or an object — semantic-release accepts
+  // both, and the assertion below checks for each.
+  const branches = configs.api.branches as Array<
+    string | { name?: string; prerelease?: boolean | string }
+  >;
+  assert.ok(
+    branches.some((b) => (typeof b === "string" ? b : b.name) === "main"),
+  );
   const feature = branches.find(
     (b) => typeof b === "object" && b.name === "feature/*",
   );
   assert.ok(feature, "a feature/* prerelease branch is configured");
+  assert.ok(typeof feature === "object");
   // The prerelease id is derived from the branch name (not a fixed channel like
   // "beta"), so each feature branch is its own channel and concurrent branches
   // never collide. ${name} is resolved by semantic-release at run time.
-  assert.match(String(feature!.prerelease), /\$\{name/);
+  assert.match(String(feature.prerelease), /\$\{name/);
 });
 
 function initRepoWithCommit(branch: string, message: string): string {
