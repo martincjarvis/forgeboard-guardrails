@@ -18,3 +18,26 @@ test("throws a named 'not found' error when the external binary is absent (all p
     /forgeboard-definitely-absent-bin.*was not found/s,
   );
 });
+
+test("captures stderr from an external tool, on both the passing and failing paths", () => {
+  // semgrep, the only external tool today, reports rule-loading errors and crashes
+  // on stderr. Reading stdout alone reported those as a failure with nothing to
+  // say about it. `node` stands in for it here: it is the one binary guaranteed on
+  // PATH wherever this suite runs.
+  const passing = runExternalBin(
+    "node",
+    ["-e", "console.log('out'); console.error('warn')"],
+    process.cwd(),
+  );
+  assert.equal(passing.pass, true);
+  assert.match(passing.output, /out/);
+  assert.match(passing.output, /warn/, "a warning on a clean run must survive");
+
+  const failing = runExternalBin(
+    "node",
+    ["-e", "console.error('the real diagnosis'); process.exit(1)"],
+    process.cwd(),
+  );
+  assert.equal(failing.pass, false);
+  assert.match(failing.output, /the real diagnosis/);
+});

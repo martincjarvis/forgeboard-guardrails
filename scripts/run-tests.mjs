@@ -150,7 +150,15 @@ if (import.meta.main) {
     stdio: "inherit",
     env: childEnv(process.env),
   });
-  rmSync(TEST_LOG_DIR, { recursive: true, force: true });
+  // Kept when the suite failed: isolating the test logs stopped them drowning the
+  // developer's, but deleting them unconditionally threw away the diagnosis for
+  // the run that actually needed one — which is how an intermittent failure stayed
+  // unexplained for two days.
+  if (result.status === 0) {
+    rmSync(TEST_LOG_DIR, { recursive: true, force: true });
+  } else {
+    console.error(`\nSuite failed. Command logs kept at: ${TEST_LOG_DIR}`);
+  }
 
   // On Windows the lcov reporter emits backslashed SF: paths, which common
   // lcov consumers cannot resolve. Windows is the primary platform.
