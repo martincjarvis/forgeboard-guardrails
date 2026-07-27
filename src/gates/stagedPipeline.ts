@@ -13,6 +13,7 @@ import {
   runSuppressionRegisterGate,
   REGISTER_PATH,
 } from "./suppressionRegister.ts";
+import { checkLockfileSync } from "./lockfileSync.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
 import { logVerdict } from "../exec/commandLog.ts";
 import { describeFailure } from "../status/testOutputParsers.ts";
@@ -116,6 +117,15 @@ export async function runStagedPipeline(
                 breach.join("\n"),
               );
             }
+            const lockfile = checkLockfileSync(files, cwd);
+            if (lockfile.length > 0) {
+              throw new GateFailure(
+                "lockfile-sync",
+                "run `npm install` and stage the lockfile alongside the manifest.",
+                lockfile.join("\n"),
+              );
+            }
+
             await runFileGates(files, cwd);
             runUserRules(ctx, files, cwd);
             componentResults = runComponentAndRepoGates(ctx, cwd, files);
