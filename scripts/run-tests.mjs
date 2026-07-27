@@ -101,8 +101,23 @@ const MAX_DEPTH = 1;
  */
 const TEST_LOG_DIR = join(tmpdir(), "forgeboard-test-logs");
 
+/**
+ * Git's location variables, which override the working directory a git command
+ * discovers. Kept in step with `gateEnv` in `src/exec/commandRunner.ts`, which
+ * strips the same set for the same reason — duplicated rather than imported
+ * because this script runs on plain node and that module is TypeScript.
+ */
+const GIT_LOCATION_VARS = [
+  "GIT_DIR",
+  "GIT_INDEX_FILE",
+  "GIT_WORK_TREE",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_PREFIX",
+];
+
 export function childEnv(env) {
-  return {
+  const child = {
     ...env,
     [DEPTH_VAR]: String(Number(env[DEPTH_VAR] ?? "0") + 1),
     FORGEBOARD_LOG_DIR: TEST_LOG_DIR,
@@ -110,6 +125,20 @@ export function childEnv(env) {
     // suite run does not serialise a dozen writers onto a single handle.
     FORGEBOARD_LOG_SESSION: "",
   };
+
+  // Scrubbed once here rather than at each of the ~154 git calls across 38 test
+  // files, because the escape is inherited: a suite run started from inside a git
+  // hook — which the toolkit's own gated commits do, via the coverage gate — carries
+  // GIT_DIR and GIT_WORK_TREE, and GIT_DIR overrides the `cwd` a fixture passes.
+  // Fixture git writes then land on the host repository.
+  //
+  // That is not hypothetical. It set `user.name = Fixture` in this repository's
+  // shared config and authored 51 commits, 48 of them pushed, starting at 6580ee5 —
+  // whose subject is "fix: strip git-hook env from gate commands". That commit gave
+  // gate commands this protection and left the fixtures without it.
+  for (const name of GIT_LOCATION_VARS) delete child[name];
+
+  return child;
 }
 
 if (import.meta.main) {
