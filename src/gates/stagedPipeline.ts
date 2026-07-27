@@ -13,6 +13,7 @@ import {
   REGISTER_PATH,
 } from "./suppressionRegister.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
+import { logVerdict } from "../exec/commandLog.ts";
 import { describeFailure } from "../status/testOutputParsers.ts";
 import type { GuardrailsConfig } from "../config/types.ts";
 
@@ -104,7 +105,10 @@ export async function runStagedPipeline(
           } catch (error) {
             // Printed here so the actionable message reaches the developer regardless
             // of how the task runner chooses to render a rejected task.
-            if (error instanceof GateFailure) console.error(error.message);
+            if (error instanceof GateFailure) {
+              console.error(error.message);
+              logVerdict(error.gate, error.message);
+            }
             throw error;
           }
         },

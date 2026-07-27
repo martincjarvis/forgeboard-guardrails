@@ -104,6 +104,7 @@ export function runCommandSequence(
       // Both ids on one line: semgrep applies a nosemgrep comment only to the line
       // it precedes, so stacked comments silence the nearest rule and leave the
       // other one firing.
+      const startedAt = Date.now();
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process, javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
       const result = spawnSync(command, {
         cwd,
@@ -117,7 +118,13 @@ export function runCommandSequence(
       const output = result.error
         ? result.error.message
         : combine(result.stdout, result.stderr);
-      logCommand({ command, cwd, status: result.status, output });
+      logCommand({
+        command,
+        cwd,
+        status: result.status,
+        output,
+        durationMs: Date.now() - startedAt,
+      });
 
       const pass = !result.error && result.status === 0;
       steps.push({ command, index, total: list.length, pass, output });

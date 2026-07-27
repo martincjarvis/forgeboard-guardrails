@@ -32,6 +32,7 @@ export function runLocalBin(
     // where these tools are `.cmd` shims that cannot be executed directly — the
     // same reason the execFileSync call this replaces carried the same option.
     //
+    const startedAt = Date.now();
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process, javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
     const result = spawnSync(binPath, args, {
       cwd,
@@ -47,6 +48,7 @@ export function runLocalBin(
       cwd,
       status: result.status,
       output,
+      durationMs: Date.now() - startedAt,
     });
     return { pass: result.status === 0, output };
   } catch (error: unknown) {

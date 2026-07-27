@@ -32,6 +32,7 @@ export function runExternalBin(
     // replaces — the change is that both streams are now captured, not how the
     // process is started.
     //
+    const startedAt = Date.now();
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
     const result = spawnSync(binName, args, {
       cwd,
@@ -47,6 +48,7 @@ export function runExternalBin(
       cwd,
       status: result.status,
       output,
+      durationMs: Date.now() - startedAt,
     });
     return { pass: result.status === 0, output };
   } catch (error: unknown) {

@@ -7,7 +7,6 @@ import {
   existsSync,
   writeFileSync,
 } from "node:fs";
-
 import { join } from "node:path";
 
 /**
@@ -18,7 +17,8 @@ import { join } from "node:path";
 export const RETENTION_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Transient diagnostics log for every command the toolkit shells out to.
+ * Transient diagnostics log for every command the toolkit shells out to, and for
+ * the verdict each gate reaches on the strength of it.
  *
  * A gate reduces a tool to an exit code, and an exit code is not evidence of a
  * clean run: a tool that prints "no configuration found, using defaults" and then
@@ -33,10 +33,8 @@ export const RETENTION_MS = 24 * 60 * 60 * 1000;
  *
  * The system temp directory was the first choice and was wrong. Anything confined
  * to the repository — a sandboxed coding agent, a CI container that mounts only the
- * workspace — cannot reach the system temp directory, so the diagnostics were
- * written and then unreadable by exactly the thing that needed them. An override
- * existed, but it had to be remembered, and a mechanism that depends on someone
- * remembering is the failure this programme exists to correct.
+ * workspace — cannot reach it, so the diagnostics were written and then unreadable
+ * by exactly the thing that needed them.
  *
  * **Never fails a gate.** Every filesystem call here is best-effort. A read-only
  * directory or a full disk costs the diagnostics, not the commit.
@@ -60,23 +58,36 @@ function ensureLogDir(): void {
 }
 
 /**
- * One file per process, so the commands of a single hook run read together
- * instead of interleaved with a concurrent run's. Resolved on first write —
- * a run that shells out to nothing leaves no file behind.
+ * The file name for this run, shared with every process it spawns.
+ *
+ * A gated commit is one hook process that spawns npm, which spawns the test
+ * runner, which spawns more. One file per process scattered a single commit
+ * across a dozen files. Publishing the name through the environment means a
+ * child inherits it and appends to the same file, so a run reads as a run.
+ *
+ * Entries are written with one `appendFileSync` each, so concurrent writers
+ * interleave between entries but never inside one.
  */
-let sessionName: string | undefined;
+const SESSION_VAR = "FORGEBOARD_LOG_SESSION";
 
-/**
- * Only the file name is fixed for the process; the directory is resolved on every
- * call. Caching the full path would freeze whatever `FORGEBOARD_LOG_DIR` happened
- * to hold at the first write, which is wrong the moment it changes.
- */
+function sessionName(): string {
+  const existing = process.env[SESSION_VAR];
+  if (existing) return existing;
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const name = `${stamp}-${process.pid}.log`;
+  process.env[SESSION_VAR] = name;
+  return name;
+}
+
 function sessionPath(): string {
-  if (sessionName === undefined) {
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    sessionName = `${stamp}-${process.pid}.log`;
-  }
-  return join(logDir(), sessionName);
+  return join(logDir(), sessionName());
+}
+
+/** What this run is: `pre-commit`, `pre-push`, `docs`. Set once by the CLI. */
+let runLabel = "run";
+
+export function beginRun(label: string): void {
+  runLabel = label;
 }
 
 /**
@@ -85,9 +96,28 @@ function sessionPath(): string {
  * so it can never name a path that does not exist.
  */
 export function currentLogPath(): string | undefined {
-  if (sessionName === undefined) return undefined;
   const path = sessionPath();
   return existsSync(path) ? path : undefined;
+}
+
+function append(body: string): void {
+  try {
+    const path = sessionPath();
+    // The header is written per file rather than per process. Keyed off the
+    // process it would be missing from every file but the first, which is wrong
+    // the moment anything writes to more than one.
+    if (!existsSync(path)) {
+      ensureLogDir();
+      sweepExpiredLogs();
+      appendFileSync(
+        path,
+        `=== ${runLabel} — ${new Date().toISOString()} — pid ${process.pid}\n`,
+      );
+    }
+    appendFileSync(path, body);
+  } catch {
+    // Diagnostics are never worth failing a gate over.
+  }
 }
 
 export interface CommandLogEntry {
@@ -95,22 +125,54 @@ export interface CommandLogEntry {
   cwd: string;
   status: number | null;
   output: string;
+  /** Wall time, when the caller measured it. Finds the slow step at a glance. */
+  durationMs?: number;
 }
 
 export function logCommand(entry: CommandLogEntry): void {
-  try {
-    const path = sessionPath();
-    if (!existsSync(path)) {
-      ensureLogDir();
-      sweepExpiredLogs();
-    }
-    const header =
-      `\n=== ${new Date().toISOString()} — exit ${entry.status ?? "unknown"}\n` +
-      `    command: ${entry.command}\n` +
-      `    cwd:     ${entry.cwd}\n`;
-    appendFileSync(path, `${header}${entry.output.trimEnd()}\n`);
-  } catch {
-    // Diagnostics are never worth failing a gate over.
+  const took =
+    entry.durationMs === undefined
+      ? ""
+      : `  ${(entry.durationMs / 1000).toFixed(1)}s`;
+  // Failures lead with a marker so `grep '^!!!'` finds them without reading the
+  // file. The whole point is not having to read the file.
+  const marker = entry.status === 0 ? "---" : "!!!";
+  const header =
+    `\n${marker} exit ${entry.status ?? "unknown"}${took}  ${entry.command}\n` +
+    `    cwd: ${entry.cwd}\n`;
+  const body = entry.output.trimEnd();
+  append(body === "" ? `${header}    (no output)\n` : `${header}${body}\n`);
+}
+
+/**
+ * Records what a gate concluded, which the commands alone never say.
+ *
+ * Several gates never shell out — link integrity, the suppression register, PR
+ * size, file length. Their verdicts existed only on the terminal, so a log could
+ * show every command passing and not say why the commit was refused.
+ */
+export function logVerdict(gate: string, message: string): void {
+  append(`\n*** GATE FAILED: ${gate}\n${message.trimEnd()}\n`);
+}
+
+/** Closes the run so the file states its own outcome. */
+export function endRun(exitCode: number): void {
+  if (currentLogPath() === undefined) return;
+  append(
+    `\n=== end ${runLabel} — exit ${exitCode} — ${new Date().toISOString()}\n`,
+  );
+}
+
+/**
+ * Tells the developer where the full output went, on the paths where a gate has
+ * just blocked them. Silent when there is no log: an absent file must never be
+ * announced as if it were there.
+ */
+export function reportLogPath(): void {
+  const path = currentLogPath();
+  if (path) {
+    console.error(`\nFull output of every command this run: ${path}`);
+    console.error(`Failures in it are marked "!!!" and "*** GATE FAILED".`);
   }
 }
 
@@ -135,17 +197,5 @@ export function sweepExpiredLogs(now: number = Date.now()): void {
     }
   } catch {
     // No directory yet, or unreadable. Nothing to sweep either way.
-  }
-}
-
-/**
- * Tells the developer where the full output went, on the paths where a gate has
- * just blocked them. Silent when there is no log: an absent file must never be
- * announced as if it were there.
- */
-export function reportLogPath(): void {
-  const path = currentLogPath();
-  if (path) {
-    console.error(`\nFull output of every command this run: ${path}`);
   }
 }

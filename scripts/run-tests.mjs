@@ -1,6 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 
 /**
  * The single source of truth for which files the suite runs. Kept in this
@@ -85,10 +92,22 @@ export function buildArgs(argv) {
 const DEPTH_VAR = "FORGEBOARD_TEST_DEPTH";
 const MAX_DEPTH = 1;
 
+/**
+ * The suite runs the real gates against fixture repos, so every fixture command
+ * lands in the diagnostics log — 611 of 1,653 entries in this repo's log were
+ * `node -e "process.exit(0)"` and friends, drowning the entries a developer was
+ * actually looking for. Tests get their own directory, thrown away afterwards.
+ */
+const TEST_LOG_DIR = join(tmpdir(), "forgeboard-test-logs");
+
 export function childEnv(env) {
   return {
     ...env,
     [DEPTH_VAR]: String(Number(env[DEPTH_VAR] ?? "0") + 1),
+    FORGEBOARD_LOG_DIR: TEST_LOG_DIR,
+    // Each test process gets its own file rather than inheriting this one's, so a
+    // suite run does not serialise a dozen writers onto a single handle.
+    FORGEBOARD_LOG_SESSION: "",
   };
 }
 
@@ -131,6 +150,7 @@ if (import.meta.main) {
     stdio: "inherit",
     env: childEnv(process.env),
   });
+  rmSync(TEST_LOG_DIR, { recursive: true, force: true });
 
   // On Windows the lcov reporter emits backslashed SF: paths, which common
   // lcov consumers cannot resolve. Windows is the primary platform.

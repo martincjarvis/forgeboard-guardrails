@@ -6,9 +6,14 @@ import { runHookCommand } from "./commands/run.ts";
 import { runAgentHook } from "./commands/agentHook.ts";
 import { runScan } from "./commands/scan.ts";
 import { runDocs } from "./commands/docs.ts";
+import { beginRun, endRun } from "./exec/commandLog.ts";
 
 const [, , command, ...rest] = process.argv;
 const cwd = process.cwd();
+
+// Names the run in the diagnostics log. `run pre-commit` reads better than the
+// bare subcommand, which is all a reader of the log would otherwise get.
+beginRun([command, ...rest].filter(Boolean).join(" ") || "guardrails");
 
 function readStdin(): string {
   try {
@@ -45,4 +50,7 @@ async function main(): Promise<number> {
   }
 }
 
-main().then((code) => process.exit(code));
+main().then((code) => {
+  endRun(code);
+  process.exit(code);
+});

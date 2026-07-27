@@ -135,9 +135,36 @@ v1) and appends to `events.ndjson` after each run. Both are gitignored.
 
 ### Diagnostics log
 
-Every command a gate shells out to is appended — command, exit status, and both
-streams — to one file per run under `.forgeboard/logs/`. Files older than 24 hours
-are removed on the next run. A gate that blocks you prints the path.
+Every command a gate shells out to is appended — command, exit status, duration and
+both streams — to **one file per run** under `.forgeboard/logs/`, together with the
+verdict of any gate that failed. Files older than 24 hours are removed on the next
+run. A gate that blocks you prints the path.
+
+A blocked commit reads end to end:
+
+```text
+=== run pre-commit — 2026-07-27T08:06:31.334Z — pid 9208
+--- exit 0  0.3s  markdownlint-cli2 README.md
+--- exit 0  1.0s  cspell --no-progress README.md
+--- exit 0  2.7s  semgrep --config=p/default --error --quiet --metrics=off README.md
+*** GATE FAILED: docs-links
+=== end run pre-commit — exit 1
+```
+
+Three markers, so you can find what matters without reading the file:
+
+| Marker | Meaning                                          |
+| ------ | ------------------------------------------------ |
+| `---`  | a command that succeeded                         |
+| `!!!`  | a command that failed — `grep '^!!!'`            |
+| `***`  | the gate's own verdict, which no command reports |
+
+Durations are there to find the slow step; a gated commit has a 30-second budget.
+
+Child processes inherit the run's file name, so one commit is one file however many
+processes it spawns. The test suite writes to a throwaway directory instead — it runs
+the real gates against fixture repos, and those commands would otherwise be 37% of
+what you are reading.
 
 It records commands that **succeeded** as well as ones that failed. An exit code
 of zero is not evidence of a clean run: a tool that prints `no configuration

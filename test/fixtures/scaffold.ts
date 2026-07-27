@@ -9,10 +9,48 @@ export interface FixtureRepo {
   cleanup: () => void;
 }
 
+/**
+ * Every scaffolded repo, until it is cleaned up.
+ *
+ * Tests call `cleanup()` as their last statement, so a failing assertion returns
+ * before it and the directory survives — one leak per failure, forever. A run of
+ * this suite left 16,749 of them in the system temp directory before this existed.
+ *
+ * One process-exit handler removes whatever is still registered. Not one listener
+ * per fixture: that hits Node's max-listeners warning at eleven, which this suite
+ * was already emitting.
+ */
+const live = new Set<string>();
+let sweepRegistered = false;
+
+function registerSweep(): void {
+  if (sweepRegistered) return;
+  sweepRegistered = true;
+  // Must be synchronous — an exit handler cannot await.
+  process.on("exit", () => {
+    for (const dir of live) {
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        // A directory already gone, or held open by a straggling child process.
+      }
+    }
+    live.clear();
+  });
+}
+
+/** Removes every fixture still registered. Exported so the sweep is testable. */
+export function cleanupLeakedFixtures(): void {
+  for (const dir of live) rmSync(dir, { recursive: true, force: true });
+  live.clear();
+}
+
 export function scaffoldFixtureRepo(options: {
   statusContractEnabled: boolean;
 }): FixtureRepo {
   const dir = mkdtempSync(join(tmpdir(), "gr-fixture-"));
+  registerSweep();
+  live.add(dir);
 
   execFileSync("git", ["init", "-b", "main"], { cwd: dir });
   execFileSync("git", ["config", "user.email", "fixture@example.com"], {
@@ -78,6 +116,9 @@ export function scaffoldFixtureRepo(options: {
 
   return {
     dir,
-    cleanup: () => rmSync(dir, { recursive: true, force: true }),
+    cleanup: () => {
+      live.delete(dir);
+      rmSync(dir, { recursive: true, force: true });
+    },
   };
 }

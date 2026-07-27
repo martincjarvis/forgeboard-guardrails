@@ -9,7 +9,7 @@ import { extractTicketId } from "../status/ticketId.ts";
 import { parseTestOutput } from "../status/testOutputParsers.ts";
 import { writeStatus } from "../status/statusWriter.ts";
 import { appendEvent } from "../status/eventsWriter.ts";
-import { reportLogPath } from "../exec/commandLog.ts";
+import { reportLogPath, logVerdict } from "../exec/commandLog.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
 import type { ComponentGateResult } from "../gates/componentCommands.ts";
 
@@ -22,6 +22,7 @@ export async function runPreCommitHook(cwd: string): Promise<number> {
   } catch (error) {
     if (error instanceof GateFailure) {
       console.error(error.message);
+      logVerdict(error.gate, error.message);
       reportLogPath();
       recordFailureEvent(cwd, config, branch);
       return 1;
