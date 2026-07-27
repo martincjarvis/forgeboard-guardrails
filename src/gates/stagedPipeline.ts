@@ -8,6 +8,7 @@ import {
 } from "./componentCommands.ts";
 import { runRepoLevelTests } from "./repoLevelTests.ts";
 import { runDocsRepoGate } from "./docsRepoGates.ts";
+import { checkStagedIsolation, describeMismatch } from "./stagedIsolation.ts";
 import {
   runSuppressionRegisterGate,
   REGISTER_PATH,
@@ -99,6 +100,22 @@ export async function runStagedPipeline(
         task: async (staged: readonly string[]) => {
           const files = [...staged];
           try {
+            // Before anything reads a file: confirm the working tree is the index.
+            // Every gate below reads from disk on the strength of lint-staged having
+            // hidden unstaged changes, and that was assumed rather than checked.
+            const breach = checkStagedIsolation(files, cwd);
+            if (breach.length > 0) {
+              for (const file of files) {
+                if (breach.some((p) => p.startsWith(file))) {
+                  logVerdict("staged-isolation", describeMismatch(file, cwd));
+                }
+              }
+              throw new GateFailure(
+                "staged-isolation",
+                "re-run the commit; if it recurs, the working tree was not isolated from the index and the gates cannot be trusted to have read your staged content.",
+                breach.join("\n"),
+              );
+            }
             await runFileGates(files, cwd);
             runUserRules(ctx, files, cwd);
             componentResults = runComponentAndRepoGates(ctx, cwd, files);
