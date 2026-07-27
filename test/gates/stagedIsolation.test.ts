@@ -72,3 +72,22 @@ test("line endings do not manufacture a mismatch", () => {
   assert.deepEqual(checkStagedIsolation(["src/a.js"], dir), []);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test("a repository git cannot read is reported, not passed", () => {
+  // The check answers "is the working tree the index?". If it cannot run, the
+  // answer is unknown — and unknown must never be reported as yes. Failing open
+  // here is worse than useless: the contention that makes git fail is exactly the
+  // condition under which the isolation itself is suspected of failing, so the
+  // guard would go quiet precisely when it is needed.
+  const dir = mkdtempSync(join(tmpdir(), "gr-iso-bare-"));
+  writeFileSync(join(dir, "a.js"), "const x = 1;\n");
+
+  const problems = checkStagedIsolation(["a.js"], dir);
+
+  assert.equal(problems.length, 1);
+  assert.match(
+    problems[0],
+    /could not be verified|not a git repository|unknown/i,
+  );
+  rmSync(dir, { recursive: true, force: true });
+});

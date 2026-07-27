@@ -1,6 +1,8 @@
 import { readFileSync, existsSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
+import { combine } from "../exec/commandRunner.ts";
+import { logCommand } from "../exec/commandLog.ts";
 
 /**
  * Checks that what the gates are about to read is what is being committed.
@@ -25,18 +27,44 @@ import path from "node:path";
 export function checkStagedIsolation(files: string[], cwd: string): string[] {
   if (files.length === 0) return [];
 
-  let differing: string;
-  try {
-    // Paths whose working-tree content differs from the index. `--` guards against
-    // a filename that looks like a revision.
-    differing = execFileSync("git", ["diff", "--name-only", "--", ...files], {
+  // Paths whose working-tree content differs from the index. `--` guards against
+  // a filename that looks like a revision.
+  const args = ["diff", "--name-only", "--", ...files];
+  let differing: string | undefined;
+  let failure = "";
+
+  // Retried once: a lock held by a concurrent git operation is transient, and a
+  // single retry distinguishes that from a repository this cannot read at all.
+  for (let attempt = 1; attempt <= 2 && differing === undefined; attempt++) {
+    const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+    if (result.status === 0) {
+      differing = result.stdout;
+      break;
+    }
+    failure =
+      combine(result.stdout, result.stderr) || String(result.error ?? "");
+  }
+
+  if (differing === undefined) {
+    // The check answers "is the working tree the index?". Unable to run, the answer
+    // is unknown, and unknown must not be reported as yes.
+    //
+    // This returned `[]` until 2026-07-27, on the reasoning that a git failure is
+    // not evidence of a breach. That was wrong in the way that matters: the
+    // contention which makes git fail is the same contention under which the
+    // isolation is suspected of failing, so the guard fell silent exactly when it
+    // was needed. A blocked commit and a clear message is the cheaper error.
+    logCommand({
+      command: `git ${args.join(" ")}`,
       cwd,
-      encoding: "utf8",
+      status: null,
+      output: failure,
     });
-  } catch {
-    // A git failure here is not evidence of a breach, and refusing a commit on the
-    // strength of one would be worse than the defect this guards.
-    return [];
+    return [
+      `staged-content isolation could not be verified: \`git ${args.join(" ")}\` failed. ` +
+        `The gates below read files from disk, and without this check there is nothing ` +
+        `establishing that what they read is what is being committed.\n${failure}`,
+    ];
   }
 
   const problems: string[] = [];

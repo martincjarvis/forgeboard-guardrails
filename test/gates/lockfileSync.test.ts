@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkLockfileSync } from "../../src/gates/lockfileSync.ts";
@@ -8,6 +8,7 @@ import { checkLockfileSync } from "../../src/gates/lockfileSync.ts";
 function repo(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), "gr-lock-"));
   for (const [name, body] of Object.entries(files)) {
+    mkdirSync(join(dir, name, ".."), { recursive: true });
     writeFileSync(join(dir, name), body);
   }
   return dir;
@@ -58,18 +59,50 @@ test("a repo with no lockfile at all is left alone", () => {
   clean(dir);
 });
 
-test("a nested package.json is matched with its own lockfile, not the root one", () => {
-  // A monorepo stages packages/api/package.json; the root lockfile is irrelevant
-  // to it, and pairing them would let a real mismatch through.
+test("a nested manifest is checked against the lockfile beside it", () => {
+  // The half that matters, and the half an earlier version of this test missed: it
+  // staged a nested manifest in a fixture with no nested lockfile, so it only
+  // exercised the "no lockfile, nothing to require" skip. A gate that ignored
+  // nested manifests entirely passed it — and passed the whole suite.
   const dir = repo({
     "package.json": "{}\n",
     "package-lock.json": "{}\n",
+    "packages/api/package.json": '{ "name": "api" }\n',
+    "packages/api/package-lock.json": '{ "name": "api" }\n',
   });
+
   const problems = checkLockfileSync(["packages/api/package.json"], dir);
-  assert.deepEqual(
-    problems,
-    [],
-    "no lockfile beside it, so nothing to require",
+
+  assert.equal(problems.length, 1, "the nested manifest must be checked");
+  assert.match(problems[0], /packages\/api\/package-lock\.json/);
+  assert.doesNotMatch(
+    problems[0],
+    /^package-lock\.json/m,
+    "and blamed on its own lockfile, not the repository root's",
   );
+  clean(dir);
+});
+
+test("a nested manifest staged with its own lockfile passes", () => {
+  const dir = repo({
+    "packages/api/package.json": '{ "name": "api" }\n',
+    "packages/api/package-lock.json": '{ "name": "api" }\n',
+  });
+
+  assert.deepEqual(
+    checkLockfileSync(
+      ["packages/api/package.json", "packages/api/package-lock.json"],
+      dir,
+    ),
+    [],
+  );
+  clean(dir);
+});
+
+test("a nested manifest with no lockfile beside it is left alone", () => {
+  // The original case, kept: the root lockfile must not be pressed into service
+  // for a package that does not have one.
+  const dir = repo({ "package.json": "{}\n", "package-lock.json": "{}\n" });
+  assert.deepEqual(checkLockfileSync(["packages/api/package.json"], dir), []);
   clean(dir);
 });

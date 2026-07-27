@@ -5,6 +5,7 @@ import {
   writeFileSync,
   existsSync,
   rmSync,
+  renameSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -150,15 +151,24 @@ if (import.meta.main) {
     stdio: "inherit",
     env: childEnv(process.env),
   });
-  // Kept when the suite failed: isolating the test logs stopped them drowning the
-  // developer's, but deleting them unconditionally threw away the diagnosis for
-  // the run that actually needed one — which is how an intermittent failure stayed
-  // unexplained for two days.
-  if (result.status === 0) {
-    rmSync(TEST_LOG_DIR, { recursive: true, force: true });
-  } else {
-    console.error(`\nSuite failed. Command logs kept at: ${TEST_LOG_DIR}`);
+  // A failed run's logs are moved somewhere this will never sweep, then the working
+  // directory is cleared either way.
+  //
+  // Keeping them in place and deleting only on success was not enough: the natural
+  // response to an intermittent failure is to re-run, and the passing re-run then
+  // deleted the failing run's evidence. That happened to a reviewer chasing exactly
+  // the defect these logs exist for, which is the second time this instrument has
+  // erased the thing it was built to capture.
+  if (result.status !== 0) {
+    const kept = `${TEST_LOG_DIR}-failed-${Date.now()}`;
+    try {
+      renameSync(TEST_LOG_DIR, kept);
+      console.error(`\nSuite failed. Command logs kept at: ${kept}`);
+    } catch {
+      console.error(`\nSuite failed. Command logs at: ${TEST_LOG_DIR}`);
+    }
   }
+  rmSync(TEST_LOG_DIR, { recursive: true, force: true });
 
   // On Windows the lcov reporter emits backslashed SF: paths, which common
   // lcov consumers cannot resolve. Windows is the primary platform.
