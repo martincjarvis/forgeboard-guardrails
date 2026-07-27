@@ -72,20 +72,25 @@ test("a failing command captures stderr as well as stdout", () => {
   assert.match(result.steps[0].output, /on stderr/);
 });
 
-test("a passing command captures stdout, which is what the parsers read", () => {
-  // Stated limitation, not an oversight: execSync returns stdout only, so a
-  // successful command's stderr is not available to capture. Keeping execSync is
-  // deliberate — spawnSync with `shell: true` trips a second SAST rule, and the
-  // shell is required by the command-sequence feature, so the choice was between
-  // an extra suppression and losing stderr on the path where nothing is wrong.
-  // The failing path, which is the one anyone debugs, captures both.
+test("a passing command captures stderr as well as stdout", () => {
+  // The harder half of the requirement, and the one a failures-only capture never
+  // sees: a tool that exits zero while printing "no configuration found, using
+  // defaults" is indistinguishable from one that worked. Checking a build for zero
+  // warnings needs this path, not the failing one.
   const result = runCommandSequence(
-    ["node -e \"console.log('42 passing')\""],
+    [
+      "node -e \"console.log('42 passing'); console.error('deprecation warning')\"",
+    ],
     process.cwd(),
   );
 
   assert.equal(result.pass, true);
   assert.match(result.steps[0].output, /42 passing/);
+  assert.match(
+    result.steps[0].output,
+    /deprecation warning/,
+    "a warning on a zero-exit run is exactly what the log exists to preserve",
+  );
 });
 
 test("a command that writes only to stderr still yields output", () => {

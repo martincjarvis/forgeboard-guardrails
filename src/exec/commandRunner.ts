@@ -47,10 +47,10 @@ export interface CommandSequenceResult {
 /**
  * Runs a sequence of shell command strings, fail-fast, capturing per-step output.
  *
- * Commands run through a shell (`execSync`) by design: they are the consuming repo's
- * own declared build/test/lint commands (`dotnet test ...`, `az bicep build`, a repo's
- * npm script), which are arbitrary shell strings and often rely on shell features. The
- * command strings are trusted repo-author configuration, not untrusted external input —
+ * Commands run through a shell (`spawnSync` with `shell: true`) by design: they are
+ * the consuming repo's own declared build/test/lint commands (`dotnet test ...`, `az
+ * bicep build`, a repo's npm script) — arbitrary shell strings that rely on shell
+ * features. The command strings are trusted repo-author configuration, not untrusted input —
  * whoever can edit `.forgeboard/guardrails.config.json` already controls the repo — so
  * there is no privilege boundary crossed here. Do not "harden" this into an argv-array
  * exec: that would break the documented command-sequence feature.
