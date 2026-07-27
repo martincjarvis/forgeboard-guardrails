@@ -24,6 +24,23 @@ import { logCommand } from "../exec/commandLog.ts";
  * repository's own line-ending and filter configuration. Comparing bytes on disk
  * would report every file in a repo with `core.autocrlf` on.
  */
+const ATTEMPTS = 3;
+const BACKOFF_MS = 50;
+
+/** Blocking wait. The caller is synchronous and a lock is measured in milliseconds. */
+function waitMs(ms: number): void {
+  const until = Date.now() + ms;
+  while (Date.now() < until);
+}
+
+/**
+ * Prefix identifying the "could not verify" case, so a caller can say which of the
+ * two happened. A message asserting the isolation failed, when all that is known is
+ * that git would not run, states a cause that has not been established — which is
+ * the defect the coverage gate's remediation had.
+ */
+export const UNVERIFIED = "staged-content isolation could not be verified";
+
 export function checkStagedIsolation(files: string[], cwd: string): string[] {
   if (files.length === 0) return [];
 
@@ -33,9 +50,18 @@ export function checkStagedIsolation(files: string[], cwd: string): string[] {
   let differing: string | undefined;
   let failure = "";
 
-  // Retried once: a lock held by a concurrent git operation is transient, and a
-  // single retry distinguishes that from a repository this cannot read at all.
-  for (let attempt = 1; attempt <= 2 && differing === undefined; attempt++) {
+  // Retried with a backoff: the thing being waited out is a lock held by a
+  // concurrent git operation, and immediate retries do not wait out anything.
+  //
+  // Every failed attempt is logged even when a later one succeeds. A transient git
+  // failure under contention is the most likely observable of the defect this guard
+  // exists for, and a retry that quietly succeeded would erase exactly the evidence
+  // that would confirm or kill that explanation.
+  for (
+    let attempt = 1;
+    attempt <= ATTEMPTS && differing === undefined;
+    attempt++
+  ) {
     const result = spawnSync("git", args, { cwd, encoding: "utf8" });
     if (result.status === 0) {
       differing = result.stdout;
@@ -43,6 +69,13 @@ export function checkStagedIsolation(files: string[], cwd: string): string[] {
     }
     failure =
       combine(result.stdout, result.stderr) || String(result.error ?? "");
+    logCommand({
+      command: `git ${args.join(" ")}  (attempt ${attempt} of ${ATTEMPTS})`,
+      cwd,
+      status: result.status,
+      output: failure,
+    });
+    if (attempt < ATTEMPTS) waitMs(BACKOFF_MS * attempt);
   }
 
   if (differing === undefined) {
@@ -54,14 +87,8 @@ export function checkStagedIsolation(files: string[], cwd: string): string[] {
     // contention which makes git fail is the same contention under which the
     // isolation is suspected of failing, so the guard fell silent exactly when it
     // was needed. A blocked commit and a clear message is the cheaper error.
-    logCommand({
-      command: `git ${args.join(" ")}`,
-      cwd,
-      status: null,
-      output: failure,
-    });
     return [
-      `staged-content isolation could not be verified: \`git ${args.join(" ")}\` failed. ` +
+      `${UNVERIFIED}: \`git ${args.join(" ")}\` failed after ${ATTEMPTS} attempts. ` +
         `The gates below read files from disk, and without this check there is nothing ` +
         `establishing that what they read is what is being committed.\n${failure}`,
     ];

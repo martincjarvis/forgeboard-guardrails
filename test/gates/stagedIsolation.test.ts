@@ -4,7 +4,10 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { checkStagedIsolation } from "../../src/gates/stagedIsolation.ts";
+import {
+  checkStagedIsolation,
+  UNVERIFIED,
+} from "../../src/gates/stagedIsolation.ts";
 
 function repo(): string {
   const dir = mkdtempSync(join(tmpdir(), "gr-iso-"));
@@ -90,4 +93,34 @@ test("a repository git cannot read is reported, not passed", () => {
     /could not be verified|not a git repository|unknown/i,
   );
   rmSync(dir, { recursive: true, force: true });
+});
+
+test("the unverified case is distinguishable from a real breach", () => {
+  // Two findings share one gate and they are not the same claim. A failed check
+  // establishes that the invariant is unknown; only a real difference establishes
+  // that it was broken. The caller needs to tell them apart to avoid asserting a
+  // cause nothing has shown — the defect the coverage gate's remediation had.
+  const bare = mkdtempSync(join(tmpdir(), "gr-iso-unverified-"));
+  writeFileSync(join(bare, "a.js"), "const x = 1;\n");
+  const unverified = checkStagedIsolation(["a.js"], bare);
+
+  const real = repo();
+  writeFileSync(join(real, "src", "a.js"), "const x = 1;\n");
+  execFileSync("git", ["add", "src/a.js"], { cwd: real });
+  writeFileSync(join(real, "src", "a.js"), "const x = 1;\nSECRET\n");
+  const breach = checkStagedIsolation(["src/a.js"], real);
+
+  assert.equal(unverified.length, 1);
+  assert.equal(breach.length, 1);
+  assert.ok(
+    unverified[0].startsWith(UNVERIFIED),
+    "the unverifiable case must be identifiable by its caller",
+  );
+  assert.ok(
+    !breach[0].startsWith(UNVERIFIED),
+    "a real difference must not be reported as merely unverifiable",
+  );
+
+  rmSync(bare, { recursive: true, force: true });
+  rmSync(real, { recursive: true, force: true });
 });
