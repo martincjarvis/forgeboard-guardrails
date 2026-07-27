@@ -15,21 +15,45 @@ import { dirname, join } from "node:path";
  * order deliberately. `npm test`, the coverage gate, and the report run all
  * read this one list — do not re-declare it in package.json.
  */
-const PATTERNS = [
+/**
+ * Tests that scaffold a repository and drive a whole hook end to end.
+ *
+ * These do not belong at pre-commit. They start the entire pipeline — semgrep,
+ * cspell, prettier, nested node processes — against a scaffolded repo, and the
+ * toolkit's own config contract puts that tier at pre-push (`integrationTest`),
+ * not at commit time (`unitTest`).
+ *
+ * The toolkit was violating its own contract: `unitTest` was `npm test`, which
+ * ran everything. 36 of these take 29 seconds against 24 for the other 233.
+ *
+ * `preCommitHook.test.ts` is named individually because it lives among genuine
+ * unit tests but drives the full hook, which is the rule that decides the tier.
+ */
+const INTEGRATION = [
   "test/scenarios/*.test.ts",
+  "test/hooks/preCommitHook.test.ts",
+];
+
+/** Fast and hermetic: no scaffolded repo, no hook, safe to run on every commit. */
+const UNIT = [
   "test/config/*.test.ts",
   "test/docs/*.test.ts",
   "test/git/*.test.ts",
   "test/exec/*.test.ts",
   "test/gates/*.test.ts",
   "test/status/*.test.ts",
-  "test/hooks/*.test.ts",
+  "test/hooks/postEditHook.test.ts",
+  "test/hooks/taskCompleteHook.test.ts",
   "test/commands/*.test.ts",
   "test/versioning/*.test.ts",
   "test/fixtures/*.test.ts",
   "test/scripts/*.test.ts",
   "test/cli.test.ts",
 ];
+
+export const TIERS = { UNIT, INTEGRATION };
+
+const PATTERNS = [...INTEGRATION, ...UNIT];
 
 const COVERAGE = [
   "--experimental-test-coverage",
@@ -63,9 +87,17 @@ const REPORT = [
  */
 export function buildArgs(argv) {
   const on = (flag) => argv.includes(flag);
-  const passthrough = argv.filter(
-    (a) => a !== "--coverage" && a !== "--report",
-  );
+  const sentinels = ["--coverage", "--report", "--unit", "--integration"];
+  const passthrough = argv.filter((a) => !sentinels.includes(a));
+
+  // Which tier to run. Neither sentinel means everything, so `npm test` and CI
+  // keep covering the lot; the gates ask for a tier explicitly.
+  const patterns = on("--unit")
+    ? UNIT
+    : on("--integration")
+      ? INTEGRATION
+      : PATTERNS;
+
   return [
     "--import",
     "tsx",
@@ -73,7 +105,7 @@ export function buildArgs(argv) {
     ...(on("--coverage") ? COVERAGE : []),
     ...(on("--report") ? REPORT : []),
     ...passthrough,
-    ...PATTERNS,
+    ...patterns,
   ];
 }
 

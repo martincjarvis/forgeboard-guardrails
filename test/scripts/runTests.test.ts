@@ -10,7 +10,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildArgs, childEnv } from "../../scripts/run-tests.mjs";
+import { buildArgs, childEnv, TIERS } from "../../scripts/run-tests.mjs";
+import { readdirSync } from "node:fs";
 
 test("caller flags land before the positional patterns", () => {
   const args = buildArgs(["--coverage", "--test-coverage-lines=80"]);
@@ -180,4 +181,54 @@ test("the suite's children never inherit git's location variables", () => {
     assert.equal(child[name], undefined, `${name} must not reach a fixture`);
   }
   assert.equal(child.PATH, "/keep/me", "unrelated variables must survive");
+});
+
+test("every test file belongs to exactly one tier", () => {
+  // The failure this prevents is a file in neither list: it would stop running at
+  // both gates and in CI, silently, while the suite still reported green. That is
+  // the same silent-coverage-hole shape as the semgrep probe and the glob list
+  // this wrapper already exists to own.
+  const globs = [...TIERS.UNIT, ...TIERS.INTEGRATION];
+  const claimed = new Set<string>();
+
+  for (const glob of globs) {
+    const dir = glob.includes("/") ? glob.slice(0, glob.lastIndexOf("/")) : ".";
+    const pattern = glob.slice(glob.lastIndexOf("/") + 1);
+    if (pattern.includes("*")) {
+      for (const f of readdirSync(dir)) {
+        if (f.endsWith(".test.ts")) claimed.add(`${dir}/${f}`);
+      }
+    } else {
+      claimed.add(glob);
+    }
+  }
+
+  // Every test file on disk, minus the tiers this wrapper deliberately excludes.
+  const onDisk: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".test.ts")) onDisk.push(full);
+    }
+  };
+  walk("test");
+
+  // `test/timing` runs under its own script by design: it measures the budget and
+  // is neither a unit nor an integration gate.
+  const expected = onDisk.filter((f) => !f.startsWith("test/timing/"));
+  const orphans = expected.filter((f) => !claimed.has(f));
+
+  assert.deepEqual(
+    orphans,
+    [],
+    `these test files are in no tier and would never run:\n${orphans.join("\n")}`,
+  );
+});
+
+test("the tiers do not overlap", () => {
+  // A file in both would run twice at pre-commit, and the integration tier's whole
+  // point is not running there.
+  const both = TIERS.UNIT.filter((g) => TIERS.INTEGRATION.includes(g));
+  assert.deepEqual(both, []);
 });

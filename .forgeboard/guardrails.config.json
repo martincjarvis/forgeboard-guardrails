@@ -2,12 +2,15 @@
   "$schema": "../schemas/guardrails.config.schema.json",
   "appName": "forgeboard-guardrails",
   "defaultBranch": "main",
-  "statusContract": { "enabled": false },
+  "statusContract": {
+    "enabled": false
+  },
   "coverage": "npm run test:coverage",
   "components": {
     "toolkit": {
       "paths": ["src/**", "schemas/**", "skills/**", "scripts/**"],
-      "unitTest": "npm test"
+      "unitTest": "npm run test:unit",
+      "integrationTest": "npm run test:harness"
     }
   }
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 import { checkLockfileSync } from "../../src/gates/lockfileSync.ts";
 
 function repo(files: Record<string, string>): string {
@@ -15,6 +16,15 @@ function repo(files: Record<string, string>): string {
 }
 
 const clean = (dir: string) => rmSync(dir, { recursive: true, force: true });
+
+/** A fixture with real history, for the cases that compare against HEAD. */
+function gitRepo(files: Record<string, string>): string {
+  const dir = repo(files);
+  execFileSync("git", ["init", "-q"], { cwd: dir });
+  execFileSync("git", ["config", "user.email", "f@example.com"], { cwd: dir });
+  execFileSync("git", ["config", "user.name", "F"], { cwd: dir });
+  return dir;
+}
 
 test("staging package.json without its lockfile is reported", () => {
   // The case that motivated this: `engines` was added to package.json and the
@@ -104,5 +114,47 @@ test("a nested manifest with no lockfile beside it is left alone", () => {
   // for a package that does not have one.
   const dir = repo({ "package.json": "{}\n", "package-lock.json": "{}\n" });
   assert.deepEqual(checkLockfileSync(["packages/api/package.json"], dir), []);
+  clean(dir);
+});
+
+test("a manifest change that cannot affect the lockfile is not blocked", () => {
+  // Found by the gate blocking its own author: adding an npm script changes
+  // package.json and cannot change package-lock.json, so `npm install` produces
+  // nothing to stage and the requirement can never be satisfied. A gate with no
+  // reachable remedy is worse than no gate — it teaches people to bypass it.
+  const dir = gitRepo({
+    "package.json": '{ "name": "x", "scripts": { "test": "node t.js" } }\n',
+    "package-lock.json":
+      '{ "name": "x", "packages": { "": { "name": "x" } } }\n',
+  });
+  // Commit the baseline, then change only the scripts block.
+  execFileSync("git", ["add", "-A"], { cwd: dir });
+  execFileSync("git", ["commit", "-q", "-m", "base"], { cwd: dir });
+  writeFileSync(
+    join(dir, "package.json"),
+    '{ "name": "x", "scripts": { "test": "node t.js", "lint": "eslint" } }\n',
+  );
+
+  assert.deepEqual(checkLockfileSync(["package.json"], dir), []);
+  clean(dir);
+});
+
+test("a dependency change without the lockfile is still blocked", () => {
+  // The other side of the same rule: the fields the lockfile mirrors must still
+  // require it, or the gate stops doing its job.
+  const dir = gitRepo({
+    "package.json": '{ "name": "x", "dependencies": {} }\n',
+    "package-lock.json":
+      '{ "name": "x", "packages": { "": { "name": "x" } } }\n',
+  });
+  execFileSync("git", ["add", "-A"], { cwd: dir });
+  execFileSync("git", ["commit", "-q", "-m", "base"], { cwd: dir });
+  writeFileSync(
+    join(dir, "package.json"),
+    '{ "name": "x", "dependencies": { "left-pad": "^1.0.0" } }\n',
+  );
+
+  const problems = checkLockfileSync(["package.json"], dir);
+  assert.equal(problems.length, 1);
   clean(dir);
 });
