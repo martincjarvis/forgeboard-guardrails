@@ -8,11 +8,16 @@ import {
 } from "./componentCommands.ts";
 import { runRepoLevelTests } from "./repoLevelTests.ts";
 import { runDocsRepoGate } from "./docsRepoGates.ts";
-import { checkStagedIsolation, describeMismatch } from "./stagedIsolation.ts";
+import {
+  checkStagedIsolation,
+  describeMismatch,
+  UNVERIFIED,
+} from "./stagedIsolation.ts";
 import {
   runSuppressionRegisterGate,
   REGISTER_PATH,
 } from "./suppressionRegister.ts";
+import { checkLockfileSync } from "./lockfileSync.ts";
 import { GateFailure } from "../errors/GateFailure.ts";
 import { logVerdict } from "../exec/commandLog.ts";
 import { describeFailure } from "../status/testOutputParsers.ts";
@@ -110,12 +115,28 @@ export async function runStagedPipeline(
                   logVerdict("staged-isolation", describeMismatch(file, cwd));
                 }
               }
+              // Two different findings share this gate, and the remediation must
+              // not claim the stronger one. A failed `git diff` establishes only
+              // that the invariant is unknown; saying the working tree "was not
+              // isolated" would state a cause nothing has shown.
+              const unverified = breach.some((p) => p.startsWith(UNVERIFIED));
               throw new GateFailure(
                 "staged-isolation",
-                "re-run the commit; if it recurs, the working tree was not isolated from the index and the gates cannot be trusted to have read your staged content.",
+                unverified
+                  ? "re-run the commit. Whether your staged content was isolated is unknown, not known to be wrong — the check itself could not run, and the gates below read from disk on the strength of it."
+                  : "re-run the commit; the working tree was not isolated from the index, so the gates would have judged content you are not committing.",
                 breach.join("\n"),
               );
             }
+            const lockfile = checkLockfileSync(files, cwd);
+            if (lockfile.length > 0) {
+              throw new GateFailure(
+                "lockfile-sync",
+                "run `npm install` and stage the lockfile alongside the manifest.",
+                lockfile.join("\n"),
+              );
+            }
+
             await runFileGates(files, cwd);
             runUserRules(ctx, files, cwd);
             componentResults = runComponentAndRepoGates(ctx, cwd, files);
