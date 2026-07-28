@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The expensive tests, run once per push — coverage, integration, and only the end-to-end tests that stand up their own environment.
+summary: The expensive local tests, run once per push — coverage and integration; end-to-end needs a deployment and runs later.
 read_when: Deciding which tier a test belongs to, or why an end-to-end test must not run at push time.
 ---
 
@@ -11,45 +11,33 @@ read_when: Deciding which tier a test belongs to, or why an end-to-end test must
 The expensive tests live here. They run once per push rather than once per
 commit, and they judge the whole range being pushed.
 
-| #   | Check                           | Type        | Runs for                | Fails when                                                  |
-| --- | ------------------------------- | ----------- | ----------------------- | ----------------------------------------------------------- |
-| 1   | Coverage                        | Correctness | The repository          | The coverage command exits non-zero                         |
-| 2   | Integration tests               | Correctness | Changed components only | An integration test for a changed component fails           |
-| 3   | Self-contained end-to-end tests | Correctness | Changed components only | An end-to-end test that stands up its own environment fails |
+| #   | Check             | Type        | Runs for                | Fails when                                        |
+| --- | ----------------- | ----------- | ----------------------- | ------------------------------------------------- |
+| 1   | Coverage          | Correctness | The repository          | The coverage command exits non-zero               |
+| 2   | Integration tests | Correctness | Changed components only | An integration test for a changed component fails |
 
 The coverage check cannot distinguish a genuine shortfall from a command that
 failed to run — both exit non-zero. Its message must name both possibilities and
 carry the command's own output rather than assert the shortfall.
 
-## Which end-to-end tests belong here
+## Why end-to-end tests are not here
 
-Only the ones that **stand up everything they need within the test run** and
-tear it down after — a locally orchestrated composition of the components under
-test, started by the test host on ephemeral ports and storage.
+An end-to-end test is black box against a **deployed** environment, so it cannot
+run at push time by definition — there is nothing deployed. It runs where a
+deployment exists: against an ephemeral environment in the
+[pipeline](gate-6-pull-request.md), or after a real deployment at
+[gate 8](gate-8-release.md).
 
-An end-to-end test that requires a **deployment to infrastructure outside the
-test run** does not belong in this gate, whatever it exercises. The boundary is
-the dependency, not the breadth of the test:
+What runs here is **integration**: orchestration across code this repository
+owns, with externals stubbed. It may stand up a real database or broker in a
+disposable container — that is still integration, because everything being
+exercised is yours and nothing is deployed.
 
-| Belongs in the push gate                                   | Does not                                                   |
-| ---------------------------------------------------------- | ---------------------------------------------------------- |
-| Local orchestration of the components, started by the test | Provisioning cloud resources                               |
-| Ephemeral containers or in-process hosts the test controls | Deploying to a shared or long-lived environment            |
-| Fixtures the test creates and destroys                     | Anything requiring credentials for external infrastructure |
-| Runs offline                                               | Runs only against a live tenancy or subscription           |
-
-Three reasons this is a hard line, not a preference. A deployment makes a
-developer's push depend on infrastructure being available and on their holding
-credentials for it. Its runtime is minutes to tens of minutes, which pushes
-people toward bypassing the gate. And it is shared state — two pushes racing on
-one environment produce failures that belong to neither change.
-
-Deployment-dependent end-to-end tests run **after** a deployment, in the pipeline
-that performed it — [gate 6](gate-6-pull-request.md) check 5 where an
-environment can be provisioned per pull request, [gate 8](gate-8-release.md)
-otherwise. They are never a push gate. Placing them here would also break
-[the changed-component rule](components.md#the-changed-component-rule), since a
-deployment is whole-system by nature.
+Three reasons the boundary is a hard line rather than a preference. A deployment
+makes a developer's push depend on infrastructure being available and on their
+holding credentials for it. Its runtime is minutes to tens of minutes, which
+pushes people toward bypassing the gate. And it is shared state — two pushes
+racing on one environment produce failures that belong to neither change.
 
 ## Running it by hand
 
@@ -60,9 +48,9 @@ deployment is whole-system by nature.
 | End-to-end tests  | `npx playwright test`                 | `dotnet test --filter Category=EndToEnd`      |
 | The pushed range  | `git log --oneline origin/main..HEAD` | —                                             |
 
-The offline test for check 3 is the one worth running deliberately: disable
-network access, clear any infrastructure credentials from the environment, and
-run the suite. Anything that fails was never a self-contained test.
+The offline test is the one worth running deliberately: disable network access,
+clear any infrastructure credentials, and run the suite. Anything that fails was
+reaching outside the repository's own boundary and is not an integration test.
 
 ## Verification
 
@@ -72,11 +60,12 @@ run the suite. Anything that fails was never a self-contained test.
 - [ ] Only components touched by the pushed range run their tests.
 - [ ] A failing integration test blocks the push, and the failure names the
       component and the test.
-- [ ] Every end-to-end test in this gate passes with no external infrastructure
-      reachable and no infrastructure credentials present.
+- [ ] Every test in this gate passes with no deployed environment reachable and
+      no infrastructure credentials present.
 - [ ] No test in this gate provisions, deploys to, or reads a shared environment.
-- [ ] Deployment-dependent end-to-end tests exist, and run at gate 6 or gate 8
-      rather than here.
+- [ ] Integration tests that need a database or broker get it from a disposable
+      container the run creates and destroys.
+- [ ] End-to-end tests exist, and run at gate 6 or gate 8 rather than here.
 
 ## References
 

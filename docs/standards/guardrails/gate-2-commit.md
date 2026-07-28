@@ -85,11 +85,16 @@ was chosen.
 | --- | --------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------- |
 | 11  | Per-path lint rules         | Correctness   | A path-scoped linter or type checker reports any problem, its own analysers included                        |
 | 12  | Build                       | Correctness   | The changed component fails to build, or the compiler or its analysers emit a warning                       |
-| 13  | Unit tests                  | Correctness   | A unit test for the changed component fails                                                                 |
+| 13  | Unit and architecture tests | Correctness   | A unit test fails, or an architecture test finds the code breaking the structure it claims                  |
 | 14  | Repository-wide tests       | Correctness   | A repository-level check fails                                                                              |
 | 15  | Suppression register        | Policy        | A suppression comment exists with no complete register row                                                  |
 | 16  | Dependency licence register | Policy        | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to |
 | 17  | Link and anchor integrity   | Documentation | A link resolves to nothing, resolves ambiguously, or names a heading that does not exist                    |
+
+Check 13 runs two kinds together: unit tests, and the architecture tests that
+assert on the shape of the code rather than its behaviour. Both need nothing but
+the source, both must fail the moment the structure drifts, and an architecture
+nobody enforces mechanically is a diagram.
 
 Checks 12 and 13 run **only for components the staged paths touch**, per
 [the changed-component rule](components.md#the-changed-component-rule). Check 14
@@ -205,6 +210,8 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] A repository-level check fails the commit even when no component changed.
 - [ ] A build warning is refused under a zero-warning policy.
 - [ ] A failing unit test is refused.
+- [ ] An architecture test fails when a dependency direction is violated, and it
+      runs with the unit tier rather than separately.
 - [ ] A new suppression without a register row is refused.
 - [ ] An upgrade that pulls in a new transitive dependency is refused until that
       dependency has a register row.

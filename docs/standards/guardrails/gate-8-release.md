@@ -10,14 +10,16 @@ Fires when a merged change is deployed. The least frequent gate and the only one
 downstream of the merge, so its findings cost the most to act on — which is the
 argument for everything above it, not an argument for skipping it.
 
-| #   | Check                            | Type        | Fails when                                                                              |
-| --- | -------------------------------- | ----------- | --------------------------------------------------------------------------------------- |
-| 1   | Deployable artefact identity     | Integrity   | The artefact deployed is not the one the pull request pipeline validated                |
-| 2   | Derived version agreement        | Integrity   | The version being published differs from the one the commit messages in range derive to |
-| 3   | No prerelease in a release       | Policy      | A release build resolves any internal dependency to a prerelease version                |
-| 4   | Deployment succeeds              | Correctness | Any component fails to deploy                                                           |
-| 5   | Post-deployment end-to-end tests | Correctness | An end-to-end test fails against the deployed environment                               |
-| 6   | Rollback proven                  | Correctness | The previous version cannot be restored                                                 |
+| #   | Check                        | Type        | Fails when                                                                              |
+| --- | ---------------------------- | ----------- | --------------------------------------------------------------------------------------- |
+| 1   | Deployable artefact identity | Integrity   | The artefact deployed is not the one the pull request pipeline validated                |
+| 2   | Derived version agreement    | Integrity   | The version being published differs from the one the commit messages in range derive to |
+| 3   | No prerelease in a release   | Policy      | A release build resolves any internal dependency to a prerelease version                |
+| 4   | Deployment succeeds          | Correctness | Any component fails to deploy                                                           |
+| 5   | Health checks                | Correctness | Liveness or readiness fails after the deployment                                        |
+| 6   | Smoke tests                  | Correctness | A smoke test fails against the deployed environment                                     |
+| 7   | End-to-end tests             | Correctness | The environment's policy requires them and one fails                                    |
+| 8   | Rollback proven              | Correctness | The previous version cannot be restored                                                 |
 
 Checks 1 and 2 are the same question asked of the two things that can drift.
 Every gate above validated a specific commit; deploying a rebuilt or re-tagged
@@ -33,10 +35,31 @@ repository: a prerelease from another team is exactly as unfit to release as one
 of your own, and reading it narrowly leaves a hole no single-repository test
 would ever reveal.
 
-Check 5 is the home of the deployment-dependent end-to-end tests excluded from
-[gate 5](gate-5-push.md) — unless [gate 6](gate-6-pull-request.md) can provision
-an environment per pull request, in which case they run there instead and this
-gate re-runs only what needs the real environment.
+**Checks 5 to 7 run in that order, in every environment.** Health checks first —
+liveness, then readiness across every dependency. Smoke second, proving the
+deployment succeeded. End-to-end last, and only where the environment's policy
+calls for it.
+
+The ordering is not presentational. A smoke failure against a process that was
+never ready is a misleading failure, and a team will debug the wrong thing until
+someone thinks to check readiness.
+
+Which of the three an environment runs:
+
+| Environment | Health checks | Smoke | End-to-end                    |
+| ----------- | ------------- | ----- | ----------------------------- |
+| `dev`       | Yes           | Yes   | **Full suite, every deploy**  |
+| `test`      | Yes           | Yes   | On demand, manually triggered |
+| Production  | Yes           | Yes   | No                            |
+
+`dev` running the full suite on every deployment is what makes it the place a
+regression is caught rather than reported. Production runs smoke and health
+checks only — smoke is safe there because it creates nothing it does not clean
+up and touches no real customer data.
+
+A deployment to a shared environment is a **pipeline run**, including when a
+human triggers it manually. What gets deployed is what the gates validated, never
+a push from a laptop.
 
 This gate is deliberately thin. Deployment strategy, versioning and environment
 promotion are a subject of their own; what belongs in a guardrails standard is
@@ -45,16 +68,16 @@ and what must not be discovered for the first time afterwards.
 
 ## Running it by hand
 
-| Purpose                         | Command                                                           |
-| ------------------------------- | ----------------------------------------------------------------- |
-| Artefact identity, Node         | `npm pack --dry-run` and compare the integrity hash               |
-| Artefact identity, any stack    | `sha256sum <artefact>` against the value the pipeline recorded    |
-| Derived version for a component | `npx semantic-release --dry-run`                                  |
-| Prerelease dependencies, Node   | `npm ls --all --json \| grep -- '-'` on resolved versions         |
-| Prerelease dependencies, .NET   | `dotnet list package --include-transitive`                        |
-| Rollback rehearsal              | Deploy the previous version to the same target and re-run check 5 |
+| Purpose                         | Command                                                                 |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| Artefact identity, Node         | `npm pack --dry-run` and compare the integrity hash                     |
+| Artefact identity, any stack    | `sha256sum <artefact>` against the value the pipeline recorded          |
+| Derived version for a component | `npx semantic-release --dry-run`                                        |
+| Prerelease dependencies, Node   | `npm ls --all --json \| grep -- '-'` on resolved versions               |
+| Prerelease dependencies, .NET   | `dotnet list package --include-transitive`                              |
+| Rollback rehearsal              | Deploy the previous version to the same target and re-run checks 5 to 7 |
 
-Check 6 is the one people document rather than exercise. Rehearse it on the same
+Check 8 is the one people document rather than exercise. Rehearse it on the same
 path a real rollback would take, not a variant that happens to work.
 
 ## Verification
@@ -67,8 +90,14 @@ path a real rollback would take, not a variant that happens to work.
       a sibling repository's prerelease is refused on the same terms.
 - [ ] A component that fails to deploy stops the release rather than leaving the
       system half-updated.
-- [ ] Deployment-dependent end-to-end tests run here or at gate 6, and it is
-      stated which.
+- [ ] Health checks run after the deployment and before smoke, in every
+      environment, and a failure stops the sequence.
+- [ ] Readiness covers every dependency, not just the process.
+- [ ] Smoke tests are safe to run in production and clean up after themselves.
+- [ ] `dev` runs the full end-to-end suite on every deployment.
+- [ ] `test` can run the end-to-end suite on demand.
+- [ ] A manual deployment to a shared environment still goes through the
+      pipeline.
 - [ ] Rollback is exercised, not merely documented.
 
 ## References

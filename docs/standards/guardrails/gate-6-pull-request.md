@@ -17,17 +17,17 @@ evidence but does not block leaves the merge to whoever is impatient.
 
 ## 6.1 Revalidation
 
-| #   | Check                                 | Type        | Fails when                                                                                                                    |
-| --- | ------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Clean-checkout provenance             | Integrity   | The pipeline builds anything the repository does not contain                                                                  |
-| 2   | Merge-result build                    | Correctness | The **merge result** fails to build, not merely the branch tip                                                                |
-| 3   | Every blocking local check            | Correctness | Any check from gates 2–5 fails when re-run server-side                                                                        |
-| 4   | Whole-repository build and test       | Correctness | Any component fails, changed or not                                                                                           |
-| 5   | Deployment-dependent end-to-end tests | Correctness | An end-to-end test fails against an environment the pipeline provisioned and destroyed                                        |
-| 6   | Dependency advisory scan              | Security    | A dependency carries an advisory at or above the block severity, or one at the push-back severity with no record accepting it |
-| 7   | Dependency licence policy             | Policy      | A resolved dependency, direct or transitive, carries a licence outside the allow list                                         |
-| 8   | Changed-line coverage                 | Correctness | Coverage of the lines this change added or modified is below the floor                                                        |
-| 9   | Untrusted-run isolation               | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                           |
+| #   | Check                           | Type        | Fails when                                                                                                                    |
+| --- | ------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Clean-checkout provenance       | Integrity   | The pipeline builds anything the repository does not contain                                                                  |
+| 2   | Merge-result build              | Correctness | The **merge result** fails to build, not merely the branch tip                                                                |
+| 3   | Every blocking local check      | Correctness | Any check from gates 2–5 fails when re-run server-side                                                                        |
+| 4   | Whole-repository build and test | Correctness | Any component fails, changed or not                                                                                           |
+| 5   | End-to-end tests                | Correctness | Health checks fail, or an end-to-end test fails, against an environment the pipeline provisioned and destroyed                |
+| 6   | Dependency advisory scan        | Security    | A dependency carries an advisory at or above the block severity, or one at the push-back severity with no record accepting it |
+| 7   | Dependency licence policy       | Policy      | A resolved dependency, direct or transitive, carries a licence outside the allow list                                         |
+| 8   | Changed-line coverage           | Correctness | Coverage of the lines this change added or modified is below the floor                                                        |
+| 9   | Untrusted-run isolation         | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                           |
 
 Check 1 is the reason this gate exists in its current form. A local run proves
 the checks pass **on that machine**, with that machine's tool versions, caches
@@ -42,10 +42,15 @@ Check 4 is where [the changed-component rule](components.md#the-changed-componen
 is repaid. The local gates skip untouched components for speed; this gate does
 not, so the optimisation never becomes an unverified claim.
 
-Check 5 is where deployment-dependent end-to-end tests belong when the pipeline
-can provision an environment per pull request. If it cannot, they run at
+Check 5 is where end-to-end tests belong when the pipeline can provision an
+environment per pull request. If it cannot, they run at
 [gate 8](gate-8-release.md) instead — but they exist and run somewhere, and the
 checklist below asks which.
+
+The order within the check is fixed: **deploy, then health checks, then
+end-to-end**. A journey failing against a process that was never ready is a
+misleading failure, and it costs a team an afternoon before anyone checks
+readiness.
 
 ### The two dependency questions
 
@@ -249,8 +254,11 @@ pipeline refuses the merge.
 - [ ] Coverage reports a delta against the base, enforced as check 8.
 - [ ] Static-analysis findings appear as annotations on the changed lines.
 - [ ] A skipped check is visibly skipped, with a reason, in the published evidence.
-- [ ] Deployment-dependent end-to-end tests run here or at gate 8, and the
-      checklist states which.
+- [ ] End-to-end tests run here or at gate 8, and the checklist states which.
+- [ ] Health checks pass before any end-to-end test runs against the provisioned
+      environment.
+- [ ] Every end-to-end test asserts through public interfaces and diagnostics
+      only — none reaches into a database or an internal service.
 - [ ] The dependency inventory, the logs and the run identity are all published,
       and the run identity names the commit, the merge base and the tool versions.
 - [ ] A pull request behind its base cannot merge until it is updated.
