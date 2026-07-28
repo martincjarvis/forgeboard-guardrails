@@ -12,16 +12,32 @@ The same checks, invoked without a trigger: before opening a review, or when
 adopting guardrails in an existing repository. Reports rather than blocks,
 because the caller decides the consequence.
 
-| Check                       | Type          | Note                                                                  |
-| --------------------------- | ------------- | --------------------------------------------------------------------- |
-| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                   |
-| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip      |
-| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled             |
-| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree |
-| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones         |
-| Link and anchor integrity   | Documentation | With or without repair                                                |
-| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid       |
-| Workspace capability check  | Policy        | Long-path support on, large-file storage configured where supported   |
+| Check                       | Type          | Note                                                                                             |
+| --------------------------- | ------------- | ------------------------------------------------------------------------------------------------ |
+| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                              |
+| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                 |
+| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                        |
+| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                            |
+| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                    |
+| Link and anchor integrity   | Documentation | With or without repair                                                                           |
+| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid                                  |
+| Workspace capability check  | Policy        | Long-path support on, text normalisation declared, large-file storage configured where supported |
+
+**Line endings are normalised in the repository, not left to each machine.**
+`.gitattributes` declares `* text=auto eol=lf` and marks binary files as binary,
+so what is stored is normalised whatever a contributor's platform does locally.
+`.editorconfig` declares the same intent to the editors and tools that write the
+files in the first place.
+
+Without both, a repository accumulates mixed endings, and the damage is not
+cosmetic: a whole-file ending change swamps a one-line diff so review stops
+being possible, a format check passes on one machine and fails on another, and
+the team learns that the gate is unreliable rather than that the file is. That
+is the same "gate that lies" failure the rest of this standard exists to
+prevent, arriving through the least interesting door.
+
+Both files belong in a repository from its first commit. Adding them later
+rewrites every file that was stored wrongly, which is a change nobody can review.
 
 **Long-path support is on by default.** A repository that only builds where
 paths happen to stay short is a repository with a platform-specific failure
@@ -86,6 +102,11 @@ the tier-1 answer.
 - [ ] The repository-wide security scan has been run at least once, and its date
       is recorded.
 - [ ] Long-path support is enabled, and a deep path clones and builds.
+- [ ] `.gitattributes` declares text normalisation, and binary files are marked
+      binary so they are never mangled by it.
+- [ ] `.editorconfig` exists and agrees with it on line endings and character set.
+- [ ] A file committed from a platform using different line endings is stored
+      normalised — check one rather than assuming.
 - [ ] A large binary is stored via large-file storage where the remote supports
       it, and the decision is recorded where it does not.
 

@@ -45,7 +45,7 @@ Run over staged files, formatter first so later checks read the final bytes.
 
 | #   | Check                          | Type          | Scope               | Fails when                                                                          |
 | --- | ------------------------------ | ------------- | ------------------- | ----------------------------------------------------------------------------------- |
-| 4   | Universal format               | Format        | All supported files | Never blocks; rewrites and re-stages                                                |
+| 4   | Universal format               | Format        | All supported files | Never blocks; rewrites and re-stages, honouring `.editorconfig`                     |
 | 5   | Prose lint                     | Documentation | Documentation files | Structural rules violated                                                           |
 | 6   | Secret scan                    | Security      | All files           | A credential, key or token is present                                               |
 | 7   | Spelling                       | Documentation | All files           | A token is absent from dictionary and file-local vocabulary                         |

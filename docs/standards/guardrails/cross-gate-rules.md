@@ -51,6 +51,17 @@ are stack-independent problems, and one implementation across every repository
 is worth more than a per-stack choice. A language's own formatter and analysers
 are not: they understand the language, and an external pass never will.
 
+**Prefer tools that honour `.editorconfig`.** Indentation, character set and
+line endings are declared once, in a file every major editor and a good many
+tools already read, rather than repeated in each tool's own configuration where
+the copies drift and contradict each other. A tool that reads it inherits the
+repository's answer for free; a tool that does not needs its own copy of the
+same settings, and that copy is one more thing to keep true.
+
+This is the same reasoning as preferring a format the host ingests natively: an
+existing, widely-implemented declaration beats a private one, and the cost of
+ignoring it lands later as a diff full of whitespace nobody changed.
+
 Two qualifications, both real:
 
 - **Adopting a tool is a dependency decision**, subject to whatever line the
@@ -132,6 +143,8 @@ choice is reported, not guessed.
 - [ ] Every refusal names the check, the path and the remedy.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
 - [ ] Every check the platform already provides is enabled rather than rebuilt.
+- [ ] Indentation, character set and line endings are declared once in
+      `.editorconfig`, and no tool's own configuration contradicts it.
 - [ ] A bespoke check has a recorded reason no existing tool covered it.
 
 ## References
