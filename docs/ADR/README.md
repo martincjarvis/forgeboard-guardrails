@@ -47,5 +47,7 @@ account in its own repository.
 
 - [0001](0001-per-component-version-derivation.md) — versions are derived per
   component from Conventional Commits, by a path-scoped detector.
-- [0002](0002-analysis-tool-distribution.md) — which analysis tools are bundled
-  and which are resolved from `PATH`.
+- [0002](0002-analysis-tool-distribution.md) — the toolkit bundles no analysis
+  tools; the consuming repository installs them.
+- [0003](0003-derive-configuration.md) — the gates derive what they need from
+  what a repository already declares, rather than from a configuration file.

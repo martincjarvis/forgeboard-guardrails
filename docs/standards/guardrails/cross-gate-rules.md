@@ -148,6 +148,18 @@ A pass with no artefact is a claim; a pass with a test report, a coverage report
 and a findings file is a result. This falls hardest on the gate that gates the
 merge, but it applies anywhere a verdict outlives the session that produced it.
 
+## Report what was derived
+
+The gates read a repository's own declarations rather than a configuration file
+written for them ([ADR-0003](../../ADR/0003-derive-configuration.md)). That
+removes a file to maintain and removes a file to inspect, and only the first is
+a gain unless the derivation is stated.
+
+Every run reports what it resolved: the components it selected and from what,
+the class of each file it judged, and each threshold in force with where it came
+from — the stack's analyser or this standard's default. **A wrong derivation
+nobody can see is worse than a wrong file anybody can open.**
+
 ## A refusal is a diagnosis
 
 Name the check, the path, the offending content and the action that clears it. A
@@ -179,6 +191,8 @@ choice is reported, not guessed.
 - [ ] Every check the platform already provides is enabled rather than rebuilt.
 - [ ] Within each gate, checks run cheapest first, except where one changes what
       a later one reads.
+- [ ] Every run states the components, file classes and thresholds it resolved,
+      and where each came from.
 - [ ] The cheapest check that would catch a given defect is the one that catches
       it — no defect waits for a slower gate that an earlier one could have found.
 - [ ] Indentation, character set and line endings are declared once in

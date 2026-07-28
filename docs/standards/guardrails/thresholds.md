@@ -63,8 +63,10 @@ on them.
 
 ## Rules
 
-- **Declared in configuration, checked in.** A threshold a reader cannot find in
-  the repository is not a threshold, it is a habit.
+- **Read from the analyser that enforces them**, not from a configuration file
+  of this toolkit's own ([ADR-0003](../../ADR/0003-derive-configuration.md)).
+  The values here fill the gaps where a stack has no opinion. A threshold a
+  reader cannot find in the repository is not a threshold, it is a habit.
 - **An unset threshold takes the default**, and the gate reports which value it
   used. A gate that silently applies a default teaches the team a number nobody
   chose.

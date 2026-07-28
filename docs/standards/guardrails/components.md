@@ -35,14 +35,32 @@ is the difference between a gate developers keep and a gate they route around.
 command, its test command per kind, and the components it depends on. Everything
 the changed-component rule does is derived from those four.
 
-**How it is declared is open.** This standard specifies the four facts, not the
-file that holds them. A repository may state them in its own configuration, or
-they may already exist in the stack's own project graph — a workspace
-definition, a monorepo tool's dependency graph, a solution file — in which case
-deriving them from there is better than restating them, because a second copy
-drifts. Either satisfies this standard, on one condition: the four facts must be
-resolvable without a person supplying them, and checked in. A component boundary
-that lives only in someone's head is not a map.
+**The four facts are derived, not declared**
+([ADR-0003](../../ADR/0003-derive-configuration.md)). Every stack already states
+them somewhere, and restating them in a configuration file of this toolkit's
+own invention creates a second copy that drifts the week somebody adds a project
+to one of them.
+
+| Fact         | Read from                                                                      |
+| ------------ | ------------------------------------------------------------------------------ |
+| Paths        | The workspace, solution or project manifest that already groups the source     |
+| Dependencies | The project references or workspace dependencies already declared between them |
+| Build        | The stack's task runner, under a conventional name                             |
+| Tests        | The same, one name per kind — unit, integration, end-to-end                    |
+
+**Conventional names are what make the last two derivable.** A repository whose
+test commands are called anything at all cannot be read; one that names them
+consistently needs no configuration to be understood. Where a stack has an
+established convention, that is the convention.
+
+**An optional override exists for what cannot be derived**, and is the exception
+rather than the starting point. A repository whose layout the graph expresses
+writes none.
+
+**What is derived must be reported.** A file somebody wrote can be read; a
+derivation cannot. Every gate that scopes work states the component set it
+resolved and why, so a wrong answer is visible rather than silent — that
+obligation is the price of not having a file to open.
 
 ## The changed-component rule
 

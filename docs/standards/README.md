@@ -30,9 +30,10 @@ these documents and the skills beside them; the gates enforce what they state.
 
 ## Decision records
 
-- [`docs/ADR/`](../ADR/README.md) — why the toolkit is the way it is. Two records
-  so far: per-component version derivation, and which analysis tools are bundled
-  rather than resolved from `PATH`.
+- [`docs/ADR/`](../ADR/README.md) — why the toolkit is the way it is: how
+  per-component versions are derived, which analysis tools the toolkit installs,
+  and why the gates read a repository's own declarations rather than a
+  configuration file of their own.
 
 ## Skills
 

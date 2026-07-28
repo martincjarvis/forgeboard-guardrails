@@ -20,10 +20,27 @@ from a hunch about the path.
 
 ## Rules
 
-- **Declared as path patterns, checked in**, next to the component map. Two
-  people must not classify the same file differently.
-- **Exactly one class per file.** A file matching two patterns is a
-  configuration defect, reported as one, not silently resolved by order.
+- **Declared in `.gitattributes`, through a `guardrail-class` attribute.** Not a
+  bespoke configuration file: git already owns per-path attributes, already
+  defines their precedence, and already answers them without a parser
+  ([ADR-0003](../../ADR/0003-derive-configuration.md)).
+
+  ```gitattributes
+  src/**       guardrail-class=production
+  tests/**     guardrail-class=test
+  docs/**      guardrail-class=documentation
+  skills/**    guardrail-class=agent-context
+  *.csproj     guardrail-class=configuration
+  ```
+
+  Query one path with `git check-attr guardrail-class -- <path>`. Because the
+  attributes are per-directory and inherited, a subdirectory can correct its
+  parent without a central list to keep in step — and the file is present in a
+  conforming repository anyway, carrying the line-ending normalisation.
+
+- **Exactly one class per file.** Git resolves the most specific match, so a
+  file cannot hold two classes — but two patterns of equal specificity
+  disagreeing is a defect, reported as one rather than settled by file order.
 - **A dual-audience document is not a tie — it is two artefacts.** A reference
   document stays a human document, classified as documentation. Its frontmatter
   is what lets an agent decide whether to load it at all, which is progressive

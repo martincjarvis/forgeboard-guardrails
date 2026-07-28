@@ -28,8 +28,9 @@ time**, when you reach that gate — not all of them up front.
    - `git config --get core.hooksPath` and list that directory
    - the pipeline definitions under `.github/workflows/`, `azure-pipelines.yml`
      or equivalent
-   - `.forgeboard/guardrails.config.json` or the repository's own gate
-     configuration
+   - what the gates will derive from: the project graph, the task names, the
+     analysers' configuration, and `.gitattributes` — plus any override the
+     repository has written
    - existing registers, and any decision records under `docs/ADR/` or
      equivalent
 
