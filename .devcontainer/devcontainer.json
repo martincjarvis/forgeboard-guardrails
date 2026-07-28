@@ -16,6 +16,13 @@
     "ghcr.io/devcontainers/features/dotnet:2": { "version": "10.0" },
     "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
   },
+  // ~/.config/opencode is deliberately NOT persisted. OpenCode's credential lives in
+  // ~/.local/share/opencode/auth.json, which the persistence script symlinks into its own
+  // volume, so dropping the config volume costs no login. What it holds is opencode.json,
+  // which reconcile-opencode-plugins.sh derives from the image's INSTALL_* vars on every
+  // start — and persisting it is what let a stale volume shadow a newer image's plugin
+  // set, which is the bug that script exists to undo.
+  //
   // Volume names are deliberately the same as the other repositories' containers use:
   // Docker named volumes are daemon-global, so sharing the names shares the auth token
   // and nothing else. setup-credential-persistence.sh symlinks only each agent's
@@ -24,7 +31,6 @@
   "mounts": [
     "source=claude-code-credential-store,target=/home/vscode/.claude-credential-store,type=volume",
     "source=opencode-credential-store,target=/home/vscode/.opencode-credential-store,type=volume",
-    "source=opencode-config,target=/home/vscode/.config/opencode,type=volume",
     "source=agy-credential-store,target=/home/vscode/.agy-credential-store,type=volume",
     "source=claude-mem-data,target=/home/vscode/.claude-mem,type=volume",
     "source=context-mode-data,target=/home/vscode/.claude/context-mode,type=volume",

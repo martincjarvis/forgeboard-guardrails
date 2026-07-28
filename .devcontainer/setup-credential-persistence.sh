@@ -33,7 +33,6 @@ fix_mount_ownership() {
 for dir in \
   "$HOME/.claude-credential-store" \
   "$HOME/.opencode-credential-store" \
-  "$HOME/.config/opencode" \
   "$HOME/.claude-mem" \
   "$HOME/.claude/context-mode" \
   "$HOME/.cache/qmd" \
