@@ -64,6 +64,16 @@ Where a harness cannot fire one of them, that is a **recorded gap**, not a
 silent difference: the repository knows one of its harnesses is weaker, and the
 commit gate is doing that work instead.
 
+**Ship the hooks with the plugin where the harness allows it.** A harness whose
+plugin format can carry hooks should carry them there rather than have each
+repository edit its own settings: one declaration, installed with the plugin,
+and nothing to keep in step per repository. Where the harness has no such
+mechanism, the wiring is the repository's and belongs in its adoption steps.
+
+**A hook whose tool is missing says so.** It does not pass quietly. An edit-time
+scan that cannot run because the scanner is not installed reports that on the
+edit it did not scan — the same rule every other gate follows.
+
 ## Verification
 
 - [ ] Every harness in use reads a root instruction file, and all of them
