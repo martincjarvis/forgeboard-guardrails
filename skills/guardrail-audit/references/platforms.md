@@ -1,12 +1,12 @@
 # Platform capabilities
 
-Tier 1 of the tooling ladder: what the host already offers, which is always
+Level 1 of the tooling ladder: what the host already offers, which is always
 cheaper than running the same check in the pipeline. Enable these before
 proposing a tool, and record any you deliberately leave off.
 
 ## What to look for, on any host
 
-| Gate | Capability                         | Why it is tier 1                                                    |
+| Gate | Capability                         | Why it is level 1                                                   |
 | ---- | ---------------------------------- | ------------------------------------------------------------------- |
 | 6    | Required status checks             | The only thing that makes a verdict block a merge                   |
 | 6    | Branch protection                  | Approval rules, stale dismissal, force-push refusal, history shape  |
@@ -60,4 +60,4 @@ a decision. Both need writing down:
 
 The most common real reason is licensing: a capability behind a tier the
 organisation has not bought. That is a legitimate decision record, and it
-changes the answer for that check to tier 2 rather than to nothing.
+changes the answer for that check to level 2 rather than to nothing.

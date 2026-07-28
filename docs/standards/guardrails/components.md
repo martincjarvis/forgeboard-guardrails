@@ -65,7 +65,10 @@ Three constraints make it safe rather than merely fast:
   contract must select the front end too.
 - **A path in no component selects everything.** That is the default, and it is
   the safe direction: falling through to "nothing changed" is the failure mode
-  that lets a build file change pass ungated. Naming which components a shared
+  that lets a build file change pass ungated. This is the mirror of the
+  [file-class default](file-classes.md), which narrows an unclassified file to
+  the strictest class rather than widening it — different questions, each failing
+  safe its own way. Naming which components a shared
   path belongs to is the optimisation, available to any repository willing to
   maintain it, and wrong only when it is stale.
 - **The whole set is still verified somewhere.** Scoping is a gate optimisation,

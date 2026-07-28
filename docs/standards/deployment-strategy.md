@@ -476,8 +476,8 @@ A conforming mechanism, whatever implements it, must:
 Most platforms already provide most of this. An application-composition
 framework or an infrastructure-as-code tool typically expresses the descriptor
 and the ordering; the host's pipeline expresses the rest. Reach for those before
-writing any of it — a bespoke engine here is the tier-3 answer to a question
-tier 1 usually already answers.
+writing any of it — a bespoke engine here is the level-3 answer to a question
+level 1 usually already answers.
 
 ### Versioning source
 

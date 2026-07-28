@@ -79,7 +79,7 @@ clone.
 The history scan is the one to reach for a purpose-built tool for: walking every
 reachable commit is not something a file-oriented scanner does well, and the
 platform's own secret scanning covers it on the hosts that offer it — which is
-the tier-1 answer.
+the level-1 answer.
 
 ## Verification
 

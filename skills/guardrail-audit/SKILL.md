@@ -117,7 +117,7 @@ list; applying it is a separate decision with its own review.
 
 ## Proposing a fix
 
-When asked to close a gap, follow the tier ladder in
+When asked to close a gap, follow the tooling ladder in
 `docs/standards/guardrails/cross-gate-rules.md`:
 
 1. **A capability the host already offers.** Read `references/platforms.md`.

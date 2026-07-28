@@ -52,6 +52,17 @@ resolves into, what a licence exception needs, and what opting out of a check
 requires. Registers, by contrast, hold accepted findings one row at a time; both
 are set out in [Registers](guardrails/registers.md).
 
+## One word, three meanings
+
+The corpus uses three numbered scales, and they are not related. A reader who
+conflates them will reach for the wrong one:
+
+| Term              | Belongs to                                         | Means                                                      |
+| ----------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| **Kind** of test  | [Testing strategy](testing-strategy.md)            | Unit, architecture, integration, end-to-end, smoke, health |
+| **Tier** 0, 1, 2  | [Logging and diagnostics](logging-diagnostics.md)  | How hard a logging rule is enforced                        |
+| **Level** 1, 2, 3 | [Cross-gate rules](guardrails/cross-gate-rules.md) | Where a check's implementation comes from                  |
+
 ## Check types
 
 Every check carries one type. The type states what the check defends, and
@@ -96,7 +107,7 @@ Every gate reads from these. An auditor loads them once and keeps them open.
 - [Standards index](README.md) — the other standards a guarded repository consumes.
 - [Suppression register](../registers/suppression-register.md) — this repository's own
   instance of the register described here.
-- [Testing strategy](testing-strategy.md) — the four test tiers the gates route
+- [Testing strategy](testing-strategy.md) — the six kinds of test the gates route
   by, the coverage gate's configuration, and the artifact categories.
 - [Deployment strategy](deployment-strategy.md) — the release side of the
   component boundary, where per-component versioning is defined, and the source

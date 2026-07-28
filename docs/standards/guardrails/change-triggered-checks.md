@@ -37,7 +37,7 @@ published against code nobody is currently editing.
 A dependency set that only moves when a feature needs it moves in large, risky
 jumps, and the advisory check then arrives as an emergency rather than as
 maintenance. Automated update proposals on a schedule are the answer, and they
-are a tier-1 capability on most platforms — each proposal arrives as an ordinary
+are a level-1 capability on most platforms — each proposal arrives as an ordinary
 pull request and passes through every gate like any other change. Nothing about
 being machine-raised exempts it from review.
 

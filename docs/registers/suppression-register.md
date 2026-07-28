@@ -6,8 +6,8 @@ suppression that has no row here, so this list cannot silently fall behind the c
 
 A row authorises **one rule at one path**. The same rule elsewhere needs its own row
 — otherwise a single accepted exception quietly licenses that rule across the
-repository, which is the broadened annotation ADR-0011 forbids, reached by another
-route.
+repository, which is the broadened
+annotation the standards forbid, reached by another route.
 
 **What belongs here:** anything that turns a gate off for a line or a block —
 `nosemgrep`, `eslint-disable`, `secretlint-disable`, `markdownlint-disable`,

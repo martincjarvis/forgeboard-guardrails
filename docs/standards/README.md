@@ -19,7 +19,7 @@ these documents and the skills beside them; the gates enforce what they state.
 - [`deployment-strategy.md`](deployment-strategy.md) — per-component
   path-scoped versioning, prerelease channels, and the descriptor → manifest →
   deploy-engine pipeline.
-- [`testing-strategy.md`](testing-strategy.md) — the four test tiers every gate
+- [`testing-strategy.md`](testing-strategy.md) — the six kinds of test every gate
   routes by, what belongs in each and who owns it, the coverage gate's
   configuration, and the artifact categories a pipeline publishes.
 - [`logging-diagnostics.md`](logging-diagnostics.md) — the logging and

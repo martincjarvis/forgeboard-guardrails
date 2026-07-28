@@ -35,6 +35,14 @@ from a hunch about the path.
 - **An unclassified file is production.** The fail-safe direction: treating
   production code as documentation removes it from change size, from the length
   limit and from complexity in one step, and nothing downstream notices.
+
+  Note the neighbouring rule points the other way, and both are correct. An
+  unclassified **file** narrows to the strictest class; an unclassified **path**
+  widens to [every component](components.md#the-changed-component-rule). Each
+  fails safe for its own question: "how strictly is this judged" defaults to
+  strictly, and "how much must be rebuilt" defaults to everything. They are easy
+  to cross-wire precisely because both are called the fail-safe direction.
+
 - **Configuration counts toward change size but has no length limit.** A
   generated lock file or a long infrastructure definition is not a design smell;
   a 900-line change to how the system is built still needs a human to look at it.

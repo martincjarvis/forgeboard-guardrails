@@ -49,15 +49,15 @@ available tool covers, and treat that as a temporary state rather than an asset
 — a bespoke check is a thing to maintain, a thing to document, and a thing that
 is wrong in ways nobody else has already found and fixed.
 
-Stop at the first tier that covers the check:
+Stop at the first level that covers the check:
 
-| Tier | Source                                           | Why it comes first                                                                               |
-| ---- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| 1    | A capability the hosting platform already offers | Nothing to install, nothing to keep running, and it reports where the merge policy already looks |
-| 2    | An established open-source tool                  | Maintained by someone else, calibrated against more code than this repository                    |
-| 3    | A check written here                             | Only for a gap the first two do not cover                                                        |
+| Level | Source                                           | Why it comes first                                                                               |
+| ----- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| 1     | A capability the hosting platform already offers | Nothing to install, nothing to keep running, and it reports where the merge policy already looks |
+| 2     | An established open-source tool                  | Maintained by someone else, calibrated against more code than this repository                    |
+| 3     | A check written here                             | Only for a gap the first two do not cover                                                        |
 
-Tier 1 is the one most often skipped, and the two clearest examples are
+Level 1 is the one most often skipped, and the two clearest examples are
 dependency updates and code scanning. A platform that raises dependency-update
 pull requests on a schedule, or scans for vulnerable patterns and publishes the
 findings to its own review surface, is offering the exact check this standard
@@ -65,7 +65,7 @@ asks for — already integrated with the required status checks, already
 annotating changed lines, already retaining history across runs. Reimplementing
 that in the pipeline costs work and produces something less connected.
 
-Within tier 2, **prefer the stack's own tool where one exists, and Node tooling
+Within level 2, **prefer the stack's own tool where one exists, and Node tooling
 where none does.** A formatter, a prose lint, a spell check and a secret scan
 are stack-independent problems, and one implementation across every repository
 is worth more than a per-stack choice. A language's own formatter and analysers

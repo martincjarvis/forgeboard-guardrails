@@ -60,7 +60,7 @@ There is no widely adopted dedicated tool. Two workable answers:
 - A `secretlint` custom rule matching absolute home-directory paths and the
   host's user name.
 - A repository-local pattern check in the gate itself — one of the few places
-  tier 3 is the honest answer.
+  level 3 is the honest answer.
 
 Whichever, the patterns are the leak shapes: an absolute path under a home
 directory, a `C:\Users\<name>` or `/home/<name>` prefix, a machine host name.

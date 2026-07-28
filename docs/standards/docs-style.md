@@ -114,8 +114,10 @@ is agent-facing, and stops serving the human reading it.
 
 ## Enforcement
 
-Two rules here are mechanically checkable and belong in the docs gate: the three
-frontmatter fields being present and non-empty, and the preferred-terms table. The second is a word-list check of the same shape as the cspell gate that
+Two rules here are mechanically checkable, and they run as documentation checks
+at the [commit gate](guardrails/gate-2-commit.md) — alongside the prose lint,
+the spell check and the link and anchor integrity check: the three frontmatter
+fields being present and non-empty, and the preferred-terms table. The second is a word-list check of the same shape as the cspell gate that
 already runs, so it needs no new tooling.
 
 Everything else is judgement. No gate can tell whether prose is concise or whether
