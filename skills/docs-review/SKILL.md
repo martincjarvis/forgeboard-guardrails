@@ -20,7 +20,8 @@ These are findings, not opinions:
   document class that redefines it declares that in its own convention.
 - **Preferred terms** — the table in the standard. Word-boundary matches only;
   identifiers are exempt.
-- **Links and anchors resolve.** The guardrails docs gate covers this; do not
+- **Links and anchors resolve.** The commit gate's link and anchor check covers
+  this; do not
   duplicate it, but do report what it finds.
 
 ## Reviewer judgement
