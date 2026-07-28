@@ -10,7 +10,7 @@ are in `tooling-shared.md` — this covers only what needs to understand C#.
 | Build, warnings fatal | 2    | `dotnet build`                               | `dotnet build -warnaserror`                             |
 | Unit tests            | 2    | `dotnet test`                                | `dotnet test --filter Category!=Integration`            |
 | Architecture tests    | 2    | An architecture-assertion library            | Runs as part of the unit tier                           |
-| Coverage              | 5    | `coverlet`, via the SDK collector            | `dotnet test --collect:"XPlat Code Coverage"`           |
+| Coverage              | 5    | `coverlet`, MSBuild integration              | `dotnet test -p:CollectCoverage=true -p:Threshold=80`   |
 | Integration tests     | 5    | `dotnet test` with a category filter         | `dotnet test --filter Category=Integration`             |
 | Dependency install    | 0    | `dotnet restore --locked-mode`               | Fails when the lock file and manifest disagree          |
 | Advisories            | 6    | The SDK itself                               | `dotnet list package --vulnerable --include-transitive` |
@@ -175,8 +175,23 @@ satisfies gate 6's evidence row depends on the host — one that ingests TRX
 directly needs no converter, and adding one is the bolt-on the tooling ladder
 tells you to avoid. Check the host first.
 
-**Coverage is Cobertura natively** through the collector, which every major host
-reads. No conversion.
+**The collector emits; it does not enforce.**
+`dotnet test --collect:"XPlat Code Coverage"` writes a Cobertura report and
+exits zero however low the coverage is. The standard requires the coverage
+command to **own its threshold and self-fail** — a command that only reports
+satisfies the gate's letter and none of its purpose, because the gate reads a
+non-zero exit as the shortfall signal and this one never returns it.
+
+Use coverlet's MSBuild integration, which does fail:
+
+```text
+dotnet test -p:CollectCoverage=true -p:CoverletOutputFormat=cobertura             -p:Threshold=80 -p:ThresholdType=line -p:ThresholdStat=total
+```
+
+That emits Cobertura — which every major host reads, with no conversion — and
+returns non-zero below the floor. Where a repository keeps the collector for its
+report, the threshold must come from somewhere else in the same command, and
+the audit checks that it actually fails.
 
 **SARIF needs an explicit error log.** Add
 `-p:ErrorLog=analysis.sarif,version=2.1` to publish gate 6's static-analysis

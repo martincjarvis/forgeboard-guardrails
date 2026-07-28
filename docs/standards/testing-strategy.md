@@ -162,6 +162,14 @@ numbers. The native tool self-fails below its floor and prints the shortfall.
 An unset `coverage` field is a deliberate, **visible** skip: the gate says so
 rather than silently passing.
 
+**A command that only reports passes forever.** Many coverage tools emit a
+report and exit zero however low the number is. Wired in as the coverage
+command, such a tool satisfies the gate's letter and none of its purpose: the
+gate reads a non-zero exit as the shortfall signal, and this one never returns
+it, so the floor is never enforced and nobody finds out. The threshold goes in
+the command itself — and **prove it fails**, by raising the floor above current
+coverage once and confirming the gate refuses.
+
 The same command that gates also **emits the artifacts**, so one invocation both
 enforces the floor and writes what the pipeline publishes.
 
@@ -235,7 +243,8 @@ improvement as suspicious.
       every dependency.
 - [ ] Health checks run after deployment and before smoke, in every environment.
 - [ ] Coverage is measured on unit and integration, and the command owns its
-      threshold.
+      threshold — proved by raising the floor above current coverage and seeing
+      the gate refuse, not by reading the configuration.
 
 ## References
 

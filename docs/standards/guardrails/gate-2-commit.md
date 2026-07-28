@@ -20,15 +20,39 @@ Checks run in the fixed order below and stop at the first failure.
 
 **Partial staging is supported, and check 2 is what makes it safe.** Staging
 half a file's changes is normal and this gate judges the staged half. Achieving
-that takes a mechanism — hiding unstaged changes for the duration of the run,
-then restoring them — and check 2 verifies **that mechanism worked**, immediately
-after it ran and before anything reads a file. It is not a check on whether the
-author staged a whole file.
+that takes a mechanism, and check 2 verifies **that mechanism worked**, before
+anything reads a file. It is not a check on whether the author staged a whole
+file.
 
 Check 2 is the load-bearing one: every later check reads files from disk, so
 content on disk that is not the content being committed means the gate judged
 the wrong thing. An unverifiable result must block and must say it is unknown —
 never claim a breach the check did not establish.
+
+### Two ways to isolate, both git's
+
+**The mechanism is a git one, not a language one.** Any stack can implement it;
+no stack needs a particular ecosystem's tooling to have this check. There are
+two families, and they differ in what check 2 has to verify.
+
+| Family                    | How                                                                                    | Check 2 verifies                                        | Costs                                                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Materialise the index** | `git checkout-index --all --prefix=<dir>/` writes exactly the staged content elsewhere | The materialised tree is complete and matches the index | Checks run outside the repository, so anything resolving configuration or imports from the working tree needs its paths adjusted |
+| **Hide and restore**      | Stash the unstaged remainder, run the checks against the working tree, restore it      | The working tree matches the index after hiding         | Mutates the working tree; a hard kill mid-run can leave changes stashed, so the failure mode must be recoverable and documented  |
+
+**Prefer materialising for file-scoped checks** — the formatter, the scanners,
+the linters. Nothing touches the author's working tree, so nothing can be lost.
+
+**Hide-and-restore is for checks that need the real tree**: a build, a test run,
+anything resolving a project graph or a module path. Those cannot run against a
+detached copy without more path surgery than the isolation is worth.
+
+A repository may use both — materialise for 2.2, hide-and-restore around 2.3 —
+provided check 2 verifies whichever is in force at the time.
+
+**One consequence worth stating**: because the formatter rewrites and re-stages
+(check 4), the isolation must survive that write. A mechanism that snapshots
+once and never re-reads will judge later checks against pre-format bytes.
 
 **Check 3 runs in both directions**, and the two have different verdicts. A
 manifest without its lock file **blocks**: the dependency set on disk is not the
@@ -165,22 +189,22 @@ Rules:
 The staged set is `git diff --cached --name-only --diff-filter=ACMR`. Every
 command below takes that list.
 
-| #   | Check                       | Command                                                                         |
-| --- | --------------------------- | ------------------------------------------------------------------------------- |
-| 1   | Protected branch            | `git rev-parse --abbrev-ref HEAD`                                               |
-| 2   | Staged-content isolation    | `git diff --name-only` — empty output means the tree matches the index          |
-| 3   | Dependency lock sync        | `npm ci --dry-run` · `dotnet restore --locked-mode`                             |
-| 4   | Universal format            | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`            |
-| 5   | Prose lint                  | `npx markdownlint-cli2 <paths>`                                                 |
-| 6   | Secret scan                 | `npx secretlint <paths>`                                                        |
-| 7   | Spelling                    | `npx cspell --no-progress <paths>`                                              |
-| 8   | Cross-language analysis     | `semgrep --config auto --error <paths>`                                         |
-| 9   | Machine-identifying content | `npx secretlint <paths>` with the path rules enabled, or a repository rule      |
-| 10  | File size                   | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                    |
-| 11  | Per-path lint               | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes` |
-| 12  | Build                       | `npm run build` · `dotnet build -warnaserror`                                   |
-| 13  | Unit tests                  | `npm test` · `dotnet test`                                                      |
-| 17  | Link and anchor integrity   | `npx markdown-link-check <paths>`, or the repository's own docs command         |
+| #   | Check                       | Command                                                                                                                                                 |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Protected branch            | `git rev-parse --abbrev-ref HEAD`                                                                                                                       |
+| 2   | Staged-content isolation    | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index |
+| 3   | Dependency lock sync        | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                     |
+| 4   | Universal format            | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                    |
+| 5   | Prose lint                  | `npx markdownlint-cli2 <paths>`                                                                                                                         |
+| 6   | Secret scan                 | `npx secretlint <paths>`                                                                                                                                |
+| 7   | Spelling                    | `npx cspell --no-progress <paths>`                                                                                                                      |
+| 8   | Cross-language analysis     | `semgrep --config auto --error <paths>`                                                                                                                 |
+| 9   | Machine-identifying content | `npx secretlint <paths>` with the path rules enabled, or a repository rule                                                                              |
+| 10  | File size                   | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                                                                                            |
+| 11  | Per-path lint               | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                         |
+| 12  | Build                       | `npm run build` · `dotnet build -warnaserror`                                                                                                           |
+| 13  | Unit tests                  | `npm test` · `dotnet test`                                                                                                                              |
+| 17  | Link and anchor integrity   | `npx markdown-link-check <paths>`, or the repository's own docs command                                                                                 |
 
 Prefer Node tooling where the stack has no native equivalent — the formatter,
 the prose lint, the spell check and the secret scan are stack-independent, and
@@ -196,6 +220,10 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] A partially staged file is judged on its staged half only.
 - [ ] An isolation check that cannot run blocks the commit and says the result is
       unknown, rather than passing or claiming a breach.
+- [ ] The isolation mechanism is implemented with git, not with one ecosystem's
+      task runner — a repository in any language has this check.
+- [ ] Where the working tree is mutated to isolate, an interrupted run leaves the
+      author's unstaged work recoverable, and the recovery is documented.
 - [ ] The checks after the formatter read the reformatted, re-staged bytes — a
       file the formatter rewrote is judged in its final form, not its staged one.
 - [ ] A manifest change without its lock file is refused.

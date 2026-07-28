@@ -32,11 +32,17 @@ preference stops: neither has an npm-distributed equivalent of comparable
 coverage, and reaching across ecosystems to install them automatically is the
 bundling this toolkit does not do.
 
-**`lint-staged` is what makes gate 2 correct**, not merely convenient. It hides
-unstaged changes for the duration of the run, which is the mechanism gate 2
-check 2 verifies. Running the checks over the staged _file list_ without hiding
-unstaged content judges the wrong bytes — the defect the isolation check exists
-to catch.
+**`lint-staged` is one implementation of gate 2's isolation, not the mechanism
+itself.** It hides unstaged changes for the duration of the run — the
+hide-and-restore family. The mechanism is git's, so a repository with no Node
+toolchain implements the same thing directly: `git checkout-index --all
+--prefix=<dir>/` materialises the staged content without touching the working
+tree at all, which is the safer family for file-scoped checks.
+
+What is never acceptable is running the checks over the staged _file list_ while
+reading the working tree. That judges bytes which are not being committed, and
+is the defect the isolation check exists to catch. **Passing a file list is not
+isolation.**
 
 **`prettier` is a formatter, not a linter.** It never fails an edit at gate 1
 and never blocks at gate 2; it rewrites and re-stages. A repository that runs it
