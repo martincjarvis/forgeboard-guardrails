@@ -12,8 +12,8 @@ How a multi-component app is versioned per-component, packaged, and installed fr
 
 ## Deployment rules
 
-The strategy is ten rules. Each states the _what/why_; the template, sample, and
-demonstration realize the _how_.
+The strategy is ten rules. Each states the _what/why_; a repository realizes the
+_how_ with whatever its platform already provides.
 
 ### 1. SemVer-from-git, per-component, independent
 
@@ -285,10 +285,9 @@ publishes `…-<branch>.<n>` on the first attempt and a **distinct**
 `…-<branch>.<n>-2` on the re-run — the collision a tag-derived counter would have
 produced, avoided by construction.
 
-The sample repo exercises only the skip-on-duplicate path (git tags + GitHub
-Releases); a registry target adopts one of the above. The [template
-README](./templates/deployment/README.md) gives the concrete GitHub Actions and
-Azure DevOps wiring.
+A repository publishing only tags and releases exercises the skip-on-duplicate
+path; a registry target adopts one of the above. The wiring is the host's own —
+its workflow syntax, its artefact feed — and is not prescribed here.
 
 ## Deploy descriptor → published version-manifest
 
@@ -296,10 +295,9 @@ Two artefacts, source vs published:
 
 - **Deploy descriptor** (`deploy/deployment.json`, source-of-truth, part of the
   `deploy` component). Declares per-component deployment metadata keyed to the
-  same component names as `guardrails.config.json`. Kept **separate from**
-  `guardrails.config.json` so this standard does not mutate Stream A's
-  versioning/gating schema — the descriptor consumes the versions ADR-0001
-  produces.
+  same component names the gates use. Kept **separate from** the gating
+  configuration, so deployment concerns do not mutate the versioning and gating
+  model — the descriptor consumes the versions ADR-0001 produces.
 - **Published version-manifest** (`version-manifest.json`, emitted per release by
   CI). The descriptor merged with CI-resolved versions + build metadata — a
   self-contained, immutable instruction set an arbitrary deployer consumes with
@@ -458,38 +456,41 @@ than raw tool chatter:
 
 ### Mechanism
 
-The rules are realized by three artefacts, all under version control:
+This standard states what a deployment mechanism must satisfy. It does not ship
+one, for the same reason the rest of the toolkit bundles nothing: a mechanism
+shipped here would be one stack's, and every adopter of another stack would
+inherit a runtime they did not choose.
 
-- The [template](./templates/deployment/) — an instantiable copy of the proven
-  files (CI workflow, deploy engine, packaging, version resolver, CI scripts,
-  JSON Schemas, per-component release config, stage-script stubs). Its README
-  documents instantiation and the AC1 swap (see below).
-- A sample repository instantiating the template, exercising the full model on a
-  real pipeline run.
-- A demonstration record quoting that run's outputs verbatim: per-component
-  versions and tags, the emitted manifest, the ordered deploy-engine log, the
-  launch smoke, and the immutability and branch-deployment proofs. Both artefacts
-  belong to the programme that commissioned them, and are named here rather than
-  linked.
+A conforming mechanism, whatever implements it, must:
 
-### Versioning source — ADR-0001 and the release-config generator
+- **Derive each component's version** from the Conventional Commits touching its
+  own paths, and tag as `<appName>-<component>@<version>`.
+- **Publish a descriptor** naming the components, their types, their declared
+  dependencies and their public marker — versioned like any other deployable.
+- **Emit a version manifest** per run, recording what was resolved so a
+  deployment can be traced to the versions it carried.
+- **Deploy in dependency order**, and deploy only what changed.
+- **Verify each stage**, then run health checks, then smoke — in that order.
+- **Refuse to republish** an existing version.
 
-The per-component release config in the template is the **literal output** of the
-generator (`src/versioning/releaseConfig.ts`),
-annotated with the generator as the canonical source. The template therefore
-honours the versioning decision faithfully without depending on the (still
-unpublished) toolkit. That config is the AC1 contract placeholder — it is **not
-executed at runtime**: the per-component bump is computed by the bespoke
-path-scoped detector (`compute-versions.ps1` + `versioning.psm1`, see
-_Mechanism_) reading Conventional Commits directly, so the standard does not
-depend on running semantic-release
-([ADR-0001](../ADR/0001-per-component-version-derivation.md), which fixes the
-tag format and the `release/*.json` config-format contract). **Adoption swaps
-one thing:** once the toolkit is published and installed, the hand-carried
-`release/*.json` is replaced by toolkit-generated config — a one-line source
-change, not a re-implementation. Everything else in the template is reused
-unchanged by AC1. There is no drift between the hand-carried config and the
-generator: the template carries the generator's literal output.
+Most platforms already provide most of this. An application-composition
+framework or an infrastructure-as-code tool typically expresses the descriptor
+and the ordering; the host's pipeline expresses the rest. Reach for those before
+writing any of it — a bespoke engine here is the tier-3 answer to a question
+tier 1 usually already answers.
+
+### Versioning source
+
+The per-component bump is read from the Conventional Commits touching each
+component's paths, by the path-scoped detector
+[ADR-0001](../ADR/0001-per-component-version-derivation.md) records — not by a
+general-purpose release tool. That decision fixes the tag format and the
+per-component release-config contract.
+
+Where a repository generates its release config rather than hand-writing it, the
+generator is the canonical source and the generated file carries a note saying
+so. A hand-written copy that drifts from the generator is the failure to avoid;
+generating it, or checking it against the generator, is how that is prevented.
 
 ## References
 

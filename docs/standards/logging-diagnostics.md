@@ -98,7 +98,7 @@ Each stack states, for every rule, what is **mechanically enforced by →** an a
 
 ### Enforcement boundary
 
-This standard **names and configures** the enforcing analysers. It does **not** wire them into any build gate — that is Stream A / repo-setup work: install the analyser set, pin severities in `.editorconfig`, and turn on `<EnforceCodeStyleInBuild>` so Tier-0 rules fail the build on breach.
+This standard **names and configures** the enforcing analysers. It does **not** wire them into any build gate — that is repository-setup work: install the analyser set, pin severities in `.editorconfig`, and turn on `<EnforceCodeStyleInBuild>` so the blocking rules fail the build on breach.
 
 Three tiers run through the policy:
 

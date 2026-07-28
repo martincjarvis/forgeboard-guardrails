@@ -5,7 +5,7 @@ description: Use when reviewing changed .NET or React/TS code against the loggin
 
 # Reviewing code against the logging & diagnostics standard
 
-<!-- cspell:ignore .NET React TS ILogger LoggerMessage LogLevel DI OpenTelemetry OTel dotnet analyser analysers redaction redacted unredacted Tier AC1 ADR Stream-A PASS FAIL spy injectable -->
+<!-- cspell:ignore .NET React TS ILogger LoggerMessage LogLevel DI OpenTelemetry OTel dotnet analyser analysers redaction redacted unredacted Tier ADR PASS FAIL spy injectable -->
 
 ## When to use
 
@@ -49,7 +49,7 @@ rules and carries the semantic residue no analyser can judge.
 - **Review, not enforcement.** It does not wire or run analysers — that is
   Stream-A work, per the standard's
   [enforcement boundary](../../docs/standards/logging-diagnostics.md#enforcement-boundary)
-  (AC1). This skill covers the judgements only.
+  during repository setup. This skill covers the judgements only.
 - **Does not wrap other skills.** It references them
   (such as requesting-code-review and receiving-code-review) by name; it never
   intercepts their entry points.

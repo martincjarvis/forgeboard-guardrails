@@ -27,9 +27,6 @@ these documents and the skills beside them; the gates enforce what they state.
   boundary.
 - [`docs-style.md`](docs-style.md) — how documents under `/docs` are structured:
   frontmatter, guidance-before-provenance ordering, and document types.
-- [`templates/deployment/`](templates/deployment/) — the instantiable deployment
-  template: CI workflow, deploy engine, version resolver, schemas and
-  per-component release config.
 
 ## Decision records
 
