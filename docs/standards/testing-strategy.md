@@ -39,7 +39,7 @@ Assertions on the shape of the code rather than its behaviour: that a slice does
 not reach into another slice, that a layer does not depend upward, that a
 dependency direction holds.
 
-**They run in the unit tier because they are fast**, not because they are
+**They run with the unit tests because they are fast**, not because they are
 conceptually similar to unit tests. Reading the source and checking a dependency
 direction costs about what a unit test costs, so the cheapest gate can afford
 them — and the earlier a structural drift is caught, the less code has been
@@ -224,7 +224,7 @@ improvement as suspicious.
 
 - [ ] Unit tests mock everything outside the class under test, and the whole
       tier runs on every commit.
-- [ ] Architecture tests exist, run with the unit tier, and fail when a
+- [ ] Architecture tests exist, run with the unit tests, and fail when a
       dependency direction is violated.
 - [ ] Integration tests use real internals and stub only what crosses the
       repository's boundary.

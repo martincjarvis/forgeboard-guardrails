@@ -492,22 +492,6 @@ generator is the canonical source and the generated file carries a note saying
 so. A hand-written copy that drifts from the generator is the failure to avoid;
 generating it, or checking it against the generator, is how that is prevented.
 
-## References
-
-- [ADR-0001](../ADR/0001-per-component-version-derivation.md) — versions are
-  derived per component from Conventional Commits by a path-scoped detector this
-  toolkit owns. Fixes the tag format `<appName>-<component>@<version>`, the
-  `release/*.json` config-format contract generated from the components map, and
-  default branch → release / feature branch → prerelease. This standard consumes
-  that decision.
-- [Guardrail standards](guardrail-standards.md) — the gates that hold the
-  release boundary this strategy sits behind, and where the no-prerelease-in-a-
-  release rule is enforced.
-- **Rule 8's evidence bar** is integration evidence from a real pipeline run —
-  an install plus a launch smoke — never unit tests alone. The requirement comes
-  from the consuming programme's test-integrity rules, which are named here in
-  prose rather than linked, having no counterpart in this repository.
-
 ### Enforcement boundary
 
 Three bands run through the strategy:
@@ -524,3 +508,19 @@ Three bands run through the strategy:
 - **Demonstrated** — the real pipeline run plus the local-install launch smoke,
   recorded in a demonstration record held by the consuming programme. The
   integration evidence that the whole mechanism works end to end.
+
+## References
+
+- [ADR-0001](../ADR/0001-per-component-version-derivation.md) — versions are
+  derived per component from Conventional Commits by a path-scoped detector this
+  toolkit owns. Fixes the tag format `<appName>-<component>@<version>`, the
+  `release/*.json` config-format contract generated from the components map, and
+  default branch → release / feature branch → prerelease. This standard consumes
+  that decision.
+- [Guardrail standards](guardrail-standards.md) — the gates that hold the
+  release boundary this strategy sits behind, and where the no-prerelease-in-a-
+  release rule is enforced.
+- **Rule 8's evidence bar** is integration evidence from a real pipeline run —
+  an install plus a launch smoke — never unit tests alone. The requirement comes
+  from the consuming programme's test-integrity rules, which are named here in
+  prose rather than linked, having no counterpart in this repository.

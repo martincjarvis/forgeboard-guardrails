@@ -1,7 +1,7 @@
 ---
 type: reference
 summary: How the gates reach an agent — the root instruction file every harness reads, kept equivalent across harnesses, and the edit and task-completion hooks each must fire.
-read_when: Adopting the guardrails in a repository agents work in, or adding support for another agent harness.
+read_when: Adopting the toolkit in a repository agents work in, or adding support for another agent harness.
 ---
 
 # Agent integration
@@ -13,7 +13,7 @@ back. Neither is a git hook, so neither exists unless the harness the agent runs
 in is wired to fire it.
 
 A repository is worked in by more than one harness — different people, different
-tools, the same repository. **What the guardrails require must not depend on
+tools, the same repository. **What the gates require must not depend on
 which one somebody happened to open.**
 
 ## The root instruction file

@@ -31,20 +31,19 @@ incomprehensible.
 
 ## Push back is not a warning
 
-A warning is printed and forgotten; the worker prints it and carries on, which
-is how a repository accumulates files nobody decided to make that long. **Push
-back stops and asks.** The finding is put to the author with the options —
-split it, or state why this one is justified — and the answer is recorded before
-the work proceeds.
+Push back is defined in
+[the verdict table](../guardrail-standards.md#verdicts): it stops and asks, and
+the answer is a resolved decision record. Two things that table cannot carry:
 
-**The answer is a resolved decision record.** Not a commit message note, not a
-comment, and not a chat transcript: a push back asks a question with two
-defensible answers, and the reasoning for choosing one is exactly what a
-decision record exists to hold. Resolved, because an open record is a question
-still being asked — the gate is satisfied by the decision, not by the
-discussion. An answer that lives anywhere else cannot be found by the reviewer,
-cannot be found by the pipeline, and leaves the push back indistinguishable from
-a warning that was ignored.
+**The options are named, both of them** — split it, or state why this one is
+justified. A push back that offers only the first is an instruction wearing a
+question.
+
+**Resolved, not open.** An open record is a question still being asked; the gate
+is satisfied by the decision, not by the discussion. An answer anywhere else —
+a commit message note, a comment, a chat transcript — cannot be found by the
+reviewer or the pipeline, which leaves the push back indistinguishable from a
+warning that was ignored.
 
 It applies to the classes each check already counts, and only those:
 

@@ -47,7 +47,7 @@ rather than for a human reader.
   logging checklist to changed code and records a finding per file against the
   policy anchors.
 - [`testing-review`](../../skills/testing-review/SKILL.md) — places each test in
-  its tier by what it needs to run, checks it would fail if the requirement were
+  its kind by what it needs to run, checks it would fail if the requirement were
   unmet, and audits the coverage configuration and artifact categories.
 - [`deployment-review`](../../skills/deployment-review/SKILL.md) — audits
   per-component versioning, prerelease channels, immutability and the deploy

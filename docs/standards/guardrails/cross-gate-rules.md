@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The rules every gate holds regardless of what it checks — ordering, the tooling tier ladder, zero warnings, evidence, and how a refusal must read.
+summary: The rules every gate holds regardless of what it checks — ordering, the tooling ladder, zero warnings, evidence, and how a refusal must read.
 read_when: Building a gate, or judging whether an existing one is defective in a way its checks would not reveal.
 ---
 

@@ -204,6 +204,9 @@ command below takes that list.
 | 11  | Per-path lint               | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                         |
 | 12  | Build                       | `npm run build` · `dotnet build -warnaserror`                                                                                                           |
 | 13  | Unit tests                  | `npm test` · `dotnet test`                                                                                                                              |
+| 14  | Repository-wide tests       | The repository's own repository-level check command                                                                                                     |
+| 15  | Suppression register        | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                              |
+| 16  | Dependency licence register | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                       |
 | 17  | Link and anchor integrity   | `npx markdown-link-check <paths>`, or the repository's own docs command                                                                                 |
 
 Prefer Node tooling where the stack has no native equivalent — the formatter,
@@ -239,7 +242,7 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] A build warning is refused under a zero-warning policy.
 - [ ] A failing unit test is refused.
 - [ ] An architecture test fails when a dependency direction is violated, and it
-      runs with the unit tier rather than separately.
+      runs with the unit tests rather than separately.
 - [ ] A new suppression without a register row is refused.
 - [ ] An upgrade that pulls in a new transitive dependency is refused until that
       dependency has a register row.

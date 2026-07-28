@@ -1,7 +1,7 @@
 ---
 type: how-to
 summary: Six steps from "we should check X" to a check that actually gates — naming the property, finding an existing tool, choosing the gate, and making it required.
-read_when: Adding a check to a repository's guardrails.
+read_when: Adding a check to a repository's gates.
 ---
 
 # Placing a new check
@@ -9,7 +9,7 @@ read_when: Adding a check to a repository's guardrails.
 1. **Name the property it defends**, and take its type from
    [the check types](../guardrail-standards.md#check-types). Then look for an
    existing tool that already enforces it, before writing anything — the
-   [tier ladder](cross-gate-rules.md) starts with what the hosting platform
+   [tooling ladder](cross-gate-rules.md) starts with what the hosting platform
    already offers.
 2. **Put it in the highest-frequency gate whose inputs are sufficient.** A check
    needing the whole branch cannot live in the commit gate; one needing only the
@@ -35,5 +35,5 @@ read_when: Adding a check to a repository's guardrails.
 ## References
 
 - [Guardrail standards](../guardrail-standards.md) — the gate index and check types.
-- [Cross-gate rules](cross-gate-rules.md) — the tier ladder and the local-versus-server rule.
+- [Cross-gate rules](cross-gate-rules.md) — the tooling ladder and the local-versus-server rule.
 - [Thresholds](thresholds.md) — where any number it introduces belongs.

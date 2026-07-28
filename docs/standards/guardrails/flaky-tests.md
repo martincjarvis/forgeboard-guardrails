@@ -52,5 +52,5 @@ the fixture it shares with something else.
 ## References
 
 - [Registers](registers.md) — the quarantine register's columns.
-- [Gate 5 — Push](gate-5-push.md) — where the slower tiers run.
+- [Gate 5 — Push](gate-5-push.md) — where the slower kinds run.
 - [Thresholds](thresholds.md) — the default quarantine expiry.

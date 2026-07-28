@@ -1,7 +1,7 @@
 ---
 type: reference
 summary: The gates a guarded repository runs, ordered by how often each fires, with the check types and verdicts every gate shares — an index to the per-gate references.
-read_when: Deciding which gate a check belongs in, or starting an audit of a repository's guardrails.
+read_when: Deciding which gate a check belongs in, or starting an audit of a repository's gates.
 ---
 
 # Guardrail standards

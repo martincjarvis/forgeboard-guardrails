@@ -182,7 +182,7 @@ broadest default**, but some stacks have a native result format their own
 tooling emits with no extra dependency and the host already reads — and where
 that is true, use it. Adding a package purely to convert a format the host would
 have accepted anyway is the bolt-on the
-[tooling tier ladder](cross-gate-rules.md) tells you to avoid.
+[tooling ladder](cross-gate-rules.md) tells you to avoid.
 
 Where a stack has neither, convert at the end of the run. The ingestion is the
 point; a bespoke format loses it.

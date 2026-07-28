@@ -9,7 +9,7 @@ are in `tooling-shared.md` — this covers only what needs to understand C#.
 | Analysers             | 1, 2 | The SDK analysers, plus two third-party sets | Run inside the build; nothing extra to invoke           |
 | Build, warnings fatal | 2    | `dotnet build`                               | `dotnet build -warnaserror`                             |
 | Unit tests            | 2    | `dotnet test`                                | `dotnet test --filter Category!=Integration`            |
-| Architecture tests    | 2    | An architecture-assertion library            | Runs as part of the unit tier                           |
+| Architecture tests    | 2    | An architecture-assertion library            | Runs with the unit tests                                |
 | Coverage              | 5    | `coverlet`, MSBuild integration              | `dotnet test -p:CollectCoverage=true -p:Threshold=80`   |
 | Integration tests     | 5    | `dotnet test` with a category filter         | `dotnet test --filter Category=Integration`             |
 | Dependency install    | 0    | `dotnet restore --locked-mode`               | Fails when the lock file and manifest disagree          |

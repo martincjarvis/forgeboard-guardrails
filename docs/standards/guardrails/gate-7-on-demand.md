@@ -9,7 +9,7 @@ read_when: Adopting guardrails in an existing repository, or auditing what a rep
 # Gate 7 — On demand
 
 The same checks, invoked without a trigger: before opening a review, or when
-adopting guardrails in an existing repository. Reports rather than blocks,
+adopting the toolkit in an existing repository. Reports rather than blocks,
 because the caller decides the consequence.
 
 | Check                       | Type          | Note                                                                                             |
@@ -29,12 +29,9 @@ so what is stored is normalised whatever a contributor's platform does locally.
 `.editorconfig` declares the same intent to the editors and tools that write the
 files in the first place.
 
-Without both, a repository accumulates mixed endings, and the damage is not
-cosmetic: a whole-file ending change swamps a one-line diff so review stops
-being possible, a format check passes on one machine and fails on another, and
-the team learns that the gate is unreliable rather than that the file is. That
-is the same "gate that lies" failure the rest of this standard exists to
-prevent, arriving through the least interesting door.
+Without both, a whole-file ending change swamps a one-line diff so review stops
+being possible, and a format check passes on one machine and fails on another —
+the team learns the gate is unreliable rather than the file.
 
 Both files belong in a repository from its first commit. Adding them later
 rewrites every file that was stored wrongly, which is a change nobody can review.
@@ -114,6 +111,6 @@ the level-1 answer.
 
 - [Bypass and exceptions](bypass-and-exceptions.md) — the three states a check
   can report, which this gate audits.
-- [Cross-gate rules](cross-gate-rules.md) — the tooling tier ladder the platform
+- [Cross-gate rules](cross-gate-rules.md) — the tooling ladder the platform
   capability audit applies.
 - [Gate 2 — Commit](gate-2-commit.md) — the incremental counterpart to these sweeps.

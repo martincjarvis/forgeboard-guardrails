@@ -1,7 +1,7 @@
 ---
 type: reference
 summary: The expensive local tests, run once per push — coverage and integration; end-to-end needs a deployment and runs later.
-read_when: Deciding which tier a test belongs to, or why an end-to-end test must not run at push time.
+read_when: Deciding which kind of test something is, or why an end-to-end test must not run at push time.
 ---
 
 <!-- cspell:ignore oneline -->
@@ -73,5 +73,5 @@ reaching outside the repository's own boundary and is not an integration test.
 - [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — changed-line
   coverage, and where deployment-dependent tests may run.
 - [Gate 8 — Release](gate-8-release.md) — where they run otherwise.
-- [Testing strategy](../testing-strategy.md) — what belongs in each tier this
+- [Testing strategy](../testing-strategy.md) — what belongs in each kind this
   gate runs, and how the coverage command is configured.

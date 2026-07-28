@@ -78,8 +78,7 @@ Bundling was the earlier position and it does not survive contact with the goal.
 
 ## References
 
-- [Cross-gate rules](../standards/guardrails/cross-gate-rules.md) — the tooling
-  tier ladder this decision sits inside: platform capability first, established
+- [Cross-gate rules](../standards/guardrails/cross-gate-rules.md) — the tooling ladder this decision sits inside: platform capability first, established
   tool second, bespoke last.
 - [Gate 7 — On demand](../standards/guardrails/gate-7-on-demand.md) — the
   installation check that makes a missing tool visible.

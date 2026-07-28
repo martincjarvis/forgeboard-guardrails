@@ -32,7 +32,7 @@ is the difference between a gate developers keep and a gate they route around.
 ## The map
 
 **What it must declare**, per component: the paths that belong to it, its build
-command, its test commands by tier, and the components it depends on. Everything
+command, its test command per kind, and the components it depends on. Everything
 the changed-component rule does is derived from those four.
 
 **How it is declared is open.** This standard specifies the four facts, not the
@@ -54,7 +54,7 @@ commit charges every author for everyone else's code, and its cost grows with
 the repository until people route around it.
 
 Every gate that scopes work uses this rule: the commit gate for build and unit
-tests, the push gate for the slower tiers, the pull request pipeline for what it
+tests, the push gate for the slower kinds, the pull request pipeline for what it
 deliberately does **not** scope.
 
 Three constraints make it safe rather than merely fast:
@@ -114,7 +114,7 @@ diff does not touch is an over-broad one.
 ## References
 
 - [Gate 2 — Commit](gate-2-commit.md) — build and unit tests, scoped by this rule.
-- [Gate 5 — Push](gate-5-push.md) — the slower tiers, scoped the same way.
+- [Gate 5 — Push](gate-5-push.md) — the slower kinds, scoped the same way.
 - [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — where the whole set
   is verified regardless.
 - [Gate 3 — Commit message](gate-3-commit-message.md) — the commit scope is the
