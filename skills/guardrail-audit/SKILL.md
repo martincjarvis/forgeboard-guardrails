@@ -134,8 +134,33 @@ When asked to close a gap, follow the tooling ladder in
 | `references/tooling-dotnet.md` | The repository has a `.csproj` or `.sln`                                                   |
 | `references/platforms.md`      | Proposing anything at gate 6, gate 7 or gate 8                                             |
 
-Prefer the stack's own tool where one exists; prefer Node tooling where none
-does. One implementation of a stack-independent check across every repository is
+## A stack with no reference
+
+There are references for some stacks and not others. **A stack with no reference
+is not unsupported** — it is one where you derive the answer from the ladder
+rather than reading it off. Do that deliberately, in this order:
+
+1. **The stack's own tool, where it has one.** Its formatter, its linter, its
+   type checker, its test runner, its lock file. These beat anything external
+   because they understand the language.
+2. **The Node ecosystem as the fallback**, for every check the stack has no
+   answer to — the formatter for non-code files, the prose lint, the spell
+   check, the secret scan, the commit-message check. Take it rather than
+   inventing something, so two repositories on the same stack converge.
+3. **Ask before adopting a stack-native alternative to the fallback.** Some
+   stacks have credible options that are worth more than the shared default,
+   particularly for pipeline orchestration — writing the pipeline in the team's
+   own language rather than in YAML or JavaScript. That is a trade-off for the
+   team to make: name the alternative, say what it buys and what it costs, and
+   let them choose.
+
+**Record what you derived.** A stack without a reference will be met again, and
+the second derivation should not have to start over — or worse, land somewhere
+different. The output of deriving is a decision record naming the tool chosen
+per check and why, which is the thing a reference would have been.
+
+Prefer the stack's own tool where one exists; fall back to the Node ecosystem
+where none does. One implementation of a stack-independent check across every repository is
 worth more than a per-stack choice.
 
 ## Rules you do not get to relax

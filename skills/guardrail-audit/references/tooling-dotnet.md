@@ -84,6 +84,23 @@ is still a beta from December 2023, predating several language versions. Modern
 formatting ground without carrying a stale dependency. Roslynator falls the same
 way: useful, not carrying its weight against the three layers above.
 
+## Pipeline orchestration — the one place to ask
+
+The default is the host's own pipeline syntax plus the shared Node tooling for
+stack-independent checks, which works and needs no decision.
+
+A team working wholly in .NET may prefer its pipeline written in C# rather than
+YAML — [ModularPipelines](https://github.com/thomhurst/ModularPipelines) is the
+established option. What it buys is real: the pipeline is typed, testable,
+debuggable and open to refactoring by the same people and tools as the product, instead
+of being a YAML dialect nobody can run locally. What it costs is a dependency,
+a build step for the pipeline itself, and a smaller pool of people who have seen
+it before.
+
+**Surface it, do not decide it.** Name the option, state both sides, and let the
+team choose — then record the choice, since a pipeline runtime binds everything
+downstream of it.
+
 ## Centralise, do not scatter
 
 `Directory.Build.props` and `Directory.Packages.props` at the repository root.

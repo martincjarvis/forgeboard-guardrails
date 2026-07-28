@@ -65,11 +65,25 @@ asks for — already integrated with the required status checks, already
 annotating changed lines, already retaining history across runs. Reimplementing
 that in the pipeline costs work and produces something less connected.
 
-Within level 2, **prefer the stack's own tool where one exists, and Node tooling
-where none does.** A formatter, a prose lint, a spell check and a secret scan
-are stack-independent problems, and one implementation across every repository
-is worth more than a per-stack choice. A language's own formatter and analysers
-are not: they understand the language, and an external pass never will.
+Within level 2, **prefer the stack's own tool where one exists, and fall back to
+the Node ecosystem where none does.** A formatter, a prose lint, a spell check
+and a secret scan are stack-independent problems, and one implementation across
+every repository is worth more than a per-stack choice. A language's own
+formatter and analysers are not: they understand the language, and an external
+pass never will.
+
+**The Node ecosystem is the named fallback, not merely a habit.** It is broad
+enough to cover the stack-independent checks for any language, mature, and
+already required by the format standards the pipeline publishes. A repository
+whose stack has no answer takes that rather than inventing one, so that two
+repositories on the same unfamiliar stack converge instead of diverging.
+
+**The fallback is a default, not a verdict.** Where the stack has a credible
+alternative — particularly for pipeline orchestration, where writing the
+pipeline in the team's own language may be worth more than a shared one — that
+is a decision to put to the team rather than to make for them. A stack-native
+alternative adopted deliberately is a decision record; the fallback taken by
+default needs nothing.
 
 **Prefer tools that honour `.editorconfig`.** Indentation, character set and
 line endings are declared once, in a file every major editor and a good many
