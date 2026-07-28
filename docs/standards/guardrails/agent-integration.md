@@ -74,6 +74,18 @@ mechanism, the wiring is the repository's and belongs in its adoption steps.
 scan that cannot run because the scanner is not installed reports that on the
 edit it did not scan — the same rule every other gate follows.
 
+**Hooks run on every platform the team uses.** A hook is the one piece of this
+standard that executes on a developer's own machine on every edit, so a
+shell-specific script silently does nothing for whoever is on another platform —
+and a gate that does nothing reports green. Write them in a runtime that is
+already required rather than in a shell: no shell invocation, no assumption
+about which utilities are on the path, and path handling that survives both
+separators.
+
+Test them on each platform in use before trusting them. The failure mode is not
+an error — it is a hook that never fires, which looks exactly like a hook that
+found nothing.
+
 ## Verification
 
 - [ ] Every harness in use reads a root instruction file, and all of them
@@ -85,6 +97,9 @@ edit it did not scan — the same rule every other gate follows.
       harness, not just the one it was configured in first.
 - [ ] A harness that cannot fire a hook has that recorded, naming which gate is
       covering for it.
+- [ ] Every hook runs on each platform the team uses — verified by running it
+      there, not by reading it.
+- [ ] No hook depends on a shell or on utilities that only one platform ships.
 
 ## References
 

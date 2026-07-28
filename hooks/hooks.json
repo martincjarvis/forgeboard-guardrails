@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/gate-1-edit.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-1-edit.mjs\""
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/gate-4-task-completion.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-4-task-completion.mjs\""
           }
         ]
       }
