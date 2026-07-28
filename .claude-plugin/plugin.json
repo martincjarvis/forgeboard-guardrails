@@ -1,0 +1,18 @@
+{
+  "name": "forgeboard-guardrails",
+  "description": "Delivery guardrails: the standards a repository is held to, and the skills that audit and apply them. Nine gates from baseline through release, with per-stack tooling references.",
+  "version": "0.1.0",
+  "author": {
+    "name": "ForgeBoard"
+  },
+  "homepage": "https://github.com/martincjarvis/forgeboard-guardrails",
+  "repository": "https://github.com/martincjarvis/forgeboard-guardrails",
+  "keywords": [
+    "guardrails",
+    "standards",
+    "code-review",
+    "conventional-commits",
+    "testing-strategy",
+    "deployment"
+  ]
+}
