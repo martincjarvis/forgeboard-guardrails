@@ -74,6 +74,28 @@ Shared vocabulary, loaded when a gate depends on it:
 | `docs/standards/guardrails/cross-gate-rules.md`        | Judging whether a gate is defective in a way its checks would not reveal |
 | `docs/standards/guardrails/bypass-and-exceptions.md`   | A check is off, or an exception needs recording                          |
 
+## Adapt to what is there
+
+**Start from the tools the repository already uses.** Read its manifests, its
+pipeline definitions and its hook scripts before forming any opinion about what
+it should use. The audit's question is whether each check is enforced, not
+whether it is enforced with your preferred tool.
+
+A tool that meets the standard is not a finding, however you would have chosen
+differently. Replacing it costs the team a migration, a retraining, and a period
+where the thing that used to work does not — for a result the standard already
+considered satisfied.
+
+Propose a different tool only when one of these is true:
+
+- **It cannot meet the standard.** Name the check it fails and why, not a
+  preference.
+- **It is unmaintained**, and that is demonstrable rather than an impression.
+- **The repository is new**, so nothing is being replaced and nothing is being
+  migrated.
+
+Where none holds, record what is in use and audit against it.
+
 ## Verifying rather than assuming
 
 A check listed in configuration is not a check that works. For anything you
@@ -147,12 +169,9 @@ rather than reading it off. Do that deliberately, in this order:
    answer to — the formatter for non-code files, the prose lint, the spell
    check, the secret scan, the commit-message check. Take it rather than
    inventing something, so two repositories on the same stack converge.
-3. **Ask before adopting a stack-native alternative to the fallback.** Some
-   stacks have credible options that are worth more than the shared default,
-   particularly for pipeline orchestration — writing the pipeline in the team's
-   own language rather than in YAML or JavaScript. That is a trade-off for the
-   team to make: name the alternative, say what it buys and what it costs, and
-   let them choose.
+3. **Only for a new repository, consider a stack-native alternative** to the
+   fallback — and only where the team has said the fallback is unacceptable to
+   them. For anything already running, see the rule below.
 
 **Record what you derived.** A stack without a reference will be met again, and
 the second derivation should not have to start over — or worse, land somewhere

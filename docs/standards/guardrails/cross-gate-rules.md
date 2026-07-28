@@ -78,12 +78,12 @@ already required by the format standards the pipeline publishes. A repository
 whose stack has no answer takes that rather than inventing one, so that two
 repositories on the same unfamiliar stack converge instead of diverging.
 
-**The fallback is a default, not a verdict.** Where the stack has a credible
-alternative — particularly for pipeline orchestration, where writing the
-pipeline in the team's own language may be worth more than a shared one — that
-is a decision to put to the team rather than to make for them. A stack-native
-alternative adopted deliberately is a decision record; the fallback taken by
-default needs nothing.
+**A repository that already has a working answer keeps it.** The fallback names
+what to reach for when there is nothing; it is not an argument for replacing
+something that already meets the standard. A stack-native alternative is worth
+raising only for a new repository, and only where the team finds the fallback
+genuinely unacceptable — adopted deliberately it is a decision record, while the
+fallback taken by default needs nothing.
 
 **Prefer tools that honour `.editorconfig`.** Indentation, character set and
 line endings are declared once, in a file every major editor and a good many
