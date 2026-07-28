@@ -46,9 +46,6 @@ rather than for a human reader.
   gates over a repository, reports each check as present, partial, absent,
   suppressed or unknown, and proposes a tool per gap from its per-stack
   references.
-- [`guardrails-config`](../../skills/guardrails-config/SKILL.md) — creating and
-  editing the toolkit's own configuration: component boundaries, dependency
-  edges, test-type fields and the merge rules.
 - [`logging-review`](../../skills/logging-review/SKILL.md) — applies the tiered
   logging checklist to changed code and records a finding per file against the
   policy anchors.
