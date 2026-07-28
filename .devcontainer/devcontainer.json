@@ -1,0 +1,39 @@
+{
+  // "remoteUser" is deliberately omitted — the devcontainer CLI infers it from this
+  // image's own final `USER` instruction (set via the Dockerfile's `REMOTE_USER` build
+  // arg, default `vscode`). The "mounts" paths below cannot reference that arg (JSON has
+  // no way to), so they would need updating by hand if its default ever changed.
+  "name": "guardrails",
+  // "full" carries the complete agent stack, matching the other repositories' containers.
+  // The three harnesses are what the agent-integration standard requires for hook parity;
+  // the rest is the working environment, and validate-stack.sh checks all of it. Build
+  // with --target with-agy for a lighter image if the extras are not wanted.
+  "build": { "dockerfile": "Dockerfile", "target": "full" },
+  // Three stacks, because the gates have to be exercised against more than the one the
+  // toolkit happens to be written in. Node comes from the Dockerfile directly (see the
+  // note there on why the node feature is not used).
+  "features": {
+    "ghcr.io/devcontainers/features/dotnet:2": { "version": "10.0" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
+  },
+  // Volume names are deliberately the same as the other repositories' containers use:
+  // Docker named volumes are daemon-global, so sharing the names shares the auth token
+  // and nothing else. setup-credential-persistence.sh symlinks only each agent's
+  // credential file into these — not history, sessions or config — so this inherits a
+  // previous login without sharing anything else.
+  "mounts": [
+    "source=claude-code-credential-store,target=/home/vscode/.claude-credential-store,type=volume",
+    "source=opencode-credential-store,target=/home/vscode/.opencode-credential-store,type=volume",
+    "source=opencode-config,target=/home/vscode/.config/opencode,type=volume",
+    "source=agy-credential-store,target=/home/vscode/.agy-credential-store,type=volume",
+    "source=claude-mem-data,target=/home/vscode/.claude-mem,type=volume",
+    "source=context-mode-data,target=/home/vscode/.claude/context-mode,type=volume",
+    "source=qmd-cache,target=/home/vscode/.cache/qmd,type=volume",
+    "source=qmd-config,target=/home/vscode/.config/qmd,type=volume"
+  ],
+  "postCreateCommand": "bash .devcontainer/setup-credential-persistence.sh && bash .devcontainer/reconcile-opencode-plugins.sh && bash .devcontainer/validate-stack.sh",
+  // credential-watcher.sh is backgrounded (nohup + &) rather than run inline: it is a
+  // long-running daemon for the container's lifetime, not a one-shot step. Its own
+  // PID-file guard makes re-running this on every start safe rather than stacking copies.
+  "postStartCommand": "bash .devcontainer/setup-credential-persistence.sh && bash .devcontainer/reconcile-opencode-plugins.sh && nohup bash .devcontainer/credential-watcher.sh > /tmp/credential-watcher.log 2>&1 &"
+}
