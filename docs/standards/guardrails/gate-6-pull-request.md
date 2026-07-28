@@ -90,6 +90,40 @@ runtime is a change of obligation, not merely a change of position.
 Check 7 is the blocking counterpart to evidence row 13 below. The inventory is
 published either way; the check is what refuses the merge.
 
+### Four licence categories, not two
+
+The allow lists are **enumerated identifiers, not adjectives**. "Permissive" and
+"copyleft" are category judgements, and licence classification is the last place
+to improvise one — two implementers will sort the ambiguous cases differently
+and neither will know. A licence is on the list or it is not.
+
+| Category                                                         | Examples                                       | Treatment                                          |
+| ---------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| **Permissive**                                                   | The runtime allow list                         | Passes                                             |
+| **Weak copyleft**                                                | The development allow list additions           | Passes for build and test only; blocks if it ships |
+| **Strong copyleft, source-available, commercial, dual-licensed** | Everything else                                | Blocks until accepted by decision record           |
+| **Unknown or absent**                                            | No licence file; a scanner reporting `UNKNOWN` | **Blocks. Never treated as unclassified-yet.**     |
+
+**Unknown is the dangerous one, and it is not a gap in the list.** A dependency
+with no licence is not unlicensed in the permissive sense — it is all rights
+reserved by default, the strictest position there is. A rule written as "block
+what is not on the list" invites an implementation where unknown falls through
+as "not classified yet" and passes. State it as its own blocking condition, and
+test it with a dependency that genuinely has no licence file.
+
+**Source-available licences are the trap.** Some widely used licences are not
+open source and restrict _offering the software as a service_ rather than using
+it. A dependency under one can pass a glance, pass a naive scanner that only
+looks for a licence string, and still forbid precisely what a hosted service
+does with it. They are outside both allow lists deliberately.
+
+**A commercial acceptance records more than the licence.** Purchased
+dependencies carry obligations a licence identifier does not express: seat or
+usage limits, redistribution restrictions, renewal dates, audit clauses. The
+decision record names them, and it **carries an expiry** — a purchased licence
+that lapses becomes an unlicensed dependency in production, and nothing else in
+this standard would notice.
+
 **A licence decision is an architecture decision record, not a register row.**
 Accepting a licence outside the allow list, or changing the allow list itself,
 binds every future dependency and every consumer of what is shipped — it
@@ -229,6 +263,14 @@ pipeline refuses the merge.
       credentials, and the checks still run.
 - [ ] A dependency with an unacceptable licence is refused even when it has no
       known advisory.
+- [ ] A dependency with **no licence file at all** is refused, and the refusal
+      says unknown rather than reporting an empty licence and passing.
+- [ ] A source-available licence is refused for a shipped component, however
+      open it looks.
+- [ ] A weak-copyleft dependency passes for build and test and is refused when
+      it moves into what ships.
+- [ ] Every commercial acceptance records its obligations and an expiry, and an
+      expired one fails the gate.
 - [ ] The licence check reads the transitive set, not only direct dependencies.
 - [ ] A runtime dependency and a development-only one with the same licence are
       judged against different lists.

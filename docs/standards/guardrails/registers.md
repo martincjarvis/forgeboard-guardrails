@@ -73,17 +73,19 @@ retries, quarantined tests still run, expiry blocks — are in
 
 ## The dependency licence register
 
-| Column               | Holds                                                                            |
-| -------------------- | -------------------------------------------------------------------------------- |
-| Dependency           | Name, as resolved                                                                |
-| Version              | The pinned version or range the register was assessed against                    |
-| Licence              | The licence as resolved, not as advertised in documentation                      |
-| Direct or transitive | Which, and for a transitive dependency, what pulls it in                         |
-| Scope                | Runtime or development — which allow list the row is judged against              |
-| Used by              | The components that depend on it                                                 |
-| Why                  | What it is for — the row a reviewer reads when asking whether it is still needed |
-| Decision record      | Required when the licence is outside the allow list; empty otherwise             |
-| Approver             | Required when the licence is outside the allow list                              |
+| Column               | Holds                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dependency           | Name, as resolved                                                                                                                                             |
+| Version              | The pinned version or range the register was assessed against                                                                                                 |
+| Licence              | The licence as resolved, not as advertised in documentation                                                                                                   |
+| Direct or transitive | Which, and for a transitive dependency, what pulls it in                                                                                                      |
+| Scope                | Runtime or development — which allow list the row is judged against                                                                                           |
+| Used by              | The components that depend on it                                                                                                                              |
+| Why                  | What it is for — the row a reviewer reads when asking whether it is still needed                                                                              |
+| Decision record      | Required when the licence is outside the allow list; empty otherwise                                                                                          |
+| Obligations          | What acceptance commits the organisation to — seat or usage limits, redistribution restrictions, attribution, audit rights. Empty for an allow-listed licence |
+| Expires              | Required for a commercial or purchased licence; the date the acceptance stops being valid                                                                     |
+| Approver             | Required when the licence is outside the allow list                                                                                                           |
 
 **Three artefacts, three jobs, and they are easy to confuse.** The allow list is
 policy: which licences are acceptable. The register is the record: what is
@@ -122,6 +124,10 @@ host's own dependency graph where it offers one.
       defect.
 - [ ] The published dependency inventory and the licence register agree; where
       they differ, the register is the one that is wrong.
+- [ ] A dependency whose licence cannot be determined appears as blocked, not as
+      an empty licence cell.
+- [ ] Every commercial acceptance names its obligations and carries an expiry,
+      and no expiry has passed.
 
 ## References
 
