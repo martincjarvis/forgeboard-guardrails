@@ -59,6 +59,35 @@ the standard forbids.
 derivation will silently skip. Configure it from the same list the derivation
 reads.
 
+## Hook orchestration
+
+The standard states what an orchestrator must do — fire at the right git events,
+isolate staged content by one of the two git families **verifiably**, report what
+it resolved, and run on every platform the team uses. It does not name one, and
+neither should an audit before looking at what the repository has.
+
+| Repository                     | Default                                                                                                               |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Has Node, or is mixed-stack    | `husky` for installation, `lint-staged` for staged isolation                                                          |
+| Python only                    | `pre-commit` — language-agnostic, and its standard hook set already covers large files, private keys and line endings |
+| Neither, and wants no runtime  | A single-binary manager, if it can be shown to isolate staged content                                                 |
+| **Already has one that works** | **That one.** A working orchestrator is not a finding                                                                 |
+
+**Node is the default here because it is the fallback everywhere else.** The
+stack-independent checks above are already Node-hosted, so a Node repository
+adds no runtime, and a mixed-stack repository was going to need it regardless.
+It also gives short glue scripts an obvious home, which matters when a hook grows
+past one command.
+
+**`pre-commit` for a Python-only repository** is not a grudging exception. It
+avoids introducing Node purely for hooks, it is genuinely language-agnostic, and
+its published hook set implements checks this standard specifies from scratch. A
+Python shop should not inherit a Node toolchain for the same reason a .NET shop
+should not.
+
+Whichever is chosen, gate 2 check 2 is verified by **observing the isolation**,
+not by trusting the tool's description of itself.
+
 ## Machine-identifying content
 
 There is no widely adopted dedicated tool. Two workable answers:
