@@ -61,5 +61,5 @@ rather than for a human reader.
 
 ## References
 
-- [Suppression register](../suppression-register.md) — this repository's own
+- [Suppression register](../registers/suppression-register.md) — this repository's own
   instance of the register the standards describe.

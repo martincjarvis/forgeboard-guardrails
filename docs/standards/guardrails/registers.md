@@ -13,6 +13,10 @@ is reviewed in the diff, which is its whole purpose: a new dependency, a new
 suppression or a newly quarantined test arrives as a row a reviewer sees, rather
 than as a silent change in behaviour.
 
+**They live in `docs/registers/`.** Important enough to be found without
+searching, not important enough to sit at the top of the documentation tree
+beside the standards a reader actually reads through. One file per register.
+
 | Register           | Records                                         | One row per          | Enforced by                                       |
 | ------------------ | ----------------------------------------------- | -------------------- | ------------------------------------------------- |
 | Suppression        | Accepted findings a check would otherwise raise | One rule at one path | Commit gate                                       |
@@ -128,4 +132,4 @@ host's own dependency graph where it offers one.
 - [Flaky tests](flaky-tests.md) — the behaviour rules behind the quarantine register.
 - [Bypass and exceptions](bypass-and-exceptions.md) — when a decision record is
   required instead of a row.
-- [Suppression register](../../suppression-register.md) — this repository's own instance.
+- [Suppression register](../../registers/suppression-register.md) — this repository's own instance.

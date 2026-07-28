@@ -33,8 +33,8 @@ being read at all. Either fix the cause, or record it as an exception the same
 way as any other — a [suppression register](registers.md) row.
 
 **The default is `.logs`, overridable in one place.** A repository that needs a
-different location states it in the instruction file agents already read at the
-root — the same file that carries the rest of the repository's operating rules —
+different location states it in its [root instruction file](agent-integration.md)
+— the same file that carries the rest of the repository's operating rules —
 so there is one answer and it is where someone would look for it. Anywhere else
 and half the tooling writes to the old path.
 

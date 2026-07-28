@@ -35,11 +35,15 @@ is why the boundary is drawn tightly, not fastidiousness.
 
 ### Architecture
 
-Run as unit tests, and asserting on the shape of the code rather than its
-behaviour: that a slice does not reach into another slice, that a layer does not
-depend upward, that a dependency direction holds. They belong with the unit tier
-because they need nothing but the source and they must fail the moment the
-structure drifts, not at review.
+Assertions on the shape of the code rather than its behaviour: that a slice does
+not reach into another slice, that a layer does not depend upward, that a
+dependency direction holds.
+
+**They run in the unit tier because they are fast**, not because they are
+conceptually similar to unit tests. Reading the source and checking a dependency
+direction costs about what a unit test costs, so the cheapest gate can afford
+them — and the earlier a structural drift is caught, the less code has been
+written on top of it.
 
 An architecture nobody enforces mechanically is a diagram. These tests are what
 makes it a constraint.

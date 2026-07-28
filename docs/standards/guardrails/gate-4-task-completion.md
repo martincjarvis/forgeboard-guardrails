@@ -144,6 +144,7 @@ check 4. Where the stack's own analyser already reports them, prefer that, per
 ## References
 
 - [Thresholds](thresholds.md) — the bands, and when the stack's analyser overrides them.
+- [Agent integration](agent-integration.md) — firing this gate in every harness.
 - [File classes](file-classes.md) — which class a file is in, and therefore its verdict.
 - [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — where an unanswered
   push back is caught.

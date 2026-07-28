@@ -82,18 +82,19 @@ Every gate reads from these. An auditor loads them once and keeps them open.
 
 ## Cross-cutting rules
 
-| Reference                                                    | Covers                                                                       |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [Cross-gate rules](guardrails/cross-gate-rules.md)           | The rules every gate holds: ordering, tooling preference, evidence, refusals |
-| [Bypass and exceptions](guardrails/bypass-and-exceptions.md) | Bypass flags, opting a check out, and how a suppressed check must report     |
-| [Diagnostic logs](guardrails/diagnostic-logs.md)             | What local gate runs capture, where it goes, and how long it lives           |
-| [Flaky tests](guardrails/flaky-tests.md)                     | Retries, quarantine, and why quarantine is the honest one                    |
-| [Placing a new check](guardrails/placing-a-new-check.md)     | The six steps from "we should check X" to a check that gates                 |
+| Reference                                                    | Covers                                                                                    |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| [Cross-gate rules](guardrails/cross-gate-rules.md)           | The rules every gate holds: ordering, tooling preference, evidence, refusals              |
+| [Bypass and exceptions](guardrails/bypass-and-exceptions.md) | Bypass flags, opting a check out, and how a suppressed check must report                  |
+| [Agent integration](guardrails/agent-integration.md)         | The root instruction file, kept equivalent across harnesses, and the hooks each must fire |
+| [Diagnostic logs](guardrails/diagnostic-logs.md)             | What local gate runs capture, where it goes, and how long it lives                        |
+| [Flaky tests](guardrails/flaky-tests.md)                     | Retries, quarantine, and why quarantine is the honest one                                 |
+| [Placing a new check](guardrails/placing-a-new-check.md)     | The six steps from "we should check X" to a check that gates                              |
 
 ## References
 
 - [Standards index](README.md) — the other standards a guarded repository consumes.
-- [Suppression register](../suppression-register.md) — this repository's own
+- [Suppression register](../registers/suppression-register.md) — this repository's own
   instance of the register described here.
 - [Testing strategy](testing-strategy.md) — the four test tiers the gates route
   by, the coverage gate's configuration, and the artifact categories.

@@ -11,8 +11,28 @@ its checks are correct.
 
 ## Order is part of the contract
 
-Formatters run before readers, isolation before anything that reads a file,
-cheap before expensive. A reordering changes what the gate sees.
+**Fail fast, and shift left.** A defect caught earlier costs less: earlier in
+the gate sequence, and earlier in the gate order within it. Two rules produce
+that, and the second overrides the first.
+
+**Cheapest first.** Within a gate, order checks by what they cost to run, not by
+how important they feel. A formatter that runs in a second precedes a test suite
+that runs in a minute, so the common failure is reported in a second. Ordering by
+severity instead means paying the expensive check's cost before learning the
+cheap one would have failed anyway.
+
+**Except where a check changes what a later one reads.** A check that mutates
+the tree — a formatter rewriting files, an isolation step hiding unstaged
+changes — must run before anything that reads what it touched, whatever it
+costs. Otherwise the later check judges bytes that are about to change, and its
+verdict is about a state that will not exist.
+
+That is why the commit gate runs the formatter first and the isolation check
+before anything reads a file: not because they are cheap, though they are, but
+because everything after them depends on what they did.
+
+A reordering changes what the gate sees. It is a change to the contract, not a
+presentation choice.
 
 ## Build and test only what changed
 
@@ -143,6 +163,10 @@ choice is reported, not guessed.
 - [ ] Every refusal names the check, the path and the remedy.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
 - [ ] Every check the platform already provides is enabled rather than rebuilt.
+- [ ] Within each gate, checks run cheapest first, except where one changes what
+      a later one reads.
+- [ ] The cheapest check that would catch a given defect is the one that catches
+      it — no defect waits for a slower gate that an earlier one could have found.
 - [ ] Indentation, character set and line endings are declared once in
       `.editorconfig`, and no tool's own configuration contradicts it.
 - [ ] A bespoke check has a recorded reason no existing tool covered it.

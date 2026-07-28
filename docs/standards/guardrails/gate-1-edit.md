@@ -70,3 +70,5 @@ untracked, and the check does not fire.
 
 - [Gate 2 — Commit](gate-2-commit.md) — the same rule set over the staged set.
 - [Cross-gate rules](cross-gate-rules.md) — why a local-only check is advisory.
+- [Agent integration](agent-integration.md) — wiring this gate into every
+  harness in use, not just the first one configured.
