@@ -1,0 +1,131 @@
+---
+type: reference
+summary: The three checked-in registers — suppression, dependency licence and test quarantine — their columns, and the rules common to all of them.
+read_when: Adding an accepted finding, auditing what a repository has accepted, or deciding whether something is a register row or a decision record.
+---
+
+<!-- cspell:ignore rseidelsohn -->
+
+# Registers
+
+A register is a **checked-in record of things the repository has accepted**. It
+is reviewed in the diff, which is its whole purpose: a new dependency, a new
+suppression or a newly quarantined test arrives as a row a reviewer sees, rather
+than as a silent change in behaviour.
+
+| Register           | Records                                         | One row per          | Enforced by                                       |
+| ------------------ | ----------------------------------------------- | -------------------- | ------------------------------------------------- |
+| Suppression        | Accepted findings a check would otherwise raise | One rule at one path | Commit gate                                       |
+| Dependency licence | Every resolved dependency and its licence       | One dependency       | Commit gate for completeness, pipeline for policy |
+| Test quarantine    | Known-flaky tests not currently blocking        | One test             | Push gate and pipeline                            |
+
+## Rules common to all three
+
+- **Each has a gate.** A register nobody can fail is decoration; the gate is what
+  makes the row a precondition rather than a courtesy.
+- **A row is specific.** One rule, one dependency, one test. A row that
+  generalises silences things nobody assessed.
+- **Every row carries a removal condition.** What would have to become true for
+  the row to go. A register whose rows have no exit becomes a list of things
+  nobody will ever revisit.
+- **A generated inventory is not a register.** The pipeline publishes a
+  dependency inventory as evidence each run; it is derived, untracked and
+  reviewed by nobody. The register is the reviewed counterpart.
+
+Every register carries the same three columns — **justification**, **removal
+condition** and **approver** — and adds the columns its own subject needs.
+
+## A register row or a decision record?
+
+By **scope, not severity**. One accepted finding is a register row. Excluding a
+check from the repository, accepting a licence outside the allow list, or
+answering a push back is a [decision record](bypass-and-exceptions.md), because
+it outlives the change that raised it.
+
+## The suppression register
+
+| Column            | Holds                                         |
+| ----------------- | --------------------------------------------- |
+| Rule              | The single rule identifier being silenced     |
+| Path              | The one path it is silenced at                |
+| Justification     | Why the finding is accepted rather than fixed |
+| Removal condition | What would let the suppression be deleted     |
+| Approver          | The human who accepted it                     |
+
+## The test quarantine register
+
+The columns are here; the rules that make them mean anything — no silent
+retries, quarantined tests still run, expiry blocks — are in
+[Flaky tests](flaky-tests.md). Auditing quarantine needs both.
+
+| Column            | Holds                                                               |
+| ----------------- | ------------------------------------------------------------------- |
+| Test              | The single test identifier                                          |
+| Owner             | Who is fixing it — a name, not a team                               |
+| Justification     | The cause, or the current hypothesis if the cause is not yet known  |
+| Expiry            | The date the quarantine stops being accepted                        |
+| Removal condition | What would let the test block again — normally "the cause is fixed" |
+| Approver          | The human who accepted it                                           |
+
+## The dependency licence register
+
+| Column               | Holds                                                                            |
+| -------------------- | -------------------------------------------------------------------------------- |
+| Dependency           | Name, as resolved                                                                |
+| Version              | The pinned version or range the register was assessed against                    |
+| Licence              | The licence as resolved, not as advertised in documentation                      |
+| Direct or transitive | Which, and for a transitive dependency, what pulls it in                         |
+| Scope                | Runtime or development — which allow list the row is judged against              |
+| Used by              | The components that depend on it                                                 |
+| Why                  | What it is for — the row a reviewer reads when asking whether it is still needed |
+| Decision record      | Required when the licence is outside the allow list; empty otherwise             |
+| Approver             | Required when the licence is outside the allow list                              |
+
+**Three artefacts, three jobs, and they are easy to confuse.** The allow list is
+policy: which licences are acceptable. The register is the record: what is
+actually here, under which licence, and why. The published inventory is
+evidence: what a given run resolved. The gate compares the first two; the third
+proves what the run saw.
+
+**Drift is the failure this catches.** A transitive dependency arriving through
+an upgrade is invisible in a manifest diff and unremarkable in a lock file diff
+of four hundred lines. As a missing register row it is a blocked commit with a
+name attached.
+
+## Running it by hand
+
+Resolving what is actually installed, to compare against the register:
+
+| Purpose                          | Command                                                 |
+| -------------------------------- | ------------------------------------------------------- |
+| Resolved tree with licences      | `npx license-checker-rseidelsohn --json`                |
+| Resolved tree, no extra tooling  | `npm ls --all --json`                                   |
+| Advisories over the resolved set | `npm audit --json`                                      |
+| Resolved packages, .NET          | `dotnet list package --include-transitive`              |
+| Advisories, .NET                 | `dotnet list package --vulnerable --include-transitive` |
+
+The .NET commands report advisories natively; licences there come from the
+package metadata, so a licence inventory needs a tool that reads it — prefer the
+host's own dependency graph where it offers one.
+
+## Verification
+
+- [ ] Every register has a gate that fails when a row is missing.
+- [ ] Every row names a human approver, and no automated worker appears in that
+      column.
+- [ ] Every row has a removal condition, and none of them is "never".
+- [ ] A row covering more than one rule, dependency or test is treated as a
+      defect.
+- [ ] The published dependency inventory and the licence register agree; where
+      they differ, the register is the one that is wrong.
+
+## References
+
+- [Gate 2 — Commit](gate-2-commit.md) — the completeness checks that enforce two
+  of the three.
+- [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — where licence policy
+  is judged.
+- [Flaky tests](flaky-tests.md) — the behaviour rules behind the quarantine register.
+- [Bypass and exceptions](bypass-and-exceptions.md) — when a decision record is
+  required instead of a row.
+- [Suppression register](../../suppression-register.md) — this repository's own instance.

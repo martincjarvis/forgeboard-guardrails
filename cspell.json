@@ -1,0 +1,53 @@
+{
+  "version": "0.2",
+  "language": "en,en-GB",
+  "dictionaries": [
+    "typescript",
+    "node",
+    "npm",
+    "software-terms"
+  ],
+  "words": [
+    "ACMR",
+    "allerrors",
+    "bdiff",
+    "behaviour",
+    "ccn",
+    "clinerules",
+    "cursorrules",
+    "deployables",
+    "dogfoods",
+    "finalised",
+    "forgeBoard",
+    "frontmatter",
+    "guardrails",
+    "lizard",
+    "Meziantou",
+    "minimatch",
+    "nosemgrep",
+    "numstat",
+    "POSIX",
+    "quotepath",
+    "releaserc",
+    "Roslynator",
+    "sarif",
+    "semgrep",
+    "unconfigured",
+    "ungated",
+    "unparseable",
+    "warnaserror",
+    "windsurfrules",
+    "winget",
+    "worktree",
+    "worktrees",
+    "xunit"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "package-lock.json",
+    ".gitignore",
+    ".gitattributes",
+    ".editorconfig"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "//": "template: replace <APP_NAME> with your app code; adapt components, types, public flags, dependsOn, and hook paths to your app",
+  "appName": "<APP_NAME>",
+  "app": {
+    "preDeploy": [],
+    "verify": ["deploy/verify/app-smoke.ps1"],
+    "postDeploy": []
+  },
+  "components": {
+    "infra": {
+      "type": "infra",
+      "public": false,
+      "deploy": ["deploy/install/infra.ps1"],
+      "verify": ["deploy/verify/infra.ps1"]
+    },
+    "db": {
+      "type": "dbschema",
+      "public": false,
+      "dependsOn": ["infra"],
+      "preDeploy": ["deploy/hooks/db-pre.ps1"],
+      "deploy": ["deploy/install/db.ps1"],
+      "verify": ["deploy/verify/db.ps1"]
+    },
+    "api": {
+      "type": "api",
+      "public": true,
+      "dependsOn": ["db"],
+      "deploy": ["deploy/install/api.ps1"],
+      "verify": ["deploy/verify/api-health.ps1"]
+    },
+    "web": {
+      "type": "ui",
+      "public": true,
+      "dependsOn": ["api"],
+      "deploy": ["deploy/install/web.ps1"],
+      "postDeploy": ["deploy/hooks/web-post.ps1"]
+    }
+  }
+}

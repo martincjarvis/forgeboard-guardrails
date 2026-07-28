@@ -1,0 +1,115 @@
+# cspell:ignore prid
+# Deployment-strategy template — release workflow.
+# Proven in the `forgeboard-deploy-sample` real-CI run; structure copied verbatim.
+# Genericized: tag lookups, the install target, and the artifact name use the
+# `<APP_NAME>` placeholder. Copy this file to `.github/workflows/release.yml` and
+# adapt the BUILD step to your stacks. `runs-on: windows-latest` matches the
+# PowerShell deploy scripts + Windows local-install target (Stream D); change the
+# runner if your target is elsewhere.
+name: release
+on:
+  push: { branches: ["main", "feature/**"] }
+  pull_request: {}
+permissions: { contents: write }
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      # Template convention: this workflow references first-party GitHub Actions
+      # by mutable major-version tag (@v4) for readability. Pin each to a full
+      # 40-character commit SHA per your repo's supply-chain policy on
+      # instantiation (the SAST gate flags mutable tags here as a reminder).
+      - uses: actions/checkout@v4 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with: { node-version: "lts/*" }
+      # Adapt the toolchain setup to your stacks. The sample sets up .NET below;
+      # add or substitute whatever your components build with.
+      - uses: actions/setup-dotnet@v4 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with: { dotnet-version: "10.0.x" }
+
+      - name: Install deps
+        run: npm install
+      - name: Resolver unit tests
+        run: npm test
+      # Engine + integration tests live in the sample repo; carry your own.
+      # - name: Engine + integration tests
+      #   shell: pwsh
+      #   run: Invoke-Pester test/engine.Tests.ps1, test/integration.Tests.ps1 -CI
+
+      - name: Compute versions (path-scoped per component)
+        id: versions
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          # Monotonic CI build counter -> the collision-proof prerelease qualifier.
+          # ADO equivalent: CI_BUILD_NUMBER: $(Build.BuildId) (unique per run).
+          CI_BUILD_NUMBER: "${{ github.run_number }}"
+          CI_BUILD_ATTEMPT: "${{ github.run_attempt }}"
+        run: pwsh deploy/ci/compute-versions.ps1 # writes results.json
+
+      - name: Resolve manifest
+        shell: pwsh
+        env:
+          CI_BUILD_NUMBER: "${{ github.run_number }}"
+          CI_BUILD_ATTEMPT: "${{ github.run_attempt }}"
+        run: |
+          $sha = git rev-parse HEAD
+          # Previous appVersion = the last app tag; the resolver bumps from it so
+          # appVersion is a real running SemVer across releases. A public MAJOR is
+          # already carried in that component's bump (Conventional Commits
+          # BREAKING CHANGE / `!`) - no separate app-major signal.
+          $prev = git tag --list '<APP_NAME>-app@*' |
+            ForEach-Object { $_ -replace '.*@','' } |
+            Sort-Object { [version]($_ -replace '-.*','') } |
+            Select-Object -Last 1
+          if (-not $prev) { $prev = '0.0.0' }
+          # Branch-derived prerelease channel id: a changed component's own
+          # prerelease (and the app's) stays on this branch's channel. No taint —
+          # untouched components pass through stable (matches compute-versions.ps1).
+          $branch = git rev-parse --abbrev-ref HEAD
+          $prid = ($branch -replace '[^a-zA-Z0-9-]','-')
+          # Same monotonic build counter as compute-versions.ps1 (same env, same
+          # job), so the changed component's version and the derived app version
+          # carry the same build segment on the branch channel.
+          $buildId = if ($env:CI_BUILD_NUMBER) {
+            if ($env:CI_BUILD_ATTEMPT -and $env:CI_BUILD_ATTEMPT -ne '1') { "$($env:CI_BUILD_NUMBER)-$($env:CI_BUILD_ATTEMPT)" }
+            else { $env:CI_BUILD_NUMBER }
+          } else { '0' }
+          node deploy/lib/resolve-versions.mjs deploy/deployment.json results.json --sha $sha --prev $prev --prerelease-id $prid --build-id $buildId > version-manifest.json
+          Get-Content version-manifest.json
+
+      - name: Build (versions baked into each artefact)
+        shell: pwsh
+        run: |
+          # SAMPLE BUILD - adapt to your stacks. The contract: each component's
+          # resolved version is baked into its built artefact at build time (a
+          # .NET assembly's InformationalVersion, a node package's version /
+          # emitted version.json), so a running component reports its identity
+          # from what was compiled into it - never by reading the manifest.
+          $m = Get-Content version-manifest.json -Raw | ConvertFrom-Json
+          $apiV = $m.components.api.version
+          $webV = $m.components.web.version
+          dotnet publish src/Api -c Release -o publish/api "-p:Version=$($apiV -replace '-.*','')" "-p:InformationalVersion=$apiV"
+          Push-Location src/Web
+          npm install
+          npm version $webV --no-git-tag-version --allow-same-version   # stamps package.json -> dist/version.json at build
+          npm run build
+          Pop-Location
+
+      - name: Package
+        shell: pwsh
+        run: pwsh deploy/package.ps1 -Manifest version-manifest.json
+
+      - name: Deploy-smoke (local install target)
+        shell: pwsh
+        run: pwsh deploy/engine.ps1 -Manifest version-manifest.json -PackageDir out/bundle -Target "$env:RUNNER_TEMP/<APP_NAME>-install"
+
+      - uses: actions/upload-artifact@v4 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        with: { name: <APP_NAME>-packages, path: out/packages }
+
+      - name: Publish (push only - stable on main, branch-namespaced prerelease on feature branches)
+        if: github.event_name == 'push'
+        shell: pwsh
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: pwsh deploy/ci/release.ps1 # component tags always; app/deploy tags on main only

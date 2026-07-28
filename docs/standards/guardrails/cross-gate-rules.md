@@ -1,0 +1,142 @@
+---
+type: reference
+summary: The rules every gate holds regardless of what it checks — ordering, the tooling tier ladder, zero warnings, evidence, and how a refusal must read.
+read_when: Building a gate, or judging whether an existing one is defective in a way its checks would not reveal.
+---
+
+# Cross-gate rules
+
+These hold for every gate. A gate that breaks one of them is defective even when
+its checks are correct.
+
+## Order is part of the contract
+
+Formatters run before readers, isolation before anything that reads a file,
+cheap before expensive. A reordering changes what the gate sees.
+
+## Build and test only what changed
+
+Stated in full as
+[the changed-component rule](components.md#the-changed-component-rule), beside
+the component map it depends on.
+
+## Prefer established tooling to bespoke checks
+
+Nearly every check in this standard has a mature open-source implementation,
+usually several, maintained by people who have seen failure modes this
+repository has not met yet. Take one. Write a check only to fill a gap no
+available tool covers, and treat that as a temporary state rather than an asset
+— a bespoke check is a thing to maintain, a thing to document, and a thing that
+is wrong in ways nobody else has already found and fixed.
+
+Stop at the first tier that covers the check:
+
+| Tier | Source                                           | Why it comes first                                                                               |
+| ---- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| 1    | A capability the hosting platform already offers | Nothing to install, nothing to keep running, and it reports where the merge policy already looks |
+| 2    | An established open-source tool                  | Maintained by someone else, calibrated against more code than this repository                    |
+| 3    | A check written here                             | Only for a gap the first two do not cover                                                        |
+
+Tier 1 is the one most often skipped, and the two clearest examples are
+dependency updates and code scanning. A platform that raises dependency-update
+pull requests on a schedule, or scans for vulnerable patterns and publishes the
+findings to its own review surface, is offering the exact check this standard
+asks for — already integrated with the required status checks, already
+annotating changed lines, already retaining history across runs. Reimplementing
+that in the pipeline costs work and produces something less connected.
+
+Within tier 2, **prefer the stack's own tool where one exists, and Node tooling
+where none does.** A formatter, a prose lint, a spell check and a secret scan
+are stack-independent problems, and one implementation across every repository
+is worth more than a per-stack choice. A language's own formatter and analysers
+are not: they understand the language, and an external pass never will.
+
+Two qualifications, both real:
+
+- **Adopting a tool is a dependency decision**, subject to whatever line the
+  repository holds on dependencies, and recorded like any other — including the
+  alternative that was rejected.
+- **Configuring a tool is not writing one.** Preferring established tooling does
+  not mean accepting its defaults unexamined; it means not reimplementing its
+  analysis. The rule set is still the repository's to choose.
+
+## A warning is a failure
+
+Every build and lint check in every gate holds a zero-warning, zero-error line.
+A threshold above zero is a number people write to, and a warning nobody is
+required to clear is a finding the repository has silently accepted.
+
+## Local gates are a fast copy; the server gate is the authority
+
+Gates 0–5 exist to give the author the answer in seconds instead of minutes, and
+every blocking check among them must have a named required status check in
+[gate 6](gate-6-pull-request.md). A check that runs only locally is advisory
+whatever its verdict says, because nothing stops a change that never ran it. A
+check that runs only server-side is correct but slow, and slow checks are where
+people learn to push and hope.
+
+## Decisions live in decision records; documents state the current position
+
+Every artefact this standard asks for falls into one of three kinds, and mixing
+them is what makes a corpus unreadable:
+
+| Kind            | Holds                                                                    | Reads as                                    |
+| --------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| Decision record | One choice, its alternatives, and why — including any check opted out of | A settled question, with its history intact |
+| Register        | Accepted findings, one row each                                          | A list somebody must keep true              |
+| Document        | What is currently the case                                               | The present tense, with no argument in it   |
+
+The split between the first two is by **scope, not severity**: one accepted
+finding is a register row, and excluding a check from the repository is a
+decision record.
+
+A document that narrates how its content came to be forces every future reader
+to work out which parts still apply. Keep it current, keep it short, and put the
+provenance — the decision records, the related references — in a footer at the
+end where someone chasing the reasoning will find it and everyone else can skip
+it. Superseding a decision means a new record, not an edit to the document that
+quietly changes what it says without saying so.
+
+## Every verdict leaves evidence someone else can read
+
+A pass with no artefact is a claim; a pass with a test report, a coverage report
+and a findings file is a result. This falls hardest on the gate that gates the
+merge, but it applies anywhere a verdict outlives the session that produced it.
+
+## A refusal is a diagnosis
+
+Name the check, the path, the offending content and the action that clears it. A
+gate that reports only "failed" forces the author to re-run the command by hand
+to learn what broke.
+
+## Never claim more than was checked
+
+A check that could not run reports unknown. Stating a cause the evidence does
+not support sends the author looking in the wrong place.
+
+## A check that did not enforce says why
+
+Silence is indistinguishable from a pass. Every run distinguishes three states —
+passed, skipped, suppressed by decision — and a check nobody notices missing is
+worse than one that was never there.
+
+## Auto-repair only where the fix is unambiguous
+
+Formatting, yes. A link with one candidate target, yes. Anything requiring a
+choice is reported, not guessed.
+
+## Verification
+
+- [ ] Every blocking local check has a named required status check server-side.
+- [ ] No gate emits a warning it does not treat as a failure.
+- [ ] Every refusal names the check, the path and the remedy.
+- [ ] A check that could not run says so, rather than passing or asserting a cause.
+- [ ] Every check the platform already provides is enabled rather than rebuilt.
+- [ ] A bespoke check has a recorded reason no existing tool covered it.
+
+## References
+
+- [Guardrail standards](../guardrail-standards.md) — the gate index.
+- [Bypass and exceptions](bypass-and-exceptions.md) — the three reporting states
+  in full.
+- [Components](components.md) — the changed-component rule.
