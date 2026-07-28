@@ -3,65 +3,83 @@ type: explanation
 status: Accepted
 decided: 2026-07-28
 owner: Toolkit maintainers
-summary: Analysis tools distributed on the toolkit's own package registry are bundled; tools distributed elsewhere are resolved from PATH and reported when missing.
-read_when: Adding an analysis tool to the toolkit, or asking why one dependency is bundled and another is not.
+summary: The toolkit bundles no analysis tools. A consuming repository installs them through its own package manager and the toolkit supplies opinionated configuration and orchestration.
+read_when: Adding an analysis tool, or asking why the toolkit does not install the tools it runs.
 ---
 
 # Analysis tool distribution
 
 ## Decision
 
-The line is **how the tool is distributed**, not how valuable it is.
+**The toolkit bundles nothing.** It supplies opinionated configuration, the gate
+that runs at the right moment, and a default answer for each check. The tools
+themselves are installed by the consuming repository, through its own package
+manager, and are used the way their own maintainers intend.
 
-- A tool published on the same registry as the toolkit is **bundled** as a
-  dependency. Installing the toolkit installs it, at a pinned version, and every
-  consumer resolves the same rules.
-- A tool distributed elsewhere is **resolved from `PATH`**. The toolkit does not
-  install it, the installation check names it when missing, and the gate that
-  needs it fails with an actionable message rather than a crash.
+Opinionated, because a repository that adopts the toolkit gets a working default
+for every check without assembling one. Adaptable, because replacing a default
+is a configuration change in that repository rather than a fork of this one.
 
-## Why the line is drawn there
+## Why not bundle
 
-A bundled dependency is one the toolkit can pin, upgrade deliberately, and
-guarantee is present. That guarantee is what makes "every developer, every agent
-and the pipeline resolve the same configuration" true rather than aspirational,
-and it is only available within one packaging ecosystem.
+Bundling was the earlier position and it does not survive contact with the goal.
 
-Reaching across ecosystems to install something buys the same guarantee at a
-much higher price: the toolkit would need to detect an interpreter, manage a
-virtual environment, and handle the failure modes of a package manager it does
-not own — on every machine and every runner. The failure modes are worse than
-the problem, and they arrive at gate time.
+- **It makes the opinion unavoidable.** A bundled analyser is one a consuming
+  repository cannot swap without forking the toolkit or fighting it. Adaptable
+  and bundled are close to contradictory.
+- **It drags a dependency tree into every consumer**, including the tools that
+  repository will never run, because the toolkit cannot know at publish time
+  which stacks it will meet.
+- **It could never be consistent.** Useful analysis tools are distributed across
+  several ecosystems; a rule that bundles what happens to share the toolkit's
+  registry and resolves the rest from `PATH` is a rule about packaging accident,
+  not about anything a reader would recognise as principled.
+- **It duplicates a job the consuming repository already does well.** That
+  repository already has a manifest, a lock file and a way to install and pin
+  things. Reusing it costs nothing and inherits its guarantees.
 
-The consequence is accepted honestly: a repository that wants those checks must
-install those tools. The installation check exists to say so by name, at
-adoption, rather than leaving a gate silently unable to run.
+## What replaces it
+
+- **The toolkit declares the default tool for each check**, and the
+  configuration it should run with. Those defaults are what "opinionated" means
+  in practice, and they are documented per stack.
+- **The consuming repository installs them** — as development dependencies where
+  the ecosystem matches, through its own environment where it does not — and
+  pins them in its own lock file. "Analysers are pinned dependencies" holds
+  through that lock file rather than through this package.
+- **The installation check names what is missing.** A configured tool that is
+  not installed is reported by name, at adoption, rather than leaving a gate
+  quietly unable to run.
+- **Bespoke code is the last resort**, and each instance carries a recorded
+  reason no available tool covered the check.
 
 ## Rejected alternatives
 
-- **Bundle everything, installing across ecosystems.** Rejected for the
-  cross-ecosystem failure modes above.
-- **Resolve everything from `PATH`, bundle nothing.** Consistent, and it makes
-  the toolkit useless out of the box — every consumer would assemble their own
-  tool set, which is the drift the standards exist to prevent.
-- **Reimplement the external tools' analysis.** Rejected on the ladder's own
-  terms: a bespoke check is wrong in ways nobody else has already found.
+- **Bundle everything within one ecosystem, resolve the rest from `PATH`** — the
+  previous position. Rejected above: inconsistent by construction, and it makes
+  the toolkit's opinions unavoidable rather than merely default.
+- **Bundle nothing and recommend nothing.** Consistent and useless: every
+  consumer assembles their own tool set, which is exactly the drift the
+  standards exist to prevent. The opinion is the product.
+- **Reimplement the analysis inside the toolkit.** Rejected on the tooling
+  ladder's own terms: a bespoke check is wrong in ways nobody else has already
+  found and fixed, and it is a maintenance liability disguised as control.
 
 ## Consequences
 
-- The installation check must name every externally-resolved tool the
-  configuration depends on, and must run before a repository trusts its gates.
-- A gate whose external tool is absent reports it as unavailable, not as a pass.
-  A missing scanner that reports green is the failure this whole standard set
-  exists to prevent.
-- Adding a bundled tool is a dependency decision with its own record. Adding an
-  externally-resolved one is a documentation and installation-check change.
+- Adopting the toolkit is a two-part act: install the toolkit, and install the
+  tools its configuration names. The adoption path must say so plainly and the
+  installation check must verify it.
+- A gate whose tool is absent reports it as unavailable, never as a pass.
+- Replacing a default is a local decision in the consuming repository, recorded
+  there. The toolkit does not need to know.
+- The toolkit's own dependency footprint stays small, which keeps its own supply
+  chain reviewable.
 
 ## References
 
-- [Guardrail standards](../standards/guardrail-standards.md) — the gates these
-  tools serve.
 - [Cross-gate rules](../standards/guardrails/cross-gate-rules.md) — the tooling
-  tier ladder this decision sits inside.
+  tier ladder this decision sits inside: platform capability first, established
+  tool second, bespoke last.
 - [Gate 7 — On demand](../standards/guardrails/gate-7-on-demand.md) — the
-  installation check.
+  installation check that makes a missing tool visible.

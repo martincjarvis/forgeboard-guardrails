@@ -19,9 +19,9 @@ these documents and the skills beside them; the gates enforce what they state.
 - [`deployment-strategy.md`](deployment-strategy.md) — per-component
   path-scoped versioning, prerelease channels, and the descriptor → manifest →
   deploy-engine pipeline.
-- [`coverage-and-test-artifacts.md`](coverage-and-test-artifacts.md) — the
-  coverage gate's configuration shapes and the tier → category mapping for
-  publication.
+- [`testing-strategy.md`](testing-strategy.md) — the four test tiers every gate
+  routes by, what belongs in each and who owns it, the coverage gate's
+  configuration, and the artifact categories a pipeline publishes.
 - [`logging-diagnostics.md`](logging-diagnostics.md) — the logging and
   diagnostics policy, its per-stack realization and the tiered enforcement
   boundary.
@@ -52,6 +52,15 @@ rather than for a human reader.
 - [`logging-review`](../../skills/logging-review/SKILL.md) — applies the tiered
   logging checklist to changed code and records a finding per file against the
   policy anchors.
+- [`testing-review`](../../skills/testing-review/SKILL.md) — places each test in
+  its tier by what it needs to run, checks it would fail if the requirement were
+  unmet, and audits the coverage configuration and artifact categories.
+- [`deployment-review`](../../skills/deployment-review/SKILL.md) — audits
+  per-component versioning, prerelease channels, immutability and the deploy
+  order against the deployment strategy.
+- [`docs-review`](../../skills/docs-review/SKILL.md) — separates the checkable
+  part of the documentation standard from the judgement, and reports a reference
+  carrying agent instructions as a missing skill.
 
 ## References
 

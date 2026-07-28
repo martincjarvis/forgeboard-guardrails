@@ -4,8 +4,12 @@ Defaults for the checks that are the same problem in every language. One
 implementation across every repository beats a per-stack choice — these run over
 files, not over a compiler's understanding of them.
 
-All are Node-distributed and run through `npx` without a global install, except
-the two marked external.
+**The toolkit installs none of these.** The consuming repository adds them to
+its own manifest and pins them in its own lock file; the toolkit supplies the
+default and the configuration. Where the ecosystem matches the repository's own,
+that is a development dependency resolved by `npx`; where it does not, it is
+installed through that tool's own ecosystem and resolved from `PATH`. Either
+way, the installation check names it when it is missing.
 
 | Check                          | Gate | Default                      | Invocation                                    |
 | ------------------------------ | ---- | ---------------------------- | --------------------------------------------- |
@@ -22,11 +26,11 @@ the two marked external.
 
 ## Notes that matter
 
-**`semgrep` and `lizard` are pip-distributed**, not npm. They must be on `PATH`
-before a gated commit, and a repository that depends on them needs its
-installation check (gate 7) to name them when they are missing. This is the one
-place the Node-first preference does not reach: neither has an npm-distributed
-equivalent of comparable coverage.
+**`semgrep` and `lizard` are pip-distributed**, not npm — installed through
+their own ecosystem and resolved from `PATH`. This is where the Node-first
+preference stops: neither has an npm-distributed equivalent of comparable
+coverage, and reaching across ecosystems to install them automatically is the
+bundling this toolkit does not do.
 
 **`lint-staged` is what makes gate 2 correct**, not merely convenient. It hides
 unstaged changes for the duration of the run, which is the mechanism gate 2

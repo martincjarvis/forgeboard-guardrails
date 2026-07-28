@@ -84,5 +84,5 @@ run the suite. Anything that fails was never a self-contained test.
 - [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — changed-line
   coverage, and where deployment-dependent tests may run.
 - [Gate 8 — Release](gate-8-release.md) — where they run otherwise.
-- [Coverage and test artifacts](../coverage-and-test-artifacts.md) — how the
-  coverage command is configured and what it publishes.
+- [Testing strategy](../testing-strategy.md) — what belongs in each tier this
+  gate runs, and how the coverage command is configured.

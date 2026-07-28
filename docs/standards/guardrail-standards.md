@@ -95,8 +95,8 @@ Every gate reads from these. An auditor loads them once and keeps them open.
 - [Standards index](README.md) — the other standards a guarded repository consumes.
 - [Suppression register](../suppression-register.md) — this repository's own
   instance of the register described here.
-- [Coverage and test artifacts](coverage-and-test-artifacts.md) — how the coverage
-  check is configured and what it publishes.
+- [Testing strategy](testing-strategy.md) — the four test tiers the gates route
+  by, the coverage gate's configuration, and the artifact categories.
 - [Deployment strategy](deployment-strategy.md) — the release side of the
   component boundary, where per-component versioning is defined, and the source
   of the no-taint rule this standard restates.
