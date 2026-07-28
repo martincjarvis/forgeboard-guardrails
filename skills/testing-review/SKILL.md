@@ -1,6 +1,6 @@
 ---
 name: testing-review
-description: Use when reviewing tests against the testing strategy, deciding which kind of test something is, or auditing coverage, environments and health-check ordering. Places each test by what it is allowed to touch, checks it would fail if the requirement were unmet, and checks the suite shape, local runnability and per-environment policy.
+description: Use when reviewing tests against the testing strategy, deciding which kind of test something is, or auditing coverage, environments and health-check ordering. Places each test by what it is allowed to touch, checks it would fail if the requirement were unmet, and checks the suite shape, whether each kind runs locally, and per-environment policy.
 ---
 
 # Testing review
