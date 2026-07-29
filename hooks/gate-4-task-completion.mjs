@@ -44,32 +44,36 @@ function resolveBase() {
 function classOf(file) {
   const r = git(["check-attr", "guardrail-class", "--", file]);
   if (r.status !== 0) return "production";
-  const m = r.stdout.match(/guardrail-class:\s*(\S+)/);
-  return !m || m[1] === "unspecified" ? "production" : m[1];
+  // A plain string search, not a regex: this exact pattern
+  // (`\s*(\S+)` immediately inside a short function) is what was defeating
+  // lizard's line-span detection here, ballooning this function's reported
+  // length into the hundreds of unrelated lines that follow it — the actual
+  // cause behind the CCN/length warning this function used to trip.
+  const marker = "guardrail-class:";
+  const idx = r.stdout.indexOf(marker);
+  const value =
+    idx < 0
+      ? ""
+      : r.stdout
+          .slice(idx + marker.length)
+          .trim()
+          .split("\n")[0];
+  return !value || value === "unspecified" ? "production" : value;
 }
 
-// file-classes.md: production and configuration count toward change size; test,
-// documentation and agent-context do not. A threshold that punishes tests
-// teaches the author to write fewer of them.
+// file-classes.md: production and configuration count toward change size;
+// test, documentation and agent-context do not. A threshold that punishes
+// tests teaches the author to write fewer of them.
 const COUNTED = new Set(["production", "configuration"]);
 
-const base = resolveBase();
-if (!base) process.exit(0); // No base to compare against: nothing to measure.
+// Check 1 — change size (thresholds.md, gate-4-task-completion.md row 1).
+// Counted files together count as one number; the override marker clears
+// this check only.
+function measureChangeSize(base, findings, warnings) {
+  const numstat = git(["diff", "--numstat", `${base}...HEAD`]);
+  if (numstat.status !== 0) return;
 
-const findings = [];
-const warnings = [];
-
-// Report what was derived (cross-gate rules): the thresholds in force and where
-// they come from. These are this standard's defaults; no stack analyser
-// overrides them for this repository.
-process.stderr.write(
-  `gate 4: thresholds change-warn=${CHANGE_WARN} change-error=${CHANGE_ERROR} ` +
-    `file-length-error=${FILE_LENGTH_ERROR} (standard defaults; file class via git check-attr)\n`,
-);
-
-const numstat = git(["diff", "--numstat", `${base}...HEAD`]);
-let counted = 0;
-if (numstat.status === 0) {
+  let counted = 0;
   for (const line of numstat.stdout.split("\n")) {
     const [added, deleted, file] = line.split("\t");
     if (!file || added === "-") continue;
@@ -93,16 +97,18 @@ if (numstat.status === 0) {
   }
 }
 
-// File length: thresholds.md applies this to production and test files only.
-// Production over the error band blocks; test over it warns (its warn band),
-// because a long test file is usually repetitive rather than badly designed.
-const names = git([
-  "diff",
-  "--name-only",
-  "--diff-filter=ACMR",
-  `${base}...HEAD`,
-]);
-if (names.status === 0) {
+/** Files this branch added, copied, modified or renamed, relative to base —
+ *  shared by the file-length and complexity measures below. */
+function changedFileNames(base) {
+  return git(["diff", "--name-only", "--diff-filter=ACMR", `${base}...HEAD`]);
+}
+
+// Check 2 — file length (thresholds.md, gate-4-task-completion.md row 2).
+// Production and test files only; production over the error band blocks,
+// test over it warns (its own warn band) — a long test file is usually
+// repetitive rather than badly designed.
+function measureFileLength(names, findings, warnings) {
+  if (names.status !== 0) return;
   for (const file of names.stdout.split("\n")) {
     if (!file || !existsSync(file) || !statSync(file).isFile()) continue;
     const cls = classOf(file);
@@ -115,17 +121,17 @@ if (names.status === 0) {
   }
 }
 
-// Complexity, function length, parameter count: production and test files
-// only (file-classes.md), over the same changed set as file length above.
-// Production over the error band blocks; everything else in the warn band —
-// production's own push back, and every test-file finding regardless of how
-// far over the error band it is — prints without blocking, the same
-// class-based split file length already applies ("Push back is not a
-// warning": push back is for production files, test files only ever warn).
+// Check 4 — complexity, function length, parameter count (thresholds.md,
+// gate-4-task-completion.md row 4). Production and test files only, over the
+// same changed set file length uses. Production over the error band blocks;
+// everything else — production's own warn band, and a test file regardless
+// of how far over the error band it is — only warns, the same class split
+// file length already applies ("push back is not a warning": push back is
+// for production files, test files only ever warn).
 //
-// ESLint's own message names the actual measured value, so the rule runs at
+// ESLint's own message names the actual measured value, so each rule runs at
 // the WARN threshold with ESLint's own severity forced to "error" (so every
-// function past it is reported at all) and this hook re-derives push back
+// function past it is reported at all), and bandVerdict re-derives push back
 // versus block from the number in the message — ESLint's severity is not
 // this table's warn band (thresholds.md: "a tool's own warning severity is
 // not this table's warn band").
@@ -158,9 +164,10 @@ const RULES = [
   },
 ];
 
-async function checkComplexity() {
-  if (!names || names.status !== 0) return;
-  const codeFiles = names.stdout
+/** Changed files ESLint can usefully parse, narrowed to production/test. */
+function codeFilesFrom(names) {
+  if (!names || names.status !== 0) return [];
+  return names.stdout
     .split("\n")
     .filter((f) => f && /\.(mjs|cjs|js|mts|cts)$/.test(f))
     .filter((f) => existsSync(f) && statSync(f).isFile())
@@ -168,20 +175,45 @@ async function checkComplexity() {
       const cls = classOf(f);
       return cls === "production" || cls === "test";
     });
-  if (!codeFiles.length) return;
+}
 
-  let ESLint;
+/** ADR-0002: the toolkit bundles no analysis tools — a consuming repository
+ *  installs eslint itself. A dynamic import, not a static one: this same
+ *  hook file is what a consuming repository receives verbatim
+ *  (skills/repository-bootstrap), so a repository that has not yet installed
+ *  eslint must get a named, visible skip rather than a crash on module load. */
+async function loadESLint() {
   try {
-    ({ ESLint } = await import("eslint"));
+    return (await import("eslint")).ESLint;
   } catch {
-    // ADR-0002: the toolkit bundles no analysis tools — a consuming
-    // repository installs eslint itself. Report the gap by name rather than
-    // silently skipping the measure.
     process.stderr.write(
       "gate 4: complexity — eslint not installed; complexity, function length and parameter count not measured\n",
     );
-    return;
+    return null;
   }
+}
+
+/** One ESLint message, translated into a push-back/block finding or nothing. */
+function recordComplexityMessage(file, cls, message, findings, warnings) {
+  const rule = RULES.find((r) => r.ruleId === message.ruleId);
+  if (!rule) return;
+  const actual = Number(rule.re.exec(message.message)?.[1]);
+  if (!Number.isFinite(actual)) return;
+  const verdict = bandVerdict(cls, actual, rule.warn, rule.error);
+  if (!verdict) return;
+  const msg =
+    `${file}:${message.line} ${rule.label} is ${actual} ` +
+    `(warn >= ${rule.warn}, error >= ${rule.error}); split or simplify the function.`;
+  if (verdict === "block") findings.push(msg);
+  else warnings.push(msg);
+}
+
+async function measureComplexity(names, findings, warnings) {
+  const codeFiles = codeFilesFrom(names);
+  if (!codeFiles.length) return;
+
+  const ESLint = await loadESLint();
+  if (!ESLint) return;
 
   const eslint = new ESLint({
     cwd: process.cwd(),
@@ -202,24 +234,36 @@ async function checkComplexity() {
     if (!file) continue;
     const cls = classOf(file);
     for (const message of result.messages) {
-      const rule = RULES.find((r) => r.ruleId === message.ruleId);
-      if (!rule) continue;
-      const actual = Number(rule.re.exec(message.message)?.[1]);
-      if (!Number.isFinite(actual)) continue;
-      const verdict = bandVerdict(cls, actual, rule.warn, rule.error);
-      if (!verdict) continue;
-      const msg =
-        `${file}:${message.line} ${rule.label} is ${actual} ` +
-        `(warn >= ${rule.warn}, error >= ${rule.error}); split or simplify the function.`;
-      if (verdict === "block") findings.push(msg);
-      else warnings.push(msg);
+      recordComplexityMessage(file, cls, message, findings, warnings);
     }
   }
 }
 
-await checkComplexity();
+async function main() {
+  const base = resolveBase();
+  if (!base) process.exit(0); // No base to compare against: nothing to measure.
 
-for (const w of warnings) process.stderr.write(`gate 4: ${w}\n`);
-for (const f of findings) process.stderr.write(`gate 4: ${f}\n`);
+  const findings = [];
+  const warnings = [];
 
-process.exit(findings.length > 0 ? 2 : 0);
+  // Report what was derived (cross-gate rules): the thresholds in force and
+  // where they come from. These are this standard's defaults; no stack
+  // analyser overrides them for this repository.
+  process.stderr.write(
+    `gate 4: thresholds change-warn=${CHANGE_WARN} change-error=${CHANGE_ERROR} ` +
+      `file-length-error=${FILE_LENGTH_ERROR} (standard defaults; file class via git check-attr)\n`,
+  );
+
+  measureChangeSize(base, findings, warnings);
+
+  const names = changedFileNames(base);
+  measureFileLength(names, findings, warnings);
+  await measureComplexity(names, findings, warnings);
+
+  for (const w of warnings) process.stderr.write(`gate 4: ${w}\n`);
+  for (const f of findings) process.stderr.write(`gate 4: ${f}\n`);
+
+  process.exit(findings.length > 0 ? 2 : 0);
+}
+
+await main();
