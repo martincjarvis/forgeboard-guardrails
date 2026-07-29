@@ -120,9 +120,19 @@ if (have("semgrep", ["--version"])) {
 // takes about ten seconds.
 //
 // This scan was once excluded for JavaScript on the grounds that lizard's
-// tokenizer misparsed ES modules. That was checked and is not so: the functions
-// it flags here are genuinely long and genuinely branchy. The exclusion hid
-// three true findings in this repository's own code.
+// tokenizer misparses ES modules. Read a finding before acting on it: lizard's
+// function-span detection does fail here, and when it does the whole remainder
+// of the file is attributed to one function. Measured on this repository's own
+// `hooks/gate-4-task-completion.mjs`, lizard reported `classOf@44-218` in a
+// 225-line file for a function that really ends at line 49 — six lines reported
+// as 175, and every branch after it counted as its own.
+//
+// That is a reason to check a finding, not to exclude the language. Of the three
+// findings this scan raised here, two were real — `resolveTarget` and
+// `checkSuppressions`, both genuinely CCN 16, both since split — and one was the
+// span artefact above. Excluding JavaScript to avoid the artefact would have
+// hidden the two true findings, which is the worse trade. Confirm a span against
+// the source before splitting a function to satisfy it.
 if (have("lizard", ["--version"])) {
   const lz = run("lizard", ["-C", "15", "-L", "100", "-a", "7", "."]);
   if (lz.status !== 0) {
