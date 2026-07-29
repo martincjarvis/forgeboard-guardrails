@@ -25,6 +25,7 @@
     "nosemgrep",
     "numstat",
     "oldrev",
+    "overclaiming",
     "PATHEXT",
     "POSIX",
     "quotepath",
