@@ -84,59 +84,69 @@ function skipTarget(target) {
   );
 }
 
+/** Split a raw link target into its file part and anchor: strips a query
+ *  string, and treats a leading "#" as an anchor-only target (empty file
+ *  part, pointing back at the file the link itself lives in). */
+function splitTarget(target) {
+  let raw = target.trim();
+  const q = raw.indexOf("?");
+  if (q >= 0) raw = raw.slice(0, q);
+  if (raw.startsWith("#")) return { filePart: "", anchor: raw.slice(1) };
+  const [filePart, anchor] = raw.split("#");
+  return { filePart, anchor };
+}
+
+/** Resolve a link's non-empty file part to a repo-relative path, or null if
+ *  it matches nothing tracked or on disk. GitHub resolves a bare path to a
+ *  directory's README or a .md sibling, so those are tried too. */
+function resolveFilePart(linkFile, filePart, trackedSet) {
+  let decoded = filePart;
+  try {
+    decoded = decodeURIComponent(filePart);
+  } catch {
+    // leave as-is
+  }
+  const base = dirname(linkFile);
+  const candidates = [decoded];
+  if (!decoded.endsWith(".md")) {
+    candidates.push(`${decoded}.md`, `${decoded}/README.md`);
+  }
+  for (const c of candidates) {
+    const resolved = normalize(resolve(base, c)).replace(/\\/g, "/");
+    const rel = normalize(resolved);
+    if (trackedSet.has(rel) || existsSync(resolved)) return rel;
+  }
+  return null;
+}
+
+/** Does `targetPath`'s markdown expose `anchor`? Null (nothing wrong) unless
+ *  the target is markdown and the anchor is genuinely absent from it. */
+function anchorProblem(targetPath, anchor) {
+  if (!anchor || !targetPath.endsWith(".md")) return null;
+  let md;
+  try {
+    md = readStaged(targetPath);
+  } catch {
+    return null;
+  }
+  return anchorsOf(md).has(anchor) ? null : `anchor does not exist: #${anchor}`;
+}
+
 /** Resolve one link target against the file it appears in. Returns null if ok,
  *  or a reason string. */
 function resolveTarget(linkFile, target, trackedSet) {
-  let raw = target.trim();
-  // Strip a query string; keep the fragment separate.
-  const q = raw.indexOf("?");
-  if (q >= 0) raw = raw.slice(0, q);
-  let [filePart, anchor] = raw.split("#");
-  const anchorOnly = raw.startsWith("#");
-  if (anchorOnly) {
-    anchor = raw.slice(1);
-    filePart = "";
-  }
-  if (filePart === "" && !anchor) return null; // "()" — nothing to check
+  const { filePart, anchor } = splitTarget(target);
+  if (!filePart && !anchor) return null; // "()" — nothing to check
 
-  let targetPath = null;
+  let targetPath;
   if (filePart) {
-    try {
-      filePart = decodeURIComponent(filePart);
-    } catch {
-      // leave as-is
-    }
-    const base = dirname(linkFile);
-    const candidates = [filePart];
-    // GitHub resolves a bare path to a directory's README or a .md sibling.
-    if (!filePart.endsWith(".md")) {
-      candidates.push(`${filePart}.md`, `${filePart}/README.md`);
-    }
-    for (const c of candidates) {
-      const resolved = normalize(resolve(base, c)).replace(/\\/g, "/");
-      const rel = normalize(resolved);
-      if (trackedSet.has(rel) || existsSync(resolved)) {
-        targetPath = rel;
-        break;
-      }
-    }
+    targetPath = resolveFilePart(linkFile, filePart, trackedSet);
     if (!targetPath) return `links to nothing: ${filePart}`;
   } else {
     targetPath = linkFile.replace(/\\/g, "/");
   }
 
-  if (anchor) {
-    if (!targetPath.endsWith(".md")) return null; // anchor on a non-md file: leave
-    let md;
-    try {
-      md = readStaged(targetPath);
-    } catch {
-      return null;
-    }
-    const anchors = anchorsOf(md);
-    if (!anchors.has(anchor)) return `anchor does not exist: #${anchor}`;
-  }
-  return null;
+  return anchorProblem(targetPath, anchor);
 }
 
 /** Check a list of markdown files; return findings (one per broken link).
