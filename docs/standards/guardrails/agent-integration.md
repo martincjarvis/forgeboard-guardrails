@@ -86,6 +86,32 @@ Test them on each platform in use before trusting them. The failure mode is not
 an error — it is a hook that never fires, which looks exactly like a hook that
 found nothing.
 
+## Progress, blockers and questions
+
+An agent's session is invisible from the outside except what it reports. This
+governs what it reports, and when, while the work is still running — not just
+the content of the final report.
+
+**Stream progress as it happens.** State what it is doing now, what it has
+finished, and what is blocking it, as the work proceeds. An observer must be
+able to tell a working session from a stalled one without inspecting process
+state.
+
+**A blocker is reported the moment it is hit**, not saved for the final
+report. Held back, it leaves an observer unable to tell "still working" from
+"stopped ten minutes ago and hasn't said so."
+
+**An agent does not stop to ask a clarifying question.** Where something is
+ambiguous, it takes the reasonable option, proceeds, and records the choice
+and the rejected alternative in its report. "I cannot proceed because the
+standards do not define X, so I assumed Y" is a blocker plus a decision, and
+is correct. "Which should I use, X or Y?" is a clarifying question, and is
+not.
+
+**Failure to deliver is a valid outcome, provided the reason is stated.** An
+agent that stops and says precisely what blocked it has succeeded at
+reporting; one that stops and asks a question, or stops silently, has not.
+
 ## Verification
 
 - [ ] Every harness in use reads a root instruction file, and all of them
@@ -100,6 +126,14 @@ found nothing.
 - [ ] Every hook runs on each platform the team uses — verified by running it
       there, not by reading it.
 - [ ] No hook depends on a shell or on utilities that only one platform ships.
+- [ ] A working session reports what it is doing, what it has finished, and
+      what is blocking it while the work is in progress, not only at the end.
+- [ ] A blocker is reported when it is hit, not held until the final report.
+- [ ] An ambiguous requirement is resolved by taking the reasonable option and
+      recording the choice and the rejected alternative, not by stopping to
+      ask.
+- [ ] A session that cannot finish states precisely what blocked it, and does
+      not stop silently or ask a clarifying question instead.
 
 ## References
 

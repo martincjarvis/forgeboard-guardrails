@@ -120,6 +120,17 @@ assert on the shape of the code rather than its behaviour. Both need nothing but
 the source, both must fail the moment the structure drifts, and an architecture
 nobody enforces mechanically is a diagram.
 
+**A test process spawned from the hook inherits git's environment.** Git
+exports `GIT_DIR`, `GIT_INDEX_FILE` and `GIT_WORK_TREE` into every process the
+hook spawns. A test that builds a throwaway git repository and passes it only
+a working directory, expecting an isolated sandbox, does not get one: git
+resolves the inherited variables before it looks at the directory the process
+was started in, so the test operates on the repository running the hook — its
+real index, its real `HEAD`. This is not hypothetical: a suite run this way
+once committed against the real index and deleted the tracked corpus in a
+single commit, recovered in full but avoidably. **Strip `GIT_*` from the
+child environment** before spawning a test process from a hook.
+
 Checks 12 and 13 run **only for components the staged paths touch**, per
 [the changed-component rule](components.md#the-changed-component-rule). Check 14
 is the exception by design: it covers repository-level invariants that belong to
@@ -243,6 +254,10 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] A failing unit test is refused.
 - [ ] An architecture test fails when a dependency direction is violated, and it
       runs with the unit tests rather than separately.
+- [ ] A test spawned from the hook with `GIT_DIR` set in the parent
+      environment still operates on its own fixture, not the real
+      repository — verified by exporting `GIT_DIR` before running the suite
+      and confirming the repository's `HEAD` is unchanged afterward.
 - [ ] A new suppression without a register row is refused.
 - [ ] An upgrade that pulls in a new transitive dependency is refused until that
       dependency has a register row.

@@ -102,6 +102,31 @@ in response to the change that broke it. Verify that every tracked path belongs
 to exactly one component or is explicitly repository-wide, and that each
 declared dependency edge matches a real reference.
 
+## The single-component repository
+
+A repository can have exactly one component. That is the ordinary case for a
+single-package application or library — not a special case the rules above
+need an exception for. Each one already resolves it:
+
+- **The map still has one entry.** Paths, build command, test commands and
+  dependencies are declared or derived the same way; there is one row instead
+  of several, and no dependency edges, because there is nothing else to
+  depend on.
+- **The component graph is still derived** — it has one node and no edges.
+  Nothing about the derivation step is skipped; there is simply nothing to
+  compute a topology over.
+- **"Only what changed" still applies, and it resolves to "always."** Any
+  tracked path either belongs to the one component or belongs to none, and a
+  path in no component selects everything, per the fail-safe default above.
+  Either way the one component is selected: there is no narrower set to fall
+  back to, so the component's build and tests run whenever anything tracked
+  changes.
+- **Per-component versioning still applies**, and collapses to
+  whole-repository versioning: the one component's version is computed from
+  the commits touching its paths — in effect, the whole repository — and if
+  it is marked `public`, `appVersion` tracks it directly. See
+  [Deployment strategy](../deployment-strategy.md#appversion-derivation).
+
 ## Running it by hand
 
 Resolving the changed set is the first thing to check when a gate scoped
