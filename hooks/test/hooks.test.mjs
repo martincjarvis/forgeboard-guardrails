@@ -93,6 +93,16 @@ function lines(n, text = "x") {
   return `${text}\n`.repeat(n);
 }
 
+/** A function whose cyclomatic complexity is `branches + 1` — one `else if`
+ *  chain link per branch, McCabe's own count. */
+function complexFunction(name, branches) {
+  const arms = Array.from(
+    { length: branches },
+    (_, i) => `  ${i === 0 ? "if" : "else if"} (a === ${i}) { return ${i}; }`,
+  ).join("\n");
+  return `export function ${name}(a) {\n${arms}\n  return -1;\n}\n`;
+}
+
 test("gate 1 ignores a file that does not exist", () => {
   const dir = scratchRepo();
   const r = runHook(
@@ -288,6 +298,57 @@ test("a file classed as configuration counts toward change size but has no lengt
     /split it into smaller units/,
     "configuration has no length limit",
   );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("gate 4 blocks a production file with a function over the complexity error threshold", () => {
+  // gate-4-task-completion.md row 4, thresholds.md: complexity error is 15.
+  // 16 chained branches gives McCabe complexity 17 — over the error band.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, "complex.mjs"), complexFunction("tooComplex", 16));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "feat: a very branchy function"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(r.status, 2, "a production function over the error band blocks");
+  assert.match(r.stderr, /cyclomatic complexity is 17/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("gate 4 pushes back (does not block) a production function in the complexity warn band", () => {
+  // 11 branches gives complexity 12 — inside the 10-14 warn band.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, "warnish.mjs"), complexFunction("warnish", 11));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "feat: a moderately branchy function"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(
+    r.status,
+    0,
+    "the warn band pushes back (prints) but does not block",
+  );
+  assert.match(r.stderr, /cyclomatic complexity is 12/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("gate 4 warns but does not block a test file over the complexity error threshold", () => {
+  // file-classes.md / "push back is not a warning": complexity pushes back
+  // for production files; a test file only ever warns, never blocks —
+  // proven decisively here with a function well past the error band (17).
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, ".gitattributes"), "spec/** guardrail-class=test\n");
+  mkdirSync(join(dir, "spec"), { recursive: true });
+  writeFileSync(
+    join(dir, "spec", "complex.spec.mjs"),
+    complexFunction("tooComplex", 16),
+  );
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "test: a very branchy test helper"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(r.status, 0, "a test file never blocks on complexity");
+  assert.match(r.stderr, /cyclomatic complexity is 17/);
   rmSync(dir, { recursive: true, force: true });
 });
 

@@ -14,6 +14,18 @@ const CHANGE_ERROR = 800;
 const FILE_LENGTH_ERROR = 400;
 const OVERRIDE = "[large-pr]";
 
+// Complexity, function length and parameter count (thresholds.md — gap-fill
+// defaults; JavaScript/TypeScript has no stack opinion beyond ESLint's own
+// core rules, so these values ARE the stack's own analyser configuration,
+// not a substitute for one, per thresholds.md: "take the analyser's
+// recommended rule set... only where the stack has no native opinion").
+const COMPLEXITY_WARN = 10;
+const COMPLEXITY_ERROR = 15;
+const FUNCTION_LENGTH_WARN = 60;
+const FUNCTION_LENGTH_ERROR = 100;
+const PARAM_COUNT_WARN = 5;
+const PARAM_COUNT_ERROR = 7;
+
 // The base is whatever the remote calls its default, falling back to main.
 function resolveBase() {
   const head = git(["rev-parse", "--abbrev-ref", "origin/HEAD"]);
@@ -102,6 +114,110 @@ if (names.status === 0) {
     else warnings.push(msg.replace(";", " (test file — warn band);"));
   }
 }
+
+// Complexity, function length, parameter count: production and test files
+// only (file-classes.md), over the same changed set as file length above.
+// Production over the error band blocks; everything else in the warn band —
+// production's own push back, and every test-file finding regardless of how
+// far over the error band it is — prints without blocking, the same
+// class-based split file length already applies ("Push back is not a
+// warning": push back is for production files, test files only ever warn).
+//
+// ESLint's own message names the actual measured value, so the rule runs at
+// the WARN threshold with ESLint's own severity forced to "error" (so every
+// function past it is reported at all) and this hook re-derives push back
+// versus block from the number in the message — ESLint's severity is not
+// this table's warn band (thresholds.md: "a tool's own warning severity is
+// not this table's warn band").
+function bandVerdict(cls, actual, warnThreshold, errorThreshold) {
+  if (actual < warnThreshold) return null;
+  return cls === "production" && actual >= errorThreshold ? "block" : "warn";
+}
+
+const RULES = [
+  {
+    ruleId: "complexity",
+    re: /has a complexity of (\d+)/,
+    warn: COMPLEXITY_WARN,
+    error: COMPLEXITY_ERROR,
+    label: "cyclomatic complexity",
+  },
+  {
+    ruleId: "max-lines-per-function",
+    re: /has too many lines \((\d+)\)/,
+    warn: FUNCTION_LENGTH_WARN,
+    error: FUNCTION_LENGTH_ERROR,
+    label: "function length",
+  },
+  {
+    ruleId: "max-params",
+    re: /has too many parameters \((\d+)\)/,
+    warn: PARAM_COUNT_WARN,
+    error: PARAM_COUNT_ERROR,
+    label: "parameter count",
+  },
+];
+
+async function checkComplexity() {
+  if (!names || names.status !== 0) return;
+  const codeFiles = names.stdout
+    .split("\n")
+    .filter((f) => f && /\.(mjs|cjs|js|mts|cts)$/.test(f))
+    .filter((f) => existsSync(f) && statSync(f).isFile())
+    .filter((f) => {
+      const cls = classOf(f);
+      return cls === "production" || cls === "test";
+    });
+  if (!codeFiles.length) return;
+
+  let ESLint;
+  try {
+    ({ ESLint } = await import("eslint"));
+  } catch {
+    // ADR-0002: the toolkit bundles no analysis tools — a consuming
+    // repository installs eslint itself. Report the gap by name rather than
+    // silently skipping the measure.
+    process.stderr.write(
+      "gate 4: complexity — eslint not installed; complexity, function length and parameter count not measured\n",
+    );
+    return;
+  }
+
+  const eslint = new ESLint({
+    cwd: process.cwd(),
+    overrideConfigFile: true,
+    overrideConfig: {
+      rules: {
+        complexity: ["error", COMPLEXITY_WARN],
+        "max-lines-per-function": ["error", FUNCTION_LENGTH_WARN],
+        "max-params": ["error", PARAM_COUNT_WARN],
+      },
+    },
+  });
+  const results = await eslint.lintFiles(codeFiles);
+  for (const result of results) {
+    const file = codeFiles.find((f) =>
+      result.filePath.replace(/\\/g, "/").endsWith(f.replace(/\\/g, "/")),
+    );
+    if (!file) continue;
+    const cls = classOf(file);
+    for (const message of result.messages) {
+      const rule = RULES.find((r) => r.ruleId === message.ruleId);
+      if (!rule) continue;
+      const actual = Number(rule.re.exec(message.message)?.[1]);
+      if (!Number.isFinite(actual)) continue;
+      const verdict = bandVerdict(cls, actual, rule.warn, rule.error);
+      if (!verdict) continue;
+      const msg =
+        `${file}:${message.line} ${rule.label} is ${actual} ` +
+        `(warn >= ${rule.warn}, error >= ${rule.error}); split or simplify the function.`;
+      if (verdict === "block") findings.push(msg);
+      else warnings.push(msg);
+    }
+  }
+}
+
+await checkComplexity();
 
 for (const w of warnings) process.stderr.write(`gate 4: ${w}\n`);
 for (const f of findings) process.stderr.write(`gate 4: ${f}\n`);
