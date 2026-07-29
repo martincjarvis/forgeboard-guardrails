@@ -103,30 +103,25 @@ if (have("semgrep", ["--version"])) {
 }
 
 // --- Size: repository-wide complexity scan (lizard) ---
-// lizard is the standard's named complexity tool, but its JavaScript tokenizer
-// misparses ES modules with top-level code (here it reports a six-line function
-// at cyclomatic complexity 25). thresholds.md has the stack's own analyser win
-// over these gap-fill numbers, and for JavaScript that analyser is tsc — the
-// build step. So lizard fills the gap for languages tsc does not cover, and the
-// JavaScript this repository is written in is excluded from it by design.
-const LIZARD_LANGS =
-  /\.(py|go|rb|java|c|cc|cpp|h|hpp|cs|kt|scala|rs|php|swift|lua|dart|erl|zig|pl)$/i;
-const lizardTargets = tracked.filter((f) => LIZARD_LANGS.test(f));
-if (lizardTargets.length === 0) {
-  skips.push(
-    "repository-wide size scan (lizard) — JS-only repository; JS complexity is " +
-      "governed by tsc (native analyser), and lizard's JS tokenizer is excluded",
-  );
-} else if (have("lizard", ["--version"])) {
-  const lz = run("lizard", [
-    "-C",
-    "15",
-    "-L",
-    "100",
-    "-a",
-    "7",
-    ...lizardTargets,
-  ]);
+// lizard is the general-purpose backstop, and a backstop scans everything —
+// including stacks that have a specialised analyser. Where the specialised tool
+// genuinely covers the property, lizard finds nothing, and finding nothing is
+// the expected result rather than a reason to exclude the language. Excluding a
+// stack because a specialised tool "already covers it" is how a repository ends
+// up with no complexity measurement at all: a type checker is not a complexity
+// analyser, so tsc does not stand in for this.
+//
+// It runs here, at the on-demand gate, and not at commit — it is heavyweight and
+// general-purpose, so it belongs in the later tier with semgrep and the CI
+// platform scanners. This gate reports and never blocks, and the whole sweep
+// takes about ten seconds.
+//
+// This scan was once excluded for JavaScript on the grounds that lizard's
+// tokenizer misparsed ES modules. That was checked and is not so: the functions
+// it flags here are genuinely long and genuinely branchy. The exclusion hid
+// three true findings in this repository's own code.
+if (have("lizard", ["--version"])) {
+  const lz = run("lizard", ["-C", "15", "-L", "100", "-a", "7", "."]);
   if (lz.status !== 0) {
     add(
       "repository-wide size scan (lizard)",
