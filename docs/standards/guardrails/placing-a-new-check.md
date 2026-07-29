@@ -11,9 +11,13 @@ read_when: Adding a check to a repository's gates.
    existing tool that already enforces it, before writing anything — the
    [tooling ladder](cross-gate-rules.md) starts with what the hosting platform
    already offers.
-2. **Put it in the highest-frequency gate whose inputs are sufficient.** A check
-   needing the whole branch cannot live in the commit gate; one needing only the
-   file being written belongs in the edit gate.
+2. **Put it in the highest-frequency gate whose inputs are sufficient — then weigh
+   its cost.** A check needing the whole branch cannot live in the commit gate;
+   one needing only the file being written belongs in the edit gate. Input
+   sufficiency is necessary but not enough: a heavyweight, general-purpose or
+   network-bound check moves to the on-demand gate or CI even where its inputs
+   would allow it earlier, so it does not block the fast path. See
+   [checks are tiered by cost](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate).
 3. **Give it a verdict consistent with its type**, and a refusal message that
    diagnoses: the check, the path, the offending content, and what clears it.
 4. **If it blocks, add it to the pull request pipeline and to the required
@@ -29,6 +33,8 @@ read_when: Adding a check to a repository's gates.
 - [ ] The new check has a type, and its verdict matches that type's discipline.
 - [ ] An existing tool was looked for, and a bespoke check has a recorded reason.
 - [ ] It sits in the earliest gate whose inputs are sufficient.
+- [ ] A heavyweight, general-purpose or network-bound check was not placed at a
+      fast-path gate merely because its inputs were sufficient there.
 - [ ] If it blocks, it is both re-run server-side and named in the required list.
 - [ ] It appears in a gate table and in that gate's verification checklist.
 

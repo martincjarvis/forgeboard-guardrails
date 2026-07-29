@@ -34,6 +34,30 @@ because everything after them depends on what they did.
 A reordering changes what the gate sees. It is a change to the contract, not a
 presentation choice.
 
+## Checks are tiered by cost, and the tier decides the gate
+
+Fast, local, stack-specialised tooling runs at the gates that fire often — edit
+and commit. Those are the gates a developer feels on every action, so they must
+stay quick. Heavyweight, general-purpose or network-bound tooling runs later, at
+the on-demand gate or in CI, and does not block the fast path: it runs at its
+gate, reports, and the caller decides. This corpus already names checks of that
+kind: semgrep's rule fetch is network-bound, lizard is a general-purpose
+complexity analyser, and a CI platform's own SAST and dependency scanning are
+host-provided general tooling. [Placing a new check](placing-a-new-check.md)
+covers weighing a specific check's cost against the gate its inputs would
+otherwise allow.
+
+**A general-purpose analyser is a backstop, not a replacement, and it is not
+skipped because a specialised one exists.** Where a stack has its own
+specialised analyser, that analyser is authoritative for that stack's values —
+see [thresholds: the stack's analysers win](thresholds.md#the-stacks-analysers-win)
+— but the general-purpose tool still runs at its later gate across everything,
+including stacks a specialised tool already covers. It is expected to find
+nothing there; finding nothing is not a reason to exclude that code from the
+scan. A type checker is not a complexity analyser: a repository whose only
+specialised analyser is a type checker has no complexity measurement at all if
+the general-purpose complexity tool is also excluded from that stack.
+
 ## Build and test only what changed
 
 Stated in full as
@@ -191,6 +215,11 @@ choice is reported, not guessed.
 - [ ] Every check the platform already provides is enabled rather than rebuilt.
 - [ ] Within each gate, checks run cheapest first, except where one changes what
       a later one reads.
+- [ ] A fast, stack-specialised check runs at a gate that fires on every edit or
+      commit; a heavyweight, general-purpose or network-bound check runs at the
+      on-demand gate or CI instead, whatever gate its inputs would allow.
+- [ ] A general-purpose analyser runs across every stack, including one with its
+      own specialised analyser, rather than being excluded from it.
 - [ ] Every run states the components, file classes and thresholds it resolved,
       and where each came from.
 - [ ] The cheapest check that would catch a given defect is the one that catches

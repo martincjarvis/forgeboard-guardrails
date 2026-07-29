@@ -29,6 +29,15 @@ The measures marked **gap-fill** are the ones this applies to. The rest are
 properties of the workflow rather than of the code, and no analyser has a view
 on them.
 
+**This is a rule about which values apply, not about which tool runs.** A
+stack's own analyser wins the numbers; it does not excuse that stack from the
+general-purpose scan. The general-purpose tool still runs everywhere, including
+a stack with its own specialised analyser — it is a backstop, not a
+replacement, and is expected to find nothing where the specialised analyser
+already has that stack covered. See
+[cross-gate rules: checks are tiered by cost](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)
+for the full rule and why excluding a covered stack removes the backstop.
+
 ## The table
 
 | Threshold                      | Default                                                                                    | Applies to                                            |
@@ -89,6 +98,8 @@ on them.
       recommendation where one exists, and the gap-fill default only where none does.
 - [ ] No native analyser rule has been disabled to substitute a number from this
       table.
+- [ ] A stack's own analyser being authoritative for its values has not been used
+      to exclude that stack from the general-purpose scan.
 - [ ] Every developer, agent and pipeline run resolves the same configuration.
 - [ ] A threshold changed since adoption has a decision record saying why.
 

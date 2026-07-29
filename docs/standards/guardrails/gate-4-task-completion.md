@@ -106,19 +106,24 @@ Two rules the gate cannot check, which the reviewer must:
 
 ## Running it by hand
 
-| Check                 | Command                                                                                        |
-| --------------------- | ---------------------------------------------------------------------------------------------- |
-| Change size           | `git diff --shortstat origin/main...HEAD -- <production and config paths>`                     |
-| Per-file line counts  | `git ls-files -- <paths> \| xargs wc -l \| sort -n`                                            |
-| Complexity            | `npx eslint --rule '{"complexity":["error",15]}' <paths>` · `lizard -C 15 -L 100 -a 7 <paths>` |
-| Agent-document length | `wc -l <agent context paths>`                                                                  |
-| Agent frontmatter     | `npx skills-ref validate ./<skill directory>`                                                  |
-| Override marker       | `git log origin/main..HEAD --format=%B \| grep '\[large-pr\]'`                                 |
+| Check                 | Command                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| Change size           | `git diff --shortstat origin/main...HEAD -- <production and config paths>`           |
+| Per-file line counts  | `git ls-files -- <paths> \| xargs wc -l \| sort -n`                                  |
+| Complexity            | The stack's own analyser — `npx eslint --rule '{"complexity":["error",15]}' <paths>` |
+| Agent-document length | `wc -l <agent context paths>`                                                        |
+| Agent frontmatter     | `npx skills-ref validate ./<skill directory>`                                        |
+| Override marker       | `git log origin/main..HEAD --format=%B \| grep '\[large-pr\]'`                       |
 
-`lizard` covers the languages a single linter does not, and reports complexity,
-function length and parameter count in one pass — the three sub-measures of
-check 4. Where the stack's own analyser already reports them, prefer that, per
-[Thresholds](thresholds.md).
+This gate runs the stack's own analyser, which is fast and already installed.
+`lizard` — which covers the languages a single linter does not, and reports
+complexity, function length and parameter count in one pass — is the
+general-purpose backstop, and runs at [gate 7](gate-7-on-demand.md) with the
+other heavyweight checks rather than on every hand-off
+([cost tiers](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)).
+The backstop is not skipped because a specialised analyser covers the stack: it
+should find nothing there, and finding nothing is the point. Which values apply
+is a separate question, answered by [Thresholds](thresholds.md).
 
 ## Verification
 

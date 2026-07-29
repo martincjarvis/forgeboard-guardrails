@@ -200,25 +200,25 @@ Rules:
 The staged set is `git diff --cached --name-only --diff-filter=ACMR`. Every
 command below takes that list.
 
-| #   | Check                       | Command                                                                                                                                                 |
-| --- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Protected branch            | `git rev-parse --abbrev-ref HEAD`                                                                                                                       |
-| 2   | Staged-content isolation    | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index |
-| 3   | Dependency lock sync        | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                     |
-| 4   | Universal format            | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                    |
-| 5   | Prose lint                  | `npx markdownlint-cli2 <paths>`                                                                                                                         |
-| 6   | Secret scan                 | `npx secretlint <paths>`                                                                                                                                |
-| 7   | Spelling                    | `npx cspell --no-progress <paths>`                                                                                                                      |
-| 8   | Cross-language analysis     | `semgrep --config auto --error <paths>`                                                                                                                 |
-| 9   | Machine-identifying content | `npx secretlint <paths>` with the path rules enabled, or a repository rule                                                                              |
-| 10  | File size                   | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                                                                                            |
-| 11  | Per-path lint               | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                         |
-| 12  | Build                       | `npm run build` · `dotnet build -warnaserror`                                                                                                           |
-| 13  | Unit tests                  | `npm test` · `dotnet test`                                                                                                                              |
-| 14  | Repository-wide tests       | The repository's own repository-level check command                                                                                                     |
-| 15  | Suppression register        | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                              |
-| 16  | Dependency licence register | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                       |
-| 17  | Link and anchor integrity   | `npx markdown-link-check <paths>`, or the repository's own docs command                                                                                 |
+| #   | Check                       | Command                                                                                                                                                                                                              |
+| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Protected branch            | `git rev-parse --abbrev-ref HEAD`                                                                                                                                                                                    |
+| 2   | Staged-content isolation    | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index                                                              |
+| 3   | Dependency lock sync        | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                                                                                  |
+| 4   | Universal format            | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                                                                                 |
+| 5   | Prose lint                  | `npx markdownlint-cli2 <paths>`                                                                                                                                                                                      |
+| 6   | Secret scan                 | `npx secretlint <paths>`                                                                                                                                                                                             |
+| 7   | Spelling                    | `npx cspell --no-progress <paths>`                                                                                                                                                                                   |
+| 8   | Cross-language analysis     | Deferred — `semgrep` fetches its rules over the network, so it runs at [gate 7](gate-7-on-demand.md) and in CI, not here ([cost tiers](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)) |
+| 9   | Machine-identifying content | `npx secretlint <paths>` with the path rules enabled, or a repository rule                                                                                                                                           |
+| 10  | File size                   | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                                                                                                                                                         |
+| 11  | Per-path lint               | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                                                                                      |
+| 12  | Build                       | `npm run build` · `dotnet build -warnaserror`                                                                                                                                                                        |
+| 13  | Unit tests                  | `npm test` · `dotnet test`                                                                                                                                                                                           |
+| 14  | Repository-wide tests       | The repository's own repository-level check command                                                                                                                                                                  |
+| 15  | Suppression register        | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                                                                                           |
+| 16  | Dependency licence register | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                                                                                    |
+| 17  | Link and anchor integrity   | `npx markdown-link-check <paths>`, or the repository's own docs command                                                                                                                                              |
 
 Prefer Node tooling where the stack has no native equivalent — the formatter,
 the prose lint, the spell check and the secret scan are stack-independent, and
