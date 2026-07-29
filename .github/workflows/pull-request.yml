@@ -1,0 +1,113 @@
+# cspell:ignore PYTHONUTF
+# Gate 6 — pull request pipeline. Re-runs the gates 2-5 local-check surface
+# against the pull request's range on a clean, server-side checkout — the
+# authority gate-6-pull-request.md describes, and the one a local `--no-verify`
+# cannot skip.
+#
+# This is a reference workflow: a repository consuming this toolkit ports it
+# rather than reinventing gate 6 from prose (skills/repository-bootstrap/
+# SKILL.md points here at the step where CI is set up). The check logic itself
+# lives in scripts/gate-6-pull-request.mjs so it can be read, tested and run by
+# hand the same way as every other gate in this repository; this file is the
+# thinnest wiring that gets it a checkout, the tools it needs on PATH, and a
+# place to publish what it found.
+#
+# `pull_request`, not `pull_request_target`: a run triggered from a fork gets a
+# read-only token and none of this repository's secrets (gate 6 check 9,
+# untrusted-run isolation) — the safe default this workflow relies on rather
+# than reimplements.
+name: Pull request
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  security-events: write # required to upload semgrep's SARIF (evidence row 12)
+
+concurrency:
+  group: pull-request-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate-6:
+    name: gate 6 (${{ matrix.os }})
+    # Named per OS because this repository's own tests run on both
+    # (CLAUDE.md), and a check that only ever ran on one platform is a check
+    # that has never verified the other. Name each matrix leg in branch
+    # protection's required-checks list (gate-6-pull-request.md policy 16) —
+    # adding a job here is not the same act as requiring it.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out the merge result
+        uses: actions/checkout@v4
+        with:
+          # Full history: the base ref this workflow diffs against, and every
+          # commit gate 3 walks, both need history a shallow clone would cut.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          # The floor this repository declares (package.json engines), not
+          # whatever happens to be newest — a check that only ever runs on a
+          # newer Node than the floor has never verified the floor holds.
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install semgrep and lizard
+        # ADR-0002: the toolkit bundles no analysis tools. This repository's
+        # own checks resolve them from PATH the same way a consuming
+        # repository's do; installing them is this workflow's job, not
+        # scripts/gate-6-pull-request.mjs's — a failed install fails this step
+        # on its own, rather than the check silently reporting the tool
+        # unavailable and passing.
+        run: pip install semgrep lizard
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Gate 6 — re-run the gates 2-5 surface over the pull request range
+        id: gate6
+        # GITHUB_BASE_REF is set by GitHub Actions for a pull_request event;
+        # scripts/gate-6-pull-request.mjs reads it directly, the same as a
+        # manual run reads resolveBase(). PYTHONUTF8 matches the script's own
+        # semgrep invocation — set here too, since Windows runners default the
+        # console code page away from UTF-8 for every process, not only the
+        # one the script spawns.
+        env:
+          PYTHONUTF8: "1"
+        run: node scripts/gate-6-pull-request.mjs
+
+      # Evidence is published whether the check above passed or failed
+      # (gate-6-pull-request.md: "published on failure as well as success") —
+      # every step below runs unconditionally via `if: always()`, and none of
+      # them can turn a real failure into a green run: an upload failing is
+      # reported on its own step, never wrapped in `|| true` around the check
+      # itself.
+
+      - name: Publish static-analysis findings (semgrep SARIF)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep-${{ matrix.os }}
+        continue-on-error: true # missing file (no source changed) is not a gate failure
+
+      - name: Publish test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-6-reports-${{ matrix.os }}
+          path: |
+            test-results.xml
+            coverage/cobertura-coverage.xml
+          if-no-files-found: warn
+          retention-days: 30

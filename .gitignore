@@ -1,3 +1,9 @@
 node_modules/
 coverage/
 .logs/
+
+# Evidence the gates produce on every run. Published from CI, never committed:
+# a stale SARIF or test report in the tree is worse than none, because it looks
+# like a result.
+*.sarif
+test-results.xml

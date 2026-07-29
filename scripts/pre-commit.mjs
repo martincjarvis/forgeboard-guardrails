@@ -22,6 +22,7 @@ import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkProtectedBranch } from "./check-protected-branch.mjs";
+import { checkLicenceCompleteness } from "./check-licence.mjs";
 
 const findings = [];
 const skips = [];
@@ -166,6 +167,15 @@ note("cross-language analysis (semgrep) — runs at gate 7, not per-commit");
 // Check 15 — suppression register completeness.
 {
   const found = checkSuppressions();
+  if (found.length) report("gate 2", found, skips);
+}
+
+// Check 16 — dependency licence register completeness. Change-triggered on
+// the same lockStaged computed above (change-triggered-checks.md); a visible
+// skip when the lock file is not part of this commit.
+{
+  const { findings: found, skips: sk } = checkLicenceCompleteness(lockStaged);
+  skips.push(...sk);
   if (found.length) report("gate 2", found, skips);
 }
 

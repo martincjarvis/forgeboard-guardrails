@@ -65,7 +65,11 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
 7. **The gates.** Follow `skills/guardrail-audit/SKILL.md`'s "Adopting
    guardrails in a repository that has none" section in full, from wherever
    step 1 left off. It states its own order for the nine gates and why; this
-   skill does not restate it.
+   skill does not restate it. When that order reaches gate 6, port
+   `.github/workflows/pull-request.yml` and `scripts/gate-6-pull-request.mjs`
+   from this repository rather than reinventing the pipeline from
+   `gate-6-pull-request.md`'s prose — they are this toolkit's own working
+   reference for that gate.
 
 8. **Docs style**, once the repository starts writing its own `/docs`. Load
    `docs/standards/docs-style.md` and `skills/docs-review/SKILL.md` when the

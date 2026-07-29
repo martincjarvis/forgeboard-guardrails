@@ -89,7 +89,10 @@ for (const f of checkMachineId()) findings.push(f);
 
 // --- Security: repository-wide analysis (semgrep) ---
 if (have("semgrep", ["--version"])) {
-  const sg = run("semgrep", ["--config", "auto", "--quiet", "."]);
+  // --error is what makes a finding a failure: without it semgrep reports and
+  // still exits 0, so the check reads as green with findings on screen. This
+  // scan was decorative until that was noticed.
+  const sg = run("semgrep", ["--config", "auto", "--quiet", "--error", "."]);
   if (sg.status !== 0) {
     add(
       "repository-wide analysis (semgrep)",

@@ -26,6 +26,18 @@ export function trackedFiles() {
   return r.status === 0 ? splitLines(r.stdout) : [];
 }
 
+/** Files touched across a commit range — the range-scoped counterpart to
+ *  stagedFiles(), for a check running where there is no index to read. A CI
+ *  checkout of a pull request has no staged content (gate-6-pull-request.md:
+ *  check 3 adapts `git diff --cached` to `git diff origin/<base>...HEAD`); this
+ *  is that adaptation, shared by every check that needs it rather than
+ *  reimplemented per check. */
+export function changedFiles(range) {
+  const r = git(["diff", "--name-only", "--diff-filter=ACMR", range]);
+  if (r.status !== 0) return [];
+  return splitLines(r.stdout);
+}
+
 /** The guardrail-class of one path, derived from .gitattributes (ADR-0003). An
  *  unclassified file is production — the fail-safe direction (file-classes.md). */
 export function classOf(file) {
