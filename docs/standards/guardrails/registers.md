@@ -4,7 +4,7 @@ summary: The three checked-in registers — suppression, dependency licence and 
 read_when: Adding an accepted finding, auditing what a repository has accepted, or deciding whether something is a register row or a decision record.
 ---
 
-<!-- cspell:ignore rseidelsohn -->
+<!-- cspell:ignore rseidelsohn govulncheck -->
 
 # Registers
 
@@ -129,6 +129,30 @@ Resolving what is actually installed, to compare against the register:
 The .NET commands report advisories natively; licences there come from the
 package metadata, so a licence inventory needs a tool that reads it — prefer the
 host's own dependency graph where it offers one.
+
+### Advisories, per stack
+
+The dependency advisory question (gate-6-pull-request.md check 6, and its
+scheduled leg) has a native answer in most ecosystems; take it before reaching
+for the cross-stack fallback (osv-scanner — [gate 5](gate-5-push.md), [gate
+6](gate-6-pull-request.md)). This is the convenience reference; the rule that
+actually catches a broken invocation — a missing flag, a tool that always
+exits 0, a scan that silently examines nothing — is the [refusal-proof
+contract](cross-gate-rules.md#every-blocking-check-proves-it-refuses), not this
+table.
+
+| Stack  | Command                                                                                      | Note                                                                                   |
+| ------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Node   | `npm audit --json` (`pnpm audit`, `yarn npm audit`)                                          |                                                                                        |
+| .NET   | `dotnet list package --vulnerable --include-transitive`                                      | **Always exits 0** — parse the output, or use `--format json`                          |
+| .NET   | NuGet Audit at restore (SDK 8.0.100+)                                                        | On by default; set `NuGetAuditMode=all` for transitive dependencies                    |
+| Python | `pip-audit` (PyPA; checks OSV and PyPI advisories)                                           | uv and poetry have no native audit — run it against the lock file                      |
+| Java   | OWASP Dependency-Check (Maven or Gradle plugin)                                              | Slow — it downloads the NVD feed                                                       |
+| Go     | `govulncheck`                                                                                | Reachability analysis, so it has fewer false positives                                 |
+| Rust   | `cargo audit` (RustSec advisory database), or `cargo deny` for licence and advisory together |                                                                                        |
+| PHP    | `composer audit`                                                                             |                                                                                        |
+| Ruby   | `bundler-audit`                                                                              |                                                                                        |
+| Any    | `osv-scanner`                                                                                | The cross-stack general-purpose tier — a backstop, not a replacement for the row above |
 
 ## Verification
 
