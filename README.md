@@ -11,6 +11,12 @@ that apply them, and the gates that enforce them.
 - [`skills/`](skills/) — one skill per standard, written for an agent applying
   or auditing it.
 
+## Setting up a new repository
+
+Read [`skills/repository-bootstrap/SKILL.md`](skills/repository-bootstrap/SKILL.md)
+first. It is a procedure, not a summary of the corpus below — read the whole
+standards index only if the skill sends you there for a specific step.
+
 ## State
 
 Rebuilt from an empty tree. The standards and the skills are complete; the

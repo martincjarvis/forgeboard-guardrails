@@ -5,6 +5,11 @@ This repository is built under the guardrail standards it defines, in
 [`docs/standards/guardrail-standards.md`](docs/standards/guardrail-standards.md)
 for the gates before you trip one.
 
+**Asked to bootstrap a new repository against these standards?** Read
+[`skills/repository-bootstrap/SKILL.md`](skills/repository-bootstrap/SKILL.md)
+first, not the standards index — it is the procedure, and it names each
+reference it needs at the step that needs it.
+
 ## Operating rules
 
 - **Stream progress and blockers as you work.** State what you are doing, what

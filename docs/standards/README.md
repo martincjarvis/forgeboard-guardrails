@@ -9,6 +9,16 @@ read_when: Looking for a standard, or adding one.
 The standards this toolkit ships. A repository that installs the toolkit gets
 these documents and the skills beside them; the gates enforce what they state.
 
+## Setting up a new repository
+
+Bootstrapping a repository to comply with this corpus is not a reading task —
+it is a procedure. Go straight to
+[`repository-bootstrap`](../../skills/repository-bootstrap/SKILL.md); it states
+the order to declare vocabulary and adopt each standard below, and which
+document to open at each step. Do not read this index end to end first, and do
+not dispatch a sub-agent to digest the corpus as a whole — the skill exists so
+neither is necessary.
+
 ## Index
 
 - [`guardrail-standards.md`](guardrail-standards.md) — the guardrail gate index:
@@ -40,6 +50,9 @@ these documents and the skills beside them; the gates enforce what they state.
 Each standard that an agent applies has a skill beside it, written for the agent
 rather than for a human reader.
 
+- [`repository-bootstrap`](../../skills/repository-bootstrap/SKILL.md) —
+  sequences the skills below into a first-time setup order for a new
+  repository, or one adopting the standards for the first time.
 - [`guardrail-audit`](../../skills/guardrail-audit/SKILL.md) — walks the nine
   gates over a repository, reports each check as present, partial, absent,
   suppressed or unknown, and proposes a tool per gap from its per-stack
