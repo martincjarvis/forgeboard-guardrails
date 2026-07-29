@@ -32,7 +32,10 @@ import {
   licenceExpressionAcceptable,
 } from "../../scripts/check-licence-policy.mjs";
 import { checkSuppressions } from "../../scripts/check-suppressions.mjs";
-import { normalizeSarifPaths } from "../../scripts/lib.mjs";
+import {
+  normalizeSarifPaths,
+  classifyTestCoverageOutcome,
+} from "../../scripts/lib.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -1254,5 +1257,51 @@ test("regression guard: .lintstagedrc.json's cspell invocation uses a flag cspel
     spellCmd,
     /--no-must-find-file\b/,
     "the singular form is not a real cspell flag and is silently ignored, not enforced",
+  );
+});
+
+// --- scripts/lib.mjs:classifyTestCoverageOutcome — fix 11. gate-5-push.md:
+// "A broken coverage command blocks the push without claiming a shortfall."
+// The combined `c8 --check-coverage ... node --test ...` command exits
+// non-zero for three different reasons; these are real captured output
+// shapes from each (node --test's own TAP/spec summary line, c8's own
+// threshold message, and a command that never got that far), not
+// hypothetical fixtures.
+
+test("classifyTestCoverageOutcome: a failing unit test is named as a test failure, not folded into coverage", () => {
+  const output =
+    "✖ a failing test (1.2ms)\nℹ tests 1\nℹ suites 0\nℹ pass 0\nℹ fail 1\n" +
+    "ℹ cancelled 0\nℹ skipped 0\nℹ todo 0\n" +
+    "----------|---------|----------|---------|---------|-------------------\n" +
+    "All files |       0 |        0 |       0 |       0 |                   \n";
+  const outcome = classifyTestCoverageOutcome(output);
+  assert.equal(outcome.kind, "test-failure");
+  assert.match(outcome.detail, /1 unit test\(s\) failed/);
+});
+
+test("classifyTestCoverageOutcome: a genuine coverage shortfall is named as coverage, with the actual percentages", () => {
+  const output =
+    "✔ a passing test (0.6ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\n" +
+    "ℹ cancelled 0\nℹ skipped 0\nℹ todo 0\n" +
+    "ERROR: Coverage for lines (67.33%) does not meet global threshold (99.9%)\n";
+  const outcome = classifyTestCoverageOutcome(output);
+  assert.equal(outcome.kind, "coverage-shortfall");
+  assert.match(outcome.detail, /67\.33%.*99\.9%/s);
+});
+
+test("classifyTestCoverageOutcome: a command that never ran (neither summary present) is its own outcome, not a guessed shortfall", () => {
+  // The real shape of `c8 ... node --test nonexistent.mjs`: neither node:test's
+  // summary nor c8's threshold message ever prints, because node --test itself
+  // errored out before producing either.
+  const output =
+    "Could not find 'hooks/test/nonexistent.mjs'\n" +
+    "----------|---------|----------|---------|---------|-------------------\n" +
+    "All files |       0 |        0 |       0 |       0 |                   \n";
+  const outcome = classifyTestCoverageOutcome(output);
+  assert.equal(outcome.kind, "broken-command");
+  assert.doesNotMatch(
+    outcome.detail,
+    /shortfall|below the .* floor|%/,
+    "must not claim a coverage shortfall when the command never ran to completion",
   );
 });

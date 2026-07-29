@@ -16,9 +16,16 @@ commit, and they judge the whole range being pushed.
 | 1   | Coverage          | Correctness | The repository          | The coverage command exits non-zero               |
 | 2   | Integration tests | Correctness | Changed components only | An integration test for a changed component fails |
 
-The coverage check cannot distinguish a genuine shortfall from a command that
-failed to run — both exit non-zero. Its message must name both possibilities and
-carry the command's own output rather than assert the shortfall.
+The command that owns the coverage floor also runs the unit suite, so a
+non-zero exit has three possible causes, not one: a failing unit test, a
+genuine coverage shortfall, or the command itself failing to run. The gate
+distinguishes them from the command's own output rather than reporting one
+compound finding that cannot name its own cause — the test runner's own
+summary line names a failure count regardless of what coverage did, and the
+coverage tool's own threshold message only prints once the suite passed and
+coverage alone fell short. Where none of that is present but the command
+still exited non-zero, it is reported as exactly that: the command did not
+run to completion, never guessed as a shortfall.
 
 ## Why end-to-end tests are not here
 
@@ -54,7 +61,10 @@ reaching outside the repository's own boundary and is not an integration test.
 
 ## Verification
 
-- [ ] Coverage below the floor blocks the push.
+- [ ] Coverage below the floor blocks the push, reported as a coverage
+      finding, not folded into a compound "test or coverage" verdict.
+- [ ] A failing unit test surfacing here is reported as a test failure, not
+      misattributed to coverage merely because they share one command.
 - [ ] A broken coverage command blocks the push without claiming a shortfall.
 - [ ] A check with no command configured reports a visible skip, never a silent pass.
 - [ ] Only components touched by the pushed range run their tests.

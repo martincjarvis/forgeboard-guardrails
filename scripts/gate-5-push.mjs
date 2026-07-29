@@ -1,13 +1,22 @@
 #!/usr/bin/env node
 // Gate 5 — Push. The expensive tests run once per push, over the whole range
-// being pushed. Coverage is command-delegated: c8 owns the threshold and the
-// gate treats a non-zero exit as the shortfall signal, naming both possibilities
-// (genuine shortfall vs. a command that failed to run). Integration tests are
-// scoped to changed components; this repository has none yet, reported as a
-// visible skip rather than a silent pass.
+// being pushed. Coverage is command-delegated: c8 owns the threshold. The
+// underlying command also runs the unit suite, so a non-zero exit has three
+// possible causes, not two — a failing test, a genuine coverage shortfall, or
+// the command itself failing to run — and classifyTestCoverageOutcome (lib.mjs,
+// fix 11) tells them apart from the command's own output rather than reporting
+// one compound finding that cannot name its own cause (gate-5-push.md: "A
+// broken coverage command blocks the push without claiming a shortfall").
+// Integration tests are scoped to changed components; this repository has
+// none yet, reported as a visible skip rather than a silent pass.
 //
 // Git pipes the pushed ref updates on stdin. Exit 2 refuses the push.
-import { run, resolveBase, report } from "./lib.mjs";
+import {
+  run,
+  resolveBase,
+  classifyTestCoverageOutcome,
+  report,
+} from "./lib.mjs";
 import { createInterface } from "node:readline";
 
 const findings = [];
@@ -37,15 +46,31 @@ if (range) process.stderr.write(`gate 5: pushed range ${range}\n`);
 // gate fails by raising the floor above current coverage once (testing-strategy).
 const coverage = run("npm", ["run", "test:coverage"]);
 if (coverage.status !== 0) {
-  findings.push({
-    check: "coverage",
-    problem:
-      "the coverage command exited non-zero — either coverage is below the " +
-      "configured floor, or the command itself failed to run",
-    remedy:
-      "read the command's own output for which; c8 prints the shortfall when " +
-      "it is coverage, anything else is a runner failure",
-  });
+  const outcome = classifyTestCoverageOutcome(
+    (coverage.stdout || "") + (coverage.stderr || ""),
+  );
+  if (outcome.kind === "test-failure") {
+    findings.push({
+      check: "unit tests",
+      problem: outcome.detail,
+      remedy:
+        "fix the failing test(s); the command's own output names each one",
+    });
+  } else if (outcome.kind === "coverage-shortfall") {
+    findings.push({
+      check: "coverage",
+      problem: outcome.detail,
+      remedy:
+        "add tests for the uncovered lines the command's own report names",
+    });
+  } else {
+    findings.push({
+      check: "coverage",
+      problem: outcome.detail,
+      remedy:
+        "read the command's own output for why it did not run to completion",
+    });
+  }
 }
 
 // Check 2 — integration tests, for changed components only.

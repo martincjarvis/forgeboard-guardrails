@@ -34,6 +34,7 @@ import {
   changedFiles,
   resolveBase,
   deriveComponent,
+  classifyTestCoverageOutcome,
   report,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
@@ -332,14 +333,36 @@ for (const f of checkSuppressions()) findings.push(f);
     "--test-reporter-destination=test-results.xml",
     "hooks/test/hooks.test.mjs",
   ]);
-  process.stderr.write((test.stdout || "") + (test.stderr || ""));
+  const testOut = (test.stdout || "") + (test.stderr || "");
+  process.stderr.write(testOut);
   if (test.status !== 0) {
-    fail(
-      "unit tests / coverage",
-      undefined,
-      "the test run exited non-zero — either a test failed or coverage is below the configured floor",
-      "read the output above for which; c8 prints the shortfall when it is coverage",
-    );
+    // Fix 11: name which of the two this actually was, rather than a
+    // compound "either...or" finding that cannot name its own cause
+    // (gate-5-push.md: "A broken coverage command blocks the push without
+    // claiming a shortfall").
+    const outcome = classifyTestCoverageOutcome(testOut);
+    if (outcome.kind === "test-failure") {
+      fail(
+        "unit tests",
+        undefined,
+        outcome.detail,
+        "fix the failing test(s); the output above names each one",
+      );
+    } else if (outcome.kind === "coverage-shortfall") {
+      fail(
+        "coverage",
+        undefined,
+        outcome.detail,
+        "add tests for the uncovered lines the report above names",
+      );
+    } else {
+      fail(
+        "unit tests / coverage",
+        undefined,
+        outcome.detail,
+        "read the output above for why the command itself could not run",
+      );
+    }
   }
   // Gate 5 check 2 — integration tests. None configured for any component
   // yet (gate-5-push.mjs states the same visible skip locally).

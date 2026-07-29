@@ -296,3 +296,48 @@ export function normalizeSarifPaths(path) {
   }
   writeFileSync(path, JSON.stringify(sarif));
 }
+
+/** Fix 11 (gate-5-push.md: "A broken coverage command blocks the push
+ *  without claiming a shortfall") — splits the test verdict from the
+ *  coverage verdict for a single combined `c8 --check-coverage ... node
+ *  --test ...` invocation, rather than reporting one compound "either a test
+ *  failed or coverage is below the floor" finding that cannot name its own
+ *  cause.
+ *
+ *  Three outcomes, distinguished from the command's own output rather than
+ *  its exit code (all three exit non-zero alike):
+ *  - node:test's own spec-reporter summary line (`ℹ fail N` / `# fail N`,
+ *    the same pattern gate-0-baseline.mjs already reads) names a failure
+ *    count regardless of what coverage did — a test failure is a test
+ *    failure whether or not coverage also happened to fall short.
+ *  - c8's own "ERROR: Coverage for lines (X%) does not meet global
+ *    threshold (Y%)" line only prints once the underlying command itself
+ *    exited 0 and coverage alone fell short of `--lines=<threshold>`.
+ *  - Neither line present, but the command still exited non-zero: the
+ *    command itself did not run to completion (a missing file, a crashed
+ *    process, a tool not installed) — genuinely unknown, and must not be
+ *    reported as though it were a shortfall. */
+export function classifyTestCoverageOutcome(output) {
+  const failMatch = output.match(/# fail (\d+)|ℹ fail (\d+)/);
+  const failCount = failMatch ? Number(failMatch[1] || failMatch[2]) : 0;
+  if (failCount > 0) {
+    return {
+      kind: "test-failure",
+      detail: `${failCount} unit test(s) failed`,
+    };
+  }
+  const shortfall = output.match(
+    /ERROR: Coverage for lines \(([\d.]+)%\) does not meet global threshold \(([\d.]+)%\)/,
+  );
+  if (shortfall) {
+    return {
+      kind: "coverage-shortfall",
+      detail: `coverage is ${shortfall[1]}%, below the ${shortfall[2]}% floor`,
+    };
+  }
+  return {
+    kind: "broken-command",
+    detail:
+      "the command exited non-zero without a test-runner summary or a coverage report — it did not run to completion",
+  };
+}
