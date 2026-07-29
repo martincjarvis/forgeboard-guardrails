@@ -58,7 +58,7 @@ const skip = (s) => skips.push(s);
 // origin/HEAD derivation gate 0 and the local gate 2 hook already use, so a
 // renamed default branch does not need this script edited to match.
 const baseArg = process.argv[2] || process.env.GITHUB_BASE_REF || null;
-let base = baseArg ? `origin/${baseArg}` : resolveBase();
+const base = baseArg ? `origin/${baseArg}` : resolveBase();
 if (base && git(["rev-parse", "--verify", "--quiet", base]).status !== 0) {
   // A shallow or single-branch checkout may not have the base ref yet.
   git([
@@ -304,6 +304,18 @@ for (const f of checkSuppressions()) findings.push(f);
       undefined,
       (build.stdout || "") + (build.stderr || ""),
       "fix the type/analysis error above; a warning is a failure",
+    );
+  }
+  // Check 11 (gate 2) — per-path lint. Whole-repository, not range-scoped,
+  // for the same reason build and test just above are: this gate does not
+  // take the local gates' skip-untouched-component shortcut.
+  const lint = run("npm", ["run", "lint"]);
+  if (lint.status !== 0) {
+    fail(
+      "lint (eslint)",
+      undefined,
+      (lint.stdout || "") + (lint.stderr || ""),
+      "fix the lint violation; a warning is a failure",
     );
   }
   const test = run("npx", [

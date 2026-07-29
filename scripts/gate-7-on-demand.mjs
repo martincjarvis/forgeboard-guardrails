@@ -7,7 +7,6 @@
 // Run with `npm run gate:7`.
 import { spawn } from "node:child_process";
 import {
-  writeFileSync,
   createWriteStream,
   unlinkSync,
   existsSync,

@@ -13,6 +13,7 @@ import {
   writeFileSync,
   readFileSync,
   rmSync,
+  symlinkSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -498,6 +499,119 @@ test("gate 2 checks 12/13 read the staged tree, not a working-tree fix that was 
     readFileSync(join(dir, "scripts", "flag.mjs"), "utf8"),
     "export const flag = 'OK';\n",
     "the unstaged working-tree edit must survive the isolated run",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("gate 2 wires a lint check independently of the build: a lint-only violation tsc accepts is refused", () => {
+  // gate-2-commit.md, check 11: "A lint or type-check failure is refused
+  // independently of the build — the type checker is not the linter."
+  // Fix 10 (audit 6): `npm run lint` used to be invoked by nothing, so this
+  // check was effectively absent. An unused local variable is exactly the
+  // shape tsc's checkJs (strict: false, no noUnusedLocals) does not catch,
+  // so a build that runs against the same file stays green — proving the
+  // finding depends on the lint check firing, not on the build.
+  const dir = scratchRepo();
+  git(dir, ["config", "core.autocrlf", "false"]);
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({
+      name: "scratch",
+      private: true,
+      type: "module",
+      scripts: { build: "node build.mjs" },
+    }) + "\n",
+  );
+  // A build that always passes: isolates the lint finding from the build
+  // check this same block also runs, so a red result can only be the lint
+  // check firing.
+  writeFileSync(join(dir, "build.mjs"), "process.exit(0);\n");
+  writeFileSync(
+    join(dir, ".secretlintrc.json"),
+    JSON.stringify({ rules: [] }) + "\n",
+  );
+  writeFileSync(
+    join(dir, "eslint.config.mjs"),
+    readFileSync(join(ROOT, "eslint.config.mjs"), "utf8"),
+  );
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: scratch lint fixture"]);
+
+  git(dir, ["checkout", "-qb", "feature"]);
+  mkdirSync(join(dir, "scripts"), { recursive: true });
+  writeFileSync(
+    join(dir, "scripts", "unused.mjs"),
+    "const unused = 1;\nexport const used = 2;\n",
+  );
+  git(dir, ["add", "-A"]);
+  // `npx eslint` resolves the toolkit's own devDependency through this
+  // directory junction rather than a scratch node_modules of its own (there
+  // is none) or, worse, an npm-registry install attempt. A junction, not a
+  // symlink: it needs no elevated privileges on Windows. Created after
+  // staging, and never added, so it is never part of the scratch commit.
+  symlinkSync(
+    join(ROOT, "node_modules"),
+    join(dir, "node_modules"),
+    "junction",
+  );
+
+  const r = runScript("scripts/pre-commit.mjs", dir);
+  assert.equal(
+    r.status,
+    2,
+    "a lint-only violation (unused var) that tsc accepts must be refused",
+  );
+  assert.match(r.stderr, /lint \(eslint\)/);
+  assert.match(r.stderr, /no-unused-vars/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("eslint --max-warnings 0 refuses a rule configured at its own default (warn) severity", () => {
+  // cross-gate-rules.md: "No gate emits a warning it does not treat as a
+  // failure" and "a rule configured at a linter's own warn severity still
+  // [fails]." Fix 10's second half: --max-warnings 0 wherever eslint runs.
+  // Every rule in eslint.config.mjs is already "error" (checked directly, not
+  // inferred), so this proves the FLAG closes the gap, independent of
+  // whether any rule happens to be misconfigured today.
+  const dir = mkdtempSync(join(tmpdir(), "lint-"));
+  writeFileSync(
+    join(dir, "warn.mjs"),
+    "export function f() {\n  var x = 1;\n  return x;\n}\n",
+  );
+  symlinkSync(
+    join(ROOT, "node_modules"),
+    join(dir, "node_modules"),
+    "junction",
+  );
+
+  const clean = spawnSync(
+    "npx",
+    ["eslint", "--no-config-lookup", "--rule", "no-var:warn", "warn.mjs"],
+    { cwd: dir, encoding: "utf8", shell: true },
+  );
+  assert.equal(
+    clean.status,
+    0,
+    "a warn-severity rule alone must not fail the run — otherwise this is not testing --max-warnings",
+  );
+
+  const gated = spawnSync(
+    "npx",
+    [
+      "eslint",
+      "--no-config-lookup",
+      "--rule",
+      "no-var:warn",
+      "--max-warnings",
+      "0",
+      "warn.mjs",
+    ],
+    { cwd: dir, encoding: "utf8", shell: true },
+  );
+  assert.notEqual(
+    gated.status,
+    0,
+    "--max-warnings 0 must refuse a rule at its own warn severity",
   );
   rmSync(dir, { recursive: true, force: true });
 });

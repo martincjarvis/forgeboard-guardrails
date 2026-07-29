@@ -8,10 +8,8 @@
 // gate 2's contract.
 //
 // Exit 0 commits. Exit 2 refuses, naming the check, the path and the remedy.
-import { existsSync } from "node:fs";
 import {
   stagedFiles,
-  classOf,
   isText,
   have,
   run,
@@ -195,12 +193,27 @@ const touchedCode = staged.some(
   (f) => f.startsWith("hooks/") || f.startsWith("scripts/"),
 );
 const touchedHooks = staged.some((f) => f.startsWith("hooks/"));
-if (touchedCode || touchedHooks) {
+
+// Check 11 — per-path lint (eslint.config.mjs; gate-2-commit.md: "A lint or
+// type-check failure is refused independently of the build — the type
+// checker is not the linter"). Scoped to the staged files eslint.config.mjs
+// itself covers, not the whole repository, and run in the same isolated tree
+// as the build below since it reads staged content from disk, not the git
+// index.
+const lintFiles = staged.filter(
+  (f) =>
+    (f.startsWith("hooks/") || f.startsWith("scripts/")) && f.endsWith(".mjs"),
+);
+
+if (touchedCode || touchedHooks || lintFiles.length) {
   const outcome = withStagedWorkingTree(() => {
     const result = {};
     if (touchedCode) result.build = run("npm", ["run", "build"]);
     if (touchedHooks) {
       result.tests = run("node", ["--test", "hooks/test/hooks.test.mjs"]);
+    }
+    if (lintFiles.length) {
+      result.lint = run("npx", ["eslint", "--max-warnings", "0", ...lintFiles]);
     }
     return result;
   });
@@ -244,9 +257,25 @@ if (touchedCode || touchedHooks) {
       skips,
     );
   }
+  if (lintFiles.length && outcome.lint.status !== 0) {
+    report(
+      "gate 2",
+      [
+        {
+          check: "lint (eslint)",
+          problem: (outcome.lint.stdout || "") + (outcome.lint.stderr || ""),
+          remedy: "fix the lint violation; a warning is a failure",
+        },
+      ],
+      skips,
+    );
+  }
 }
 if (!touchedHooks) {
   note("unit tests — hooks/ not changed, no component to test");
+}
+if (!lintFiles.length) {
+  note("lint (eslint) — no staged hooks/ or scripts/ file to lint");
 }
 
 report("gate 2", findings, skips);
