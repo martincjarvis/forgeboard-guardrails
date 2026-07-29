@@ -96,6 +96,59 @@ function cellsOf(row) {
     .map((c) => c.trim());
 }
 
+/** Should this file be scanned for suppressions at all? Excludes the
+ *  register itself (it is what this enforces, not a subject of it), a
+ *  non-text file, anything outside the production/test classes inline
+ *  suppressions actually live in, and this module's own source — its
+ *  MARKERS regex literals contain the marker strings as data, so it would
+ *  otherwise flag itself. */
+function shouldScanFile(file) {
+  if (file === REGISTER || !isText(file)) return false;
+  const cls = classOf(file);
+  if (cls !== "production" && cls !== "test") return false;
+  try {
+    if (pathToFileURL(resolve(process.cwd(), file)).href === SELF_URL) {
+      return false;
+    }
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+/** Findings for one line: zero, or one per marker matched (more than one
+ *  marker can legitimately appear on the same line). */
+function findingsForLine(file, lineNumber, lineText, rows) {
+  const findings = [];
+  const path = `${file}:${lineNumber}`;
+  for (const marker of MARKERS) {
+    const m = lineText.match(marker.re);
+    if (!m) continue;
+    const rule = marker.rule(m);
+    if (!rule) {
+      findings.push({
+        check: "suppression register",
+        path,
+        problem: `${marker.name} does not name a single rule`,
+        remedy: "name the one rule, and add a register row for it",
+      });
+      continue;
+    }
+    const hasRow = rows.some(
+      (r) => r.code === rule && pathMatches(r.scope, file),
+    );
+    if (!hasRow) {
+      findings.push({
+        check: "suppression register",
+        path,
+        problem: `${marker.name} of \`${rule}\` has no register row`,
+        remedy: `add a row to ${REGISTER} (Code: ${rule}, Scope: ${file})`,
+      });
+    }
+  }
+  return findings;
+}
+
 /** Check tracked code files for unregistered or broadened suppressions.
  *  Inline suppressions live in code (production and test classes); prose that
  *  documents a marker, and a tool's own configuration, are not suppressions
@@ -103,52 +156,19 @@ function cellsOf(row) {
  *  decision, not an exception to a rule). */
 export function checkSuppressions(files) {
   const rows = parseRegister();
-  const findings = [];
   const scan = files ?? trackedFiles();
+  const findings = [];
   for (const file of scan) {
-    if (file === REGISTER || !isText(file)) continue;
-    const cls = classOf(file);
-    if (cls !== "production" && cls !== "test") continue;
-    try {
-      if (pathToFileURL(resolve(process.cwd(), file)).href === SELF_URL)
-        continue;
-    } catch {
-      /* ignore */
-    }
+    if (!shouldScanFile(file)) continue;
     let md;
     try {
       md = readStaged(file);
     } catch {
       continue;
     }
-    const lines = md.split("\n");
-    for (let i = 0; i < lines.length; i++) {
-      for (const marker of MARKERS) {
-        const m = lines[i].match(marker.re);
-        if (!m) continue;
-        const rule = marker.rule(m);
-        if (!rule) {
-          findings.push({
-            check: "suppression register",
-            path: `${file}:${i + 1}`,
-            problem: `${marker.name} does not name a single rule`,
-            remedy: "name the one rule, and add a register row for it",
-          });
-          continue;
-        }
-        const hasRow = rows.some(
-          (r) => r.code === rule && pathMatches(r.scope, file),
-        );
-        if (!hasRow) {
-          findings.push({
-            check: "suppression register",
-            path: `${file}:${i + 1}`,
-            problem: `${marker.name} of \`${rule}\` has no register row`,
-            remedy: `add a row to ${REGISTER} (Code: ${rule}, Scope: ${file})`,
-          });
-        }
-      }
-    }
+    md.split("\n").forEach((lineText, i) => {
+      findings.push(...findingsForLine(file, i + 1, lineText, rows));
+    });
   }
   return findings;
 }

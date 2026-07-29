@@ -28,6 +28,7 @@ import {
   licenceAcceptable,
   checkLicencePolicy,
 } from "../../scripts/check-licence-policy.mjs";
+import { checkSuppressions } from "../../scripts/check-suppressions.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -722,4 +723,110 @@ test("link check: a bare directory link resolves via its README, and a query str
     "GitHub's directory-to-README resolution and query stripping both pass",
   );
   rmSync(dir, { recursive: true, force: true });
+});
+
+// --- scripts/check-suppressions.mjs — checkSuppressions's branches (gate 2
+// check 15, docs/standards/guardrails/registers.md). No test covered this
+// module at all before refactoring checkSuppressions below CCN 15, so these
+// are added first.
+
+const REGISTER_HEADER =
+  "| Code | Scope | Justification | Removable when | Approved by |\n" +
+  "| ---- | ----- | ------------- | -------------- | ----------- |\n";
+
+// Every marker name below is built by concatenation, not written as a
+// literal: this test file is itself classed `test` and scanned by the very
+// check under test, so a literal marker substring here would flag this
+// file's own source rather than only the scratch fixtures each test writes.
+const ESLINT_DISABLE = "eslint" + "-disable";
+const NOSEMGREP = "no" + "semgrep";
+const SECRETLINT_DISABLE = "secretlint" + "-disable";
+
+test("suppression check: a registered marker passes; an unregistered one is refused", () => {
+  const dir = scratchRepo();
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "suppression-register.md"),
+    REGISTER_HEADER +
+      "| no-console | ok.mjs | needed for the CLI banner | never | Someone |\n",
+  );
+  writeFileSync(
+    join(dir, "ok.mjs"),
+    `// ${ESLINT_DISABLE}-next-line no-console\nconsole.log('hi');\n`,
+  );
+  writeFileSync(
+    join(dir, "bad.mjs"),
+    `// ${ESLINT_DISABLE}-next-line no-console\nconsole.log('hi');\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, [
+    "ok.mjs",
+    "bad.mjs",
+  ]);
+  assert.equal(r.status, 2, "bad.mjs's suppression has no register row");
+  assert.match(r.stderr, /bad\.mjs:1/);
+  assert.match(r.stderr, /has no register row/);
+  assert.doesNotMatch(r.stderr, /ok\.mjs/, "ok.mjs's row covers it");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("suppression check: a marker naming more than one rule is refused as broadened", () => {
+  const dir = scratchRepo();
+  writeFileSync(
+    join(dir, "broad.mjs"),
+    `// ${ESLINT_DISABLE}-next-line rule-a, rule-b\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["broad.mjs"]);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /does not name a single rule/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("suppression check: a non-production, non-test file is not scanned", () => {
+  const dir = scratchRepo();
+  writeFileSync(
+    join(dir, ".gitattributes"),
+    "*.md guardrail-class=documentation\n",
+  );
+  writeFileSync(
+    join(dir, "notes.md"),
+    `Mentions ${ESLINT_DISABLE} no-console in prose, not code.\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["notes.md"]);
+  assert.equal(r.status, 0, "documentation is not a scanned class");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("suppression check: the register file itself is never scanned as a suppression", () => {
+  const dir = scratchRepo();
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "suppression-register.md"),
+    REGISTER_HEADER +
+      `What belongs here: ${ESLINT_DISABLE}, ${NOSEMGREP}, ${SECRETLINT_DISABLE}.\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, [
+    "docs/registers/suppression-register.md",
+  ]);
+  assert.equal(
+    r.status,
+    0,
+    "the register naming marker syntax in its own prose is not itself a suppression",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("suppression check excludes its own source from the scan", () => {
+  // Run against the real repository (this test process's own cwd), because
+  // self-exclusion compares against THIS module's own real path — a scratch
+  // copy would not be the file the check is guarding against. Without the
+  // guard, check-suppressions.mjs would flag itself: MARKERS' own regex
+  // literals contain each marker's name as literal source text (the same
+  // reason the constants above are built by concatenation, not written
+  // directly).
+  const findings = checkSuppressions(["scripts/check-suppressions.mjs"]);
+  assert.deepEqual(findings, []);
 });
