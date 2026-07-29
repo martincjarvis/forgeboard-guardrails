@@ -74,7 +74,21 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
 8. **Docs style**, once the repository starts writing its own `/docs`. Load
    `docs/standards/docs-style.md` and `skills/docs-review/SKILL.md` when the
    first document is drafted — not before, and not as a reason to write
-   documents nobody asked for.
+   documents nobody asked for. This is also where the standards themselves
+   move into the repository: **instantiate each standard steps 2–7 actually
+   used into the repository's own `docs/standards/`, customised to what
+   applies** (`docs/standards/docs-style.md#standards-in-a-consuming-repository`) —
+   never a link back to this corpus's canonical home, which fails offline and
+   drifts the moment `main` moves here. Name the upstream commit each
+   instantiated standard was copied from, so drift becomes a diff someone can
+   run rather than a worry nobody can act on. Skip what does not apply (no
+   deployment strategy for a repository with nothing to release) and record
+   the omission, the same as any other skipped step. Then write the
+   enforcement map: one row per standard the repository carries, naming the
+   configuration file or gate that actually enforces it — the part no
+   upstream text can supply, because it names files only this repository has.
+   This repository's own [`docs/standards-enforcement.md`](../../docs/standards-enforcement.md)
+   is the worked example.
 
 ## What done looks like
 
@@ -86,6 +100,11 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
   is recorded as skipped and why, not silently absent.
 - The root instruction file is the only place operating rules live; every
   other harness file it applies to is a pointer, not a copy.
+- The repository's `docs/standards/` holds the standards it is actually held
+  to, each naming the upstream commit it came from — not a link to this
+  corpus's canonical home — and an enforcement map names what actually
+  enforces each one. A pointer here is a finding, the same as a pointer-only
+  directory instruction file is one.
 
 ## Rules
 

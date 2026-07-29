@@ -4,7 +4,7 @@ summary: How documents in /docs are structured — frontmatter, section order, a
 read_when: Writing or revising anything under /docs.
 ---
 
-<!-- cspell:ignore Diataxis -->
+<!-- cspell:ignore Diataxis diffable -->
 
 # Documentation style standard
 
@@ -105,6 +105,53 @@ parenthetical or an italic line next to the guidance it relates to. Never let th
 skill be the organising spine: a document structured around which skill runs when
 is agent-facing, and stops serving the human reading it.
 
+## Standards in a consuming repository
+
+A repository built with this toolkit **instantiates the standards it is
+actually held to, rather than pointing at this corpus's canonical home.** A
+line reading `Standards: <link to forgeboard-guardrails/blob/main/...>` is a
+finding, not compliance, however tidy it looks — it fails offline, it costs an
+agent a network round trip and a large context load before it can start, and
+`/blob/main/` is a moving target: the rules can change under a repository that
+never touched a file. Not copying the corpus is the right instinct — a
+duplicate that drifts silently is worse than a link — but a reference and a
+copy are not the only two options.
+
+Three positions, and only the third resolves the drift objection instead of
+ignoring it:
+
+| Position                                  | Offline? | Version-stable?          | Drift is...                                            |
+| ----------------------------------------- | -------- | ------------------------ | ------------------------------------------------------ |
+| Reference the canonical home              | No       | No — `/blob/main/` moves | Invisible                                              |
+| Blind copy, no provenance                 | Yes      | Frozen at copy time      | Silent — a stale copy reads exactly like a current one |
+| **Instantiate, with recorded provenance** | **Yes**  | **Named, and diffable**  | **Detectable — a diff against the named commit**       |
+
+**Instantiate: copy the standard into the repository's own `docs/standards/`,
+customised to what applies.** A repository with one component and no deployed
+environment does not carry the multi-component prerelease rules or gate 8's
+health-check procedure — it carries what it is actually held to, and records
+what it left out and why, the same "state what was actually checked" discipline
+this corpus asks of everything else.
+
+**Record provenance.** Each instantiated standard names the upstream commit it
+was copied from — a footer line in its own `## References` section is enough.
+Provenance is what turns "might this be stale" into a diff someone can
+actually run against the named commit, rather than a worry nobody can act on.
+
+**Add the enforcement map — the part no upstream text can supply**, because it
+names the consuming repository's own files: which configuration file or gate
+actually enforces each standard, not merely which document describes it. A
+reader cannot tell that `.editorconfig` is what controls basic formatting, or
+that `.gitattributes` decides file classes, from the standard's prose alone —
+that mapping lives only in the repository holding the files. The enforcement
+column is the valuable half of the map: delete `.editorconfig` and its row
+becomes a lie a reader can see immediately, where a prose restatement of the
+same formatting rule would drift silently and never be caught — the same
+argument against copying the standards verbatim, applied one level down to
+what enforces them. This repository carries its own instance:
+[Standards enforcement](../standards-enforcement.md), since it is built under
+the standards it defines and asks nothing of a consumer it does not do itself.
+
 ## What this does not govern
 
 - **ADRs** — recording how a decision was made is the genre, not a fault. Their
@@ -119,6 +166,12 @@ at the [commit gate](guardrails/gate-2-commit.md) — alongside the prose lint,
 the spell check and the link and anchor integrity check: the three frontmatter
 fields being present and non-empty, and the preferred-terms table. The second is a word-list check of the same shape as the cspell gate that
 already runs, so it needs no new tooling.
+
+Instantiation and the enforcement map are judgement, verified at adoption and
+at [gate 7](guardrails/gate-7-on-demand.md) rather than per commit — no gate
+can tell whether a repository customised what it copied instead of taking
+everything, but a missing provenance footer or an enforcement row naming a file
+that does not exist are both things a reader catches on sight.
 
 Everything else is judgement. No gate can tell whether prose is concise or whether
 provenance was front-loaded, and pretending otherwise would put a number on it that
@@ -140,6 +193,13 @@ people would then write to.
       swapped in for readability.
 - [ ] A skill mentioned in the document sits as an aside next to the guidance
       it automates, never as the structure the document is organised around.
+- [ ] The repository's `AGENTS.md` (or equivalent) instantiates the standards
+      it holds itself to under its own `docs/standards/`, rather than only
+      linking to this corpus's canonical home.
+- [ ] Each instantiated standard names the upstream commit it was copied from.
+- [ ] An enforcement map exists, naming the configuration file or gate that
+      enforces each standard the repository carries — and every file it names
+      actually exists.
 
 ## References
 

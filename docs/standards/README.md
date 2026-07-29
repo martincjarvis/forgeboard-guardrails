@@ -74,3 +74,7 @@ rather than for a human reader.
 
 - [Suppression register](../registers/suppression-register.md) — this repository's own
   instance of the register the standards describe.
+- [Standards enforcement](../standards-enforcement.md) — this repository's own
+  enforcement map, the artefact
+  [`docs-style.md`](docs-style.md#standards-in-a-consuming-repository) asks
+  every repository built with this toolkit to carry.
