@@ -7,7 +7,13 @@
 // is a function of git state and cannot be exercised without one.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -311,6 +317,80 @@ test("machine-id check flags a real single-backslash Windows home path", () => {
   const r = runScript("scripts/check-machine-id.mjs", dir, ["notes.txt"]);
   assert.equal(r.status, 2, "a real Windows home path must be flagged");
   assert.match(r.stderr, /Windows home path/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("gate 2 checks 12/13 read the staged tree, not a working-tree fix that was never re-staged", () => {
+  // gate-2-commit.md, checks 12/13: a compiler or test runner reads the real
+  // working tree, so it must be isolated to match the index first. Proven
+  // failing without the fix: stage a broken file, overwrite the working copy
+  // back to something valid WITHOUT re-staging — the build then reads the
+  // fixed-up working copy and the commit is wrongly allowed.
+  const dir = scratchRepo();
+  // Pin line-ending handling for this test: a global core.autocrlf=true (the
+  // common Windows default) makes git rewrite LF to CRLF on any checkout-like
+  // write, including a stash pop — turning the isolation's restore step into
+  // a spurious merge conflict that has nothing to do with the behaviour under
+  // test. The real repository pins the same thing via `.gitattributes`
+  // (`text=auto eol=lf`); this scratch repo has none, so it is set directly.
+  git(dir, ["config", "core.autocrlf", "false"]);
+  // A package.json + build script committed on main, before the branch under
+  // test — so this commit never touches package.json itself, and dependency
+  // lock sync (check 3) has nothing to say about it.
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({
+      name: "scratch",
+      private: true,
+      scripts: { build: "node build.mjs" },
+    }) + "\n",
+  );
+  writeFileSync(
+    join(dir, "build.mjs"),
+    'import { readFileSync } from "node:fs";\n' +
+      'const c = readFileSync("scripts/flag.mjs", "utf8");\n' +
+      'process.exit(c.includes("BROKEN") ? 1 : 0);\n',
+  );
+  // An empty rule set, so check 6 (secret scan) — which this test does not
+  // exercise — resolves cleanly rather than reaching for secretlint's default
+  // preset, which is not resolvable from a scratch directory with no
+  // node_modules of its own.
+  writeFileSync(
+    join(dir, ".secretlintrc.json"),
+    JSON.stringify({ rules: [] }) + "\n",
+  );
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: scratch build script"]);
+
+  git(dir, ["checkout", "-qb", "feature"]);
+  mkdirSync(join(dir, "scripts"), { recursive: true });
+  writeFileSync(
+    join(dir, "scripts", "flag.mjs"),
+    "export const flag = 'BROKEN';\n",
+  );
+  git(dir, ["add", "-A"]);
+  // Overwrite the working copy back to valid content WITHOUT re-staging: the
+  // index still holds BROKEN, which is what is actually about to be committed.
+  writeFileSync(
+    join(dir, "scripts", "flag.mjs"),
+    "export const flag = 'OK';\n",
+  );
+
+  const r = runScript("scripts/pre-commit.mjs", dir);
+  assert.equal(
+    r.status,
+    2,
+    "the build must run against the staged BROKEN content, not the unstaged fix",
+  );
+  assert.match(r.stderr, /build \(tsc\)|staged-content isolation/);
+
+  // Survivability: the working-tree fix the developer made (but never staged)
+  // must still be there afterward — isolation restores, it does not discard.
+  assert.equal(
+    readFileSync(join(dir, "scripts", "flag.mjs"), "utf8"),
+    "export const flag = 'OK';\n",
+    "the unstaged working-tree edit must survive the isolated run",
+  );
   rmSync(dir, { recursive: true, force: true });
 });
 

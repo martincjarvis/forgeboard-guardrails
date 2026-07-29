@@ -17,6 +17,7 @@ import {
   run,
   git,
   report,
+  withStagedWorkingTree,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
@@ -182,41 +183,69 @@ note("cross-language analysis (semgrep) — runs at gate 7, not per-commit");
 // Checks 12 and 13 — build and unit tests, only for the changed component. The
 // production code is hooks/ and scripts/; if either moved, build (tsc) runs, and
 // if hooks/ moved the unit tests run too.
+//
+// Both invoke a compiler or a test runner, which need the real working tree —
+// not a per-file read like checks 9/15/16/17 above. The working tree can
+// already differ from the index by the time this runs (a file edited after
+// `git add`), so both run under withStagedWorkingTree's hide-and-restore
+// isolation (gate-2-commit.md): stash whatever is unstaged, run against a
+// tree that matches the index, then restore — recoverable with `git stash
+// pop` if the process is killed mid-run.
 const touchedCode = staged.some(
   (f) => f.startsWith("hooks/") || f.startsWith("scripts/"),
 );
-if (touchedCode) {
-  const build = run("npm", ["run", "build"]);
-  if (build.status !== 0) {
+const touchedHooks = staged.some((f) => f.startsWith("hooks/"));
+if (touchedCode || touchedHooks) {
+  const outcome = withStagedWorkingTree(() => {
+    const result = {};
+    if (touchedCode) result.build = run("npm", ["run", "build"]);
+    if (touchedHooks) {
+      result.tests = run("node", ["--test", "hooks/test/hooks.test.mjs"]);
+    }
+    return result;
+  });
+  if (outcome.isolationFailed) {
+    report(
+      "gate 2",
+      [
+        {
+          check: "staged-content isolation",
+          problem: outcome.problem,
+          remedy:
+            "run `git stash list`; if a `gate-2: isolate staged tree` entry remains, `git stash pop` to restore your working tree, then retry the commit",
+        },
+      ],
+      skips,
+    );
+  }
+  if (touchedCode && outcome.build.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "build (tsc)",
-          problem: (build.stdout || "") + (build.stderr || ""),
+          problem: (outcome.build.stdout || "") + (outcome.build.stderr || ""),
           remedy: "fix the type/analysis error above; a warning is a failure",
         },
       ],
       skips,
     );
   }
-}
-if (staged.some((f) => f.startsWith("hooks/"))) {
-  const tests = run("node", ["--test", "hooks/test/hooks.test.mjs"]);
-  if (tests.status !== 0) {
+  if (touchedHooks && outcome.tests.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "unit tests",
-          problem: (tests.stdout || "") + (tests.stderr || ""),
+          problem: (outcome.tests.stdout || "") + (outcome.tests.stderr || ""),
           remedy: "fix the failing test; hooks/ moved on this commit",
         },
       ],
       skips,
     );
   }
-} else {
+}
+if (!touchedHooks) {
   note("unit tests — hooks/ not changed, no component to test");
 }
 

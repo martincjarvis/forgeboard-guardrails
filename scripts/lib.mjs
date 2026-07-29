@@ -1,7 +1,7 @@
 // Shared helpers for the gate scripts. The process helpers come from the same
 // cross-platform module the agent hooks use, so Windows resolving `npx` to
 // `npx.cmd` is handled in one place and these scripts stay shell-free.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { git, run, have, cleanGitEnv } from "../hooks/lib/run.mjs";
 
 export { git, run, have, cleanGitEnv };
@@ -115,6 +115,122 @@ export function splitLines(s) {
 export function readStaged(file) {
   const r = git(["show", `:${file}`]);
   return r.status === 0 ? r.stdout : readFileSync(file, "utf8");
+}
+
+/** Runs fn() with the working tree matching the staged index — the
+ *  hide-and-restore isolation family (gate-2-commit.md, "Two ways to
+ *  isolate"), for checks 12/13 (build, unit tests) which need the real
+ *  working tree rather than a detached copy.
+ *
+ *  Deliberately not `git stash push` + `pop`: `pop` re-applies a *patch*, and
+ *  a file that was newly staged (never committed) and then edited unstaged
+ *  is an add/add conflict `pop` cannot resolve on its own — reproducible with
+ *  a brand-new staged file, edited-but-not-restaged, which is exactly the
+ *  scenario this function exists to isolate. Instead: `git stash create`
+ *  snapshots the current tracked changes into a durable git object without
+ *  touching the working tree at all, `git stash store` makes that object a
+ *  normal, listed stash entry (so a hard kill before this function reaches
+ *  its restore step still leaves a `git stash list` entry the developer can
+ *  recover by hand — the required survivability), `checkout-index`
+ *  materialises the staged blobs over exactly the files that differ, and
+ *  restore is a direct blob read from the snapshot back onto disk — never a
+ *  patch, so nothing can conflict.
+ *
+ *  Text files only: restoration reads each blob as UTF-8, the same encoding
+ *  every other staged-content read in this module uses (readStaged).
+ *
+ *  Returns fn()'s return value, or `{ isolationFailed: true, problem }` when
+ *  the isolation itself could not be created or verified — per check 2, an
+ *  unverifiable result blocks and says so rather than guessing. */
+export function withStagedWorkingTree(fn) {
+  const unstaged = git(["diff", "--name-only"]);
+  if (unstaged.status !== 0) {
+    return {
+      isolationFailed: true,
+      problem: "cannot read the unstaged diff to isolate the staged tree",
+    };
+  }
+  const files = splitLines(unstaged.stdout);
+  if (files.length === 0) return fn(); // already matches the index
+
+  const label = "gate-2: isolate staged tree for build/test";
+  const created = git(["stash", "create", label]);
+  const snapshot = created.status === 0 ? created.stdout.trim() : "";
+  if (!snapshot) {
+    return {
+      isolationFailed: true,
+      problem:
+        (created.stdout || "") +
+        (created.stderr || "") +
+        (snapshot
+          ? ""
+          : "`git stash create` produced no snapshot to restore from"),
+    };
+  }
+  const stored = git(["stash", "store", "-m", label, snapshot]);
+  if (stored.status !== 0) {
+    return {
+      isolationFailed: true,
+      problem: (stored.stdout || "") + (stored.stderr || ""),
+    };
+  }
+
+  let restored = false;
+  const restore = () => {
+    if (restored) return;
+    restored = true;
+    for (const f of files) {
+      const blob = git(["show", `${snapshot}:${f}`]);
+      if (blob.status === 0) {
+        writeFileSync(f, blob.stdout);
+      } else {
+        // Not present in the working tree at snapshot time (an unstaged
+        // deletion of a staged add) — remove it again.
+        try {
+          unlinkSync(f);
+        } catch {
+          /* already gone */
+        }
+      }
+    }
+    const list = git(["stash", "list"]);
+    const first = list.status === 0 ? (list.stdout.split("\n")[0] ?? "") : "";
+    if (first.includes(label)) git(["stash", "drop", "stash@{0}"]);
+  };
+  const onSignal = () => {
+    restore();
+    process.exit(130);
+  };
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
+
+  try {
+    const checkout = git([
+      "checkout-index",
+      "--index",
+      "--force",
+      "--",
+      ...files,
+    ]);
+    if (checkout.status !== 0) {
+      return {
+        isolationFailed: true,
+        problem: (checkout.stdout || "") + (checkout.stderr || ""),
+      };
+    }
+    const verify = git(["diff", "--name-only"]);
+    if (verify.status !== 0 || verify.stdout.trim() !== "") {
+      return {
+        isolationFailed: true,
+        problem: "working tree still differs from the index after isolating it",
+      };
+    }
+    return fn();
+  } finally {
+    restore();
+    process.removeListener("SIGINT", onSignal);
+    process.removeListener("SIGTERM", onSignal);
+  }
 }
 
 /** Locate the default branch's remote tip, as a rev to diff against. */
