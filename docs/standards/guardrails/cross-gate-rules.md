@@ -133,7 +133,14 @@ Two qualifications, both real:
 
 Every build and lint check in every gate holds a zero-warning, zero-error line.
 A threshold above zero is a number people write to, and a warning nobody is
-required to clear is a finding the repository has silently accepted.
+required to clear is a finding the repository has silently accepted. This is a
+different word from the warn verdict band the [threshold table](thresholds.md)
+defines — see
+[guardrail standards: warn means two different things](../guardrail-standards.md#warn-means-two-different-things)
+— and it is not satisfied by leaving a rule at the tool's own `warn` severity: a
+linter or compiler run without an option that turns its own warnings into
+failures (`--max-warnings 0` for eslint, `-warnaserror` for the .NET compiler)
+prints the finding and still passes, which this rule forbids.
 
 ## Local gates are a fast copy; the server gate is the authority
 
@@ -210,6 +217,9 @@ choice is reported, not guessed.
 
 - [ ] Every blocking local check has a named required status check server-side.
 - [ ] No gate emits a warning it does not treat as a failure.
+- [ ] A rule configured at a linter's or compiler's own `warn` severity still
+      fails the run — the tool is invoked with `--max-warnings 0` or the
+      stack's equivalent, not left to print and pass.
 - [ ] Every refusal names the check, the path and the remedy.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
 - [ ] Every check the platform already provides is enabled rather than rebuilt.

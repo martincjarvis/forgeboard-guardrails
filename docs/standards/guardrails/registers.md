@@ -87,6 +87,22 @@ retries, quarantined tests still run, expiry blocks — are in
 | Expires              | Required for a commercial or purchased licence; the date the acceptance stops being valid                                                                     |
 | Approver             | Required when the licence is outside the allow list                                                                                                           |
 
+**Completeness and policy are two different checks, not one job under two
+names.** [Gate 2 check 16](gate-2-commit.md#23-repository-rules) asks whether
+every dependency the lock file resolves — direct and transitive alike, because
+a transitive dependency is exactly the one a manifest diff will not show — has
+a current row in this register. [Gate 6 check 7](gate-6-pull-request.md#61-revalidation)
+asks whether the licence on every one of those rows is on the allow list for
+its scope. Both read the full transitive set: narrowing completeness to direct
+dependencies to keep the commit-time check cheap does not make it a smaller
+version of the same check, it removes the transitive rows the policy check
+depends on — check 16 never asked for them, and check 7 then has nothing to
+compare against the allow list for anything reached through depth. The two
+checks need different tooling for the same reason: completeness is a diff
+against the register, cheap enough to run on every commit that touches a lock
+file; policy is a classification against the allow list, which is what gate 6
+exists to do server-side rather than on every commit.
+
 **Three artefacts, three jobs, and they are easy to confuse.** The allow list is
 policy: which licences are acceptable. The register is the record: what is
 actually here, under which licence, and why. The published inventory is
@@ -126,6 +142,9 @@ host's own dependency graph where it offers one.
       they differ, the register is the one that is wrong.
 - [ ] A dependency whose licence cannot be determined appears as blocked, not as
       an empty licence cell.
+- [ ] The register has a row for a transitive dependency, not only for the ones
+      named in the manifest — completeness (gate 2) and policy (gate 6) both
+      read the full resolved set, not the direct one.
 - [ ] Every commercial acceptance names its obligations and carries an expiry,
       and no expiry has passed.
 

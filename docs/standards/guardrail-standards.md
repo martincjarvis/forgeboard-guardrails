@@ -63,6 +63,22 @@ conflates them will reach for the wrong one:
 | **Tier** 0, 1, 2  | [Logging and diagnostics](logging-diagnostics.md)  | How hard a logging rule is enforced                        |
 | **Level** 1, 2, 3 | [Cross-gate rules](guardrails/cross-gate-rules.md) | Where a check's implementation comes from                  |
 
+## Warn means two different things
+
+**Warn** names a designed verdict band in one place and a tool's own severity
+setting in another, and they are not the same thing:
+
+| Sense         | Belongs to                                                                                      | Means                                                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Verdict band  | The [verdicts](#verdicts) table above, and [thresholds](guardrails/thresholds.md)               | Printed; nobody has to respond — a designed stopping point, not a failure                                                  |
+| Tool severity | A linter's or compiler's own severity setting (eslint's `warn`, a compiler's non-fatal warning) | Not a verdict at all — [a warning is a failure](guardrails/cross-gate-rules.md#a-warning-is-a-failure) still applies to it |
+
+Configuring a rule at a tool's own `warn` severity does not place it in the
+verdict band above; it only changes what the tool prints. The rule still has to
+fail the run — `--max-warnings 0` for eslint, `-warnaserror` for the .NET
+compiler, the stack's own equivalent otherwise — or it is warn-only forever,
+however severely it fires.
+
 ## Check types
 
 Every check carries one type. The type states what the check defends, and

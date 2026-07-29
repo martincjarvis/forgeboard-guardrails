@@ -38,6 +38,24 @@ Check 2 catches the change that is correct on its own branch and broken against
 the base it will land on. Validating the branch tip alone lets a semantically
 conflicting merge through with every check green.
 
+**Check 3 adapts each local check to the pull request's range; it does not
+re-run the same command.** Every worked example in
+[gate 2](gate-2-commit.md#running-it-by-hand) reads the staged index —
+`git diff --cached`, `git show :<path>` — and a CI checkout of a branch has no
+index: nothing is staged, the checkout already **is** the branch. The same
+check runs instead against `origin/<base>...HEAD`: a check written as
+`git diff --cached --name-only` becomes
+`git diff origin/<base>...HEAD --name-only`, and a check reading
+`git show :<path>` for the staged blob instead reads `<path>` directly from the
+checkout, which already holds what the branch would commit.
+[Gate 3](gate-3-commit-message.md)'s checks are scoped to a commit message
+rather than to a file, and adapt the same way over the range instead of a
+single message: commit-message structure and scope agreement run once per
+commit in `git log origin/<base>..HEAD`, not once against the branch tip. A
+check with a working local command and no server-side equivalent is not
+rebuilt from nothing here — it is the same command, pointed at the range
+instead of the index.
+
 Check 4 is where [the changed-component rule](components.md#the-changed-component-rule)
 is repaid. The local gates skip untouched components for speed; this gate does
 not, so the optimisation never becomes an unverified claim.
@@ -88,7 +106,9 @@ record the scope in the register — a dependency that moves from development to
 runtime is a change of obligation, not merely a change of position.
 
 Check 7 is the blocking counterpart to evidence row 13 below. The inventory is
-published either way; the check is what refuses the merge.
+published either way; the check is what refuses the merge. It also reads a
+different scope than gate 2's completeness check over the same register — see
+[registers: completeness and policy are different checks](registers.md#the-dependency-licence-register).
 
 ### Four licence categories, not two
 
@@ -258,6 +278,11 @@ pipeline refuses the merge.
 - [ ] Every check in gates 2–5 is **re-executed** here — not merely listed. Break
       one deliberately and confirm this gate catches it, with the local hooks
       removed entirely.
+- [ ] A staged-scope check — dependency lock sync, file size, the suppression
+      register, licence register completeness, or gate 3's commit-message and
+      scope checks — runs here against `origin/<base>...HEAD` or the commit
+      range, not silently absent because its local command assumed an index a
+      checkout does not have.
 - [ ] Every one of those checks is also **named in the required list**, which is
       the separate act; a check that runs here but is not required passes
       silently when it fails.

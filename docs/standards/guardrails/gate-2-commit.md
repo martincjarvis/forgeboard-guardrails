@@ -18,6 +18,15 @@ Checks run in the fixed order below and stop at the first failure.
 | 2   | Staged-content isolation | Integrity | After isolation, the files on disk still differ from the index, or the comparison itself cannot run                      |
 | 3   | Dependency lock sync     | Integrity | A manifest is staged without its lock file, or a lock file is staged with neither a manifest change nor a stated upgrade |
 
+**The protected branch name is derived, not declared.** It resolves from
+`origin/HEAD` — the remote-tracking ref that already names the remote's default
+branch, and the same source of truth [gate 0](gate-0-baseline.md) reads to
+decide what to rebase onto. A name held in a repository-specific configuration
+file instead is one more place for it to drift from what the remote already
+says, and it drifts silently the day the default branch is renamed. Check 1
+refuses when the branch `HEAD` currently names is the one `origin/HEAD`
+resolves to.
+
 **Check 1 runs locally regardless of whether the server-side equivalent can
 currently be configured.** [Gate 6](gate-6-pull-request.md) names branch
 protection as the authority; that authority being unreachable — a private
@@ -36,6 +45,30 @@ Check 2 is the load-bearing one: every later check reads files from disk, so
 content on disk that is not the content being committed means the gate judged
 the wrong thing. An unverifiable result must block and must say it is unknown —
 never claim a breach the check did not establish.
+
+**Isolation is a property of the whole gate, not of the file-scoped checks it
+is usually explained through.** Checks 4–10 in 2.2 are the ones that need a
+mechanism to hide the unstaged remainder while they run, so the isolation
+mechanism tends to get described in terms of them. The property it guarantees
+is broader than that: every check in this gate that reads a file must read
+the content actually being committed, and that includes the repository-level
+checks in 2.3 that run last — machine-identifying content (9), the
+suppression register (15), the licence register (16) and link integrity (17)
+are file-content checks the same as the formatter and the linter are, and the
+isolation guarantee has to survive as far as they run, not only as far as 2.2.
+
+**The concrete trap is a mechanism scoped to only the file tier.** A
+hide-and-restore implementation that stashes the unstaged remainder, runs
+checks 4–10, and restores the working tree once that tier is done leaves
+every check after the restore reading the working tree again — whatever the
+author has since edited into it, not the blob that was staged. Stage a
+violation, edit the working copy to remove it without re-staging: the commit
+still contains the violation, but a check that runs after the restore reads
+the edited file and finds nothing. **Read staged content directly, at
+whichever point in the gate a check runs, rather than trusting a restore that
+already happened**: `git show :<path>` reads the staged blob for a given
+check, the same index-relative form `git cat-file -s :<path>` already uses for
+file size (check 10).
 
 ### Two ways to isolate, both git's
 
@@ -113,6 +146,11 @@ was chosen.
 
 ## 2.3 Repository rules
 
+These still read staged content, the same guarantee established for check 2
+above — a check here that reads the working tree instead has quietly fallen
+outside the gate's isolation, even though it runs nowhere near the mechanism
+that provides it.
+
 | #   | Check                       | Type          | Fails when                                                                                                  |
 | --- | --------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------- |
 | 11  | Per-path lint rules         | Correctness   | A path-scoped linter or type checker reports any problem, its own analysers included                        |
@@ -154,7 +192,9 @@ lock file is in the change, and reports a visible skip otherwise. It checks
 row is current. Whether the licence is acceptable is check 7 of the
 [pull request pipeline](gate-6-pull-request.md), against the allow list.
 Splitting them this way is what lets the cheap half run on every dependency
-change without resolving the whole set on every commit.
+change without resolving the whole set on every commit. The two checks are
+not one job under two names — see
+[registers: completeness and policy are different checks](registers.md#the-dependency-licence-register).
 
 Check 17 reads the **whole** documentation corpus, not the staged subset: when a
 file moves, the broken links live in files nobody staged. Repairs are confined
@@ -214,7 +254,7 @@ command below takes that list.
 
 | #   | Check                       | Command                                                                                                                                                                                                              |
 | --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Protected branch            | `git rev-parse --abbrev-ref HEAD`                                                                                                                                                                                    |
+| 1   | Protected branch            | `git rev-parse --abbrev-ref origin/HEAD` resolves the protected branch (strip the `origin/` prefix); refuse when `git rev-parse --abbrev-ref HEAD` names the same branch                                             |
 | 2   | Staged-content isolation    | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index                                                              |
 | 3   | Dependency lock sync        | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                                                                                  |
 | 4   | Universal format            | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                                                                                 |
@@ -241,6 +281,9 @@ formatter for C#, the compiler's own analysers over an external pass.
 ## Verification
 
 - [ ] A commit on a protected branch is refused.
+- [ ] The protected branch name is read from `origin/HEAD`, not from a
+      repository-specific configuration value — renaming the default branch on
+      the remote changes what check 1 refuses without editing this repository.
 - [ ] The protected-branch check still runs, and still refuses, on a host where
       the server-side branch-protection equivalent cannot currently be
       configured — the platform limitation is a recorded gap, not a reason to
@@ -250,6 +293,10 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] A partially staged file is judged on its staged half only.
 - [ ] An isolation check that cannot run blocks the commit and says the result is
       unknown, rather than passing or claiming a breach.
+- [ ] A repository-level check (9, 15, 16 or 17) still reads staged content, not
+      the working tree: stage a violation — a leaked absolute path is enough —
+      edit the working copy to remove it without re-staging, run the gate, and
+      confirm it still refuses.
 - [ ] The isolation mechanism is implemented with git, not with one ecosystem's
       task runner — a repository in any language has this check.
 - [ ] Where the working tree is mutated to isolate, an interrupted run leaves the

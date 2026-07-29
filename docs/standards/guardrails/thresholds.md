@@ -99,6 +99,8 @@ no linter at all.
 - **No per-file overrides.** A file that needs an exemption takes one through the
   [suppression register](registers.md), with an approver, like every other
   accepted finding.
+- **A tool's own warning severity is not this table's warn band.** See
+  [guardrail standards: warn means two different things](../guardrail-standards.md#warn-means-two-different-things).
 
 ## Verification
 
@@ -115,6 +117,8 @@ no linter at all.
       to exclude that stack from the general-purpose scan.
 - [ ] Every developer, agent and pipeline run resolves the same configuration.
 - [ ] A threshold changed since adoption has a decision record saying why.
+- [ ] A tool's own `warn` severity is not treated as this table's warn band —
+      the rule still fails the run rather than merely printing.
 
 ## References
 
