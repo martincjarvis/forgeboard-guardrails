@@ -89,13 +89,27 @@ from a hunch about the path.
   `.gitattributes`.** The directory's name is the repository's own choice —
   this standard does not mandate one — but the separation must exist and be
   declared, so neither a human nor an agent mistakes a gate script for
-  something that ships. The directory carries a `README.md` for humans, and an
-  agent-facing instruction file following
-  [the canonical-file-and-pointers rule](agent-integration.md#the-root-instruction-file)
-  rather than a second convention invented locally. Both index every script —
-  what it is for, and why it exists — and complement `/docs`, which describes
-  the standards and processes rather than this repository's own
-  implementations of them.
+  something that ships. The directory carries a `README.md` indexing every
+  script — what it is for, and why it exists — complementing `/docs`, which
+  describes the standards and processes rather than this repository's own
+  implementations of them. Keep the `README.md` requirement; an earlier
+  version of this checklist also required a directory-level agent
+  instruction file unconditionally, and a bootstrapped repository complied
+  by producing one whose entire content was "read the other file, I carry
+  nothing of my own" — a file that adds a hop for the agent that already
+  reads the root instruction file, and a second thing to keep in step with
+  it, for no rule the directory actually needed. **A directory-level
+  instruction file earns its place only when it carries rules specific to
+  that directory** — a build quirk, a script's calling convention, anything
+  the root file has no reason to state. Where nothing like that exists, the
+  `README.md` alone is compliance; a pointer-only instruction file is a
+  finding, not a second required artefact. This is a different question
+  from [the canonical-file-and-pointers
+  rule](agent-integration.md#the-root-instruction-file), which governs
+  multiple _harnesses_ reading the same root-level content
+  (`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`) and where a pointer is the whole
+  point — it says nothing about whether a _directory_ needs an instruction
+  file at all, and does not license inventing one just to have one.
 
 ## Verification
 
@@ -117,9 +131,12 @@ from a hunch about the path.
 - [ ] The same script is classed `tooling` in a repository that consumes this
       standard, and `production` in a repository whose product is the tooling
       itself.
-- [ ] A `tooling` directory has a `README.md` and exactly one canonical
-      agent-facing instruction file, with every other harness's file in it a
-      thin pointer.
+- [ ] A `tooling` directory has a `README.md` indexing what each script is
+      for and why it exists.
+- [ ] A `tooling` directory's instruction file, where one exists, carries
+      rules specific to that directory — a pointer-only file (its entire
+      content pointing back to the root instruction file) is reported as a
+      finding, not accepted as compliance.
 
 ## References
 
@@ -132,4 +149,5 @@ from a hunch about the path.
 - [Testing strategy](../testing-strategy.md#coverage) — where coverage reads
   the class.
 - [Agent integration](agent-integration.md#the-root-instruction-file) — the
-  canonical-file-and-pointers rule a tooling directory's index follows.
+  canonical-file-and-pointers rule for multiple _harnesses_, a different
+  question from whether a _directory_ needs an instruction file at all.
