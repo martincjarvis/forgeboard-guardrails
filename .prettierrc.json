@@ -1,0 +1,12 @@
+{
+  "proseWrap": "preserve",
+  "useTabs": false,
+  "tabWidth": 2,
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": "*.md",
+      "options": { "proseWrap": "preserve" }
+    }
+  ]
+}

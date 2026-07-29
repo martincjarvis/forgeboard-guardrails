@@ -8,20 +8,20 @@ full design history; this file is the practical "how do I actually use it" refer
 
 ## What's installed
 
-| Item | Kind | Toggle |
-|---|---|---|
-| Claude Code | Agent CLI | Multi-stage target (`with-claude` and later) |
-| OpenCode | Agent CLI | Multi-stage target (`with-opencode` and later) |
-| `agy` (Antigravity CLI) | Agent CLI | Multi-stage target (`with-agy`/`full`) |
-| QMD | Doc search | Always on (`core` stage, not `ARG`-gated) |
-| RTK | Output compression CLI | Base install always on; per-agent hook registration gated by `INSTALL_RTK_WIRING` |
-| Graphify | Codebase knowledge graph | Always on (`core` stage) |
-| semgrep | SAST scanning | Always on (`core` stage) |
-| lizard | Code metrics/complexity | Always on (`core` stage) |
-| context-mode | Session memory across compaction | npm install + Claude Code wiring always on; OpenCode/agy registration gated by `INSTALL_CONTEXT_MODE_WIRING` |
-| claude-mem | Cross-session memory | `INSTALL_CLAUDE_MEM` |
-| ponytail | Over-engineering guard | `INSTALL_PONYTAIL` |
-| superpowers | Planning/review skill pipeline | `INSTALL_SUPERPOWERS` |
+| Item                    | Kind                             | Toggle                                                                                                       |
+| ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Claude Code             | Agent CLI                        | Multi-stage target (`with-claude` and later)                                                                 |
+| OpenCode                | Agent CLI                        | Multi-stage target (`with-opencode` and later)                                                               |
+| `agy` (Antigravity CLI) | Agent CLI                        | Multi-stage target (`with-agy`/`full`)                                                                       |
+| QMD                     | Doc search                       | Always on (`core` stage, not `ARG`-gated)                                                                    |
+| RTK                     | Output compression CLI           | Base install always on; per-agent hook registration gated by `INSTALL_RTK_WIRING`                            |
+| Graphify                | Codebase knowledge graph         | Always on (`core` stage)                                                                                     |
+| semgrep                 | SAST scanning                    | Always on (`core` stage)                                                                                     |
+| lizard                  | Code metrics/complexity          | Always on (`core` stage)                                                                                     |
+| context-mode            | Session memory across compaction | npm install + Claude Code wiring always on; OpenCode/agy registration gated by `INSTALL_CONTEXT_MODE_WIRING` |
+| claude-mem              | Cross-session memory             | `INSTALL_CLAUDE_MEM`                                                                                         |
+| ponytail                | Over-engineering guard           | `INSTALL_PONYTAIL`                                                                                           |
+| superpowers             | Planning/review skill pipeline   | `INSTALL_SUPERPOWERS`                                                                                        |
 
 The `ARG`-gated rows only apply within the `full` stage (see "Lighter variants" below
 for the coarser agent-count toggle). For a no-rebuild-needed, per-invocation toggle
@@ -70,12 +70,12 @@ combination matching a task archetype this project's own eval harness found evid
 for (`CLAUDE.md` summarizes the underlying findings) — not one image per possible `ARG`
 combination:
 
-| Profile | ponytail | superpowers | claude-mem | For |
-|---|---|---|---|---|
-| `minimal` | off | off | off | small, one-shot tasks — both off-toggled ARGs have a *demonstrated* cost tax/multiplier on work that doesn't need them, and one-shot tasks have no use for cross-session memory |
-| `standard` | off | on | on | everyday work — planning/review skills available, memory for continuity, no over-build-guard tax paid unless needed |
-| `over-build-guard` | on | on | on | tasks with real scope-creep risk — pays ponytail's tax deliberately |
-| `full` | on | on | on | maximum capability regardless of cost (identical to the default `devcontainer up` build) |
+| Profile            | ponytail | superpowers | claude-mem | For                                                                                                                                                                             |
+| ------------------ | -------- | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minimal`          | off      | off         | off        | small, one-shot tasks — both off-toggled ARGs have a _demonstrated_ cost tax/multiplier on work that doesn't need them, and one-shot tasks have no use for cross-session memory |
+| `standard`         | off      | on          | on         | everyday work — planning/review skills available, memory for continuity, no over-build-guard tax paid unless needed                                                             |
+| `over-build-guard` | on       | on          | on         | tasks with real scope-creep risk — pays ponytail's tax deliberately                                                                                                             |
+| `full`             | on       | on          | on         | maximum capability regardless of cost (identical to the default `devcontainer up` build)                                                                                        |
 
 ```bash
 bash .devcontainer/build-profiles.sh              # builds all four
@@ -94,7 +94,7 @@ docker rm -f my-task-1   # credential/data volumes persist, only the container g
 Credentials are **shared across every profile** (same real identity regardless of which
 one is running — confirmed live: a container from a brand-new profile authenticates
 instantly via the shared volumes, no fresh login needed). The config/data volumes that
-can hold profile-*divergent* baked content (`opencode-config` and friends) are **not**
+can hold profile-_divergent_ baked content (`opencode-config` and friends) are **not**
 shared — each profile gets its own, suffixed set. This isn't optional: a shared
 `opencode-config` volume only gets an image's `opencode.json` on its first-ever
 creation, so two profiles sharing one would silently shadow whichever one didn't create
@@ -103,7 +103,7 @@ it first — confirmed live as a real bug for a single image already (see
 against a shared volume would hit that on every profile switch, not just once.
 
 Bypassing the devcontainer CLI this way (`run-profile.sh` uses a plain `docker run`) has
-one known, accepted gap: the dotnet/python devcontainer *features* only apply through
+one known, accepted gap: the dotnet/python devcontainer _features_ only apply through
 the real CLI's build pipeline, matching the same standalone-build caveat
 `validate-stack.sh`'s own `dotnet` check already documents.
 
@@ -126,7 +126,7 @@ persisted (a named Docker volume per agent), not each agent's full config direct
 (session history, private `CLAUDE.md`, etc. stay out of any volume by design).
 
 **A real fragility this design has to work around:** Claude Code's own credential
-writes (login *and* its background OAuth-refresh cycle) replace `.credentials.json`
+writes (login _and_ its background OAuth-refresh cycle) replace `.credentials.json`
 outright via an atomic rename over the persisted-volume symlink, rather than writing
 through it — silently breaking persistence on the very next write, not just
 eventually. `credential-watcher.sh` runs as a background daemon inside the container
@@ -163,7 +163,7 @@ Reverse any of these with `on` instead of `off`, same arguments.
 `--settings` flag disables a whole plugin per-invocation, no persistence concerns.
 OpenCode has no per-invocation flag at all — a project-level `plugin` array does
 **not** override the global one (they merge), so the only real lever is a
-`permission.skill` deny rule against each skill's real, bare name (confirmed *not*
+`permission.skill` deny rule against each skill's real, bare name (confirmed _not_
 `superpowers`-prefixed) — `--pure` (all external plugins off) was considered and
 rejected since it would also silently disable ponytail/claude-mem/context-mode.
 `agy plugin disable`/`enable` is a real command, but it mutates persistent global state

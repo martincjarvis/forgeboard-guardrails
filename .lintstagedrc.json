@@ -1,0 +1,9 @@
+{
+  "//": "Formatter first, then the structural and spelling checks, each over the staged subset only. Within one key the array runs sequentially, so prettier has rewritten and re-staged the bytes before markdownlint and cspell read them — gate 2's rule that the checks after the formatter judge the final bytes. Secret scan, machine-identifying content, file size, lock sync, link integrity, register completeness and the changed-component unit tests run in scripts/pre-commit.mjs after this, against the reformatted tree.",
+  "*.{md,mdx}": [
+    "prettier --write",
+    "markdownlint-cli2",
+    "cspell lint --no-progress --no-must-find-file"
+  ],
+  "*.{js,mjs,cjs,ts,tsx,json,jsonc,yml,yaml}": "prettier --write"
+}

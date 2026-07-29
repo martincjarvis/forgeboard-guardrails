@@ -1,0 +1,5 @@
+{
+  "//": "markdownlint-cli2 loads the rule set from .markdownlint.jsonc automatically; this file supplies only the CLI concerns — which files to lint and which to ignore — so the same rules run whether invoked with explicit paths (lint-staged) or with none (the gate sweeps).",
+  "globs": ["**/*.md"],
+  "ignores": ["node_modules/**", "coverage/**", ".logs/**"],
+}

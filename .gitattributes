@@ -1,4 +1,31 @@
+# Line-ending normalisation — gate 7 requires this be declared here rather than
+# left to each contributor's platform, so what is stored is normalised whatever
+# a machine does locally.
 * text=auto eol=lf
 *.png binary
 *.jpg binary
 *.ico binary
+
+# File classes — derived, not declared (ADR-0003). git already owns per-path
+# attributes and already answers them without a parser, so classification lives
+# here rather than in a configuration file of this toolkit's own. An unclassified
+# file is production (file-classes.md, the fail-safe direction); the declarations
+# below narrow from that default. Query with: git check-attr guardrail-class -- <path>
+#
+# Order matters: for a single attribute the last matching pattern wins, so the
+# more specific declarations follow the broader ones (hooks/test/** after
+# hooks/**, docs/** after *.md).
+*.mjs             guardrail-class=production
+*.json            guardrail-class=configuration
+*.jsonc           guardrail-class=configuration
+*.md              guardrail-class=documentation
+*.yml             guardrail-class=configuration
+*.yaml            guardrail-class=configuration
+scripts/**        guardrail-class=production
+skills/**         guardrail-class=agent-context
+docs/**           guardrail-class=documentation
+.devcontainer/**  guardrail-class=configuration
+.husky/**         guardrail-class=configuration
+.claude-plugin/** guardrail-class=configuration
+hooks/**          guardrail-class=production
+hooks/test/**     guardrail-class=test

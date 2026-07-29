@@ -1,12 +1,7 @@
 {
   "version": "0.2",
   "language": "en,en-GB",
-  "dictionaries": [
-    "typescript",
-    "node",
-    "npm",
-    "software-terms"
-  ],
+  "dictionaries": ["typescript", "node", "npm", "software-terms"],
   "words": [
     "ACMR",
     "allerrors",
@@ -22,10 +17,15 @@
     "frontmatter",
     "guardrails",
     "lizard",
+    "longpaths",
     "Meziantou",
     "minimatch",
+    "misparses",
+    "newrev",
     "nosemgrep",
     "numstat",
+    "oldrev",
+    "PATHEXT",
     "POSIX",
     "quotepath",
     "releaserc",
@@ -35,6 +35,8 @@
     "unconfigured",
     "ungated",
     "unparseable",
+    "unscanned",
+    "yourname",
     "warnaserror",
     "windsurfrules",
     "winget",
