@@ -1,24 +1,81 @@
 // Cross-platform process helpers for the gate hooks.
 //
-// Windows resolves `npx` to `npx.cmd`, which spawn cannot execute without a
-// shell; POSIX resolves the bare name. The difference is handled once here so
-// the hooks themselves read the same on every platform, and so no hook needs a
-// shell — which is what would tie them to one.
+// npm ships its executables as `.cmd` shims on Windows, and Node (since the
+// CVE-2024-27980 fix) refuses to spawn a `.cmd`/`.bat` without a shell — it
+// returns EINVAL. So on Windows a shell is required to run npx and the tool
+// bins, and only there; POSIX resolves the bare name and needs no shell. The
+// difference is handled once here so the hooks read the same on every platform.
+// The args are built by the gates themselves, never taken from untrusted input,
+// which is the assumption the shell option rests on.
 import { spawnSync } from "node:child_process";
 
 const isWindows = process.platform === "win32";
 
+// Behaviour-preserving JSDoc annotations: they exist so the repository's native
+// analyser (tsc, the build step) can type-check these helpers without the
+// object-literal widening that otherwise treats `encoding: "utf8"` as `string`.
+// Configuring a tool is not writing one (cross-gate rules); nothing here changes
+// what the functions do.
+/**
+ * @param {string} command
+ * @param {readonly string[]} args
+ * @param {import("node:child_process").SpawnSyncOptions} [options]
+ * @returns {import("node:child_process").SpawnSyncReturns<string>}
+ */
 export function run(command, args, options = {}) {
-  const base = { encoding: "utf8", shell: false, ...options };
+  const base =
+    /** @type {import("node:child_process").SpawnSyncOptionsWithStringEncoding} */ ({
+      encoding: "utf8",
+      shell: false,
+      ...options,
+    });
   if (isWindows) {
-    const shimmed = spawnSync(`${command}.cmd`, args, base);
-    if (!shimmed.error) return shimmed;
+    // A shell is mandatory for the `.cmd` shims npm ships (npx, the tool bins)
+    // since Node's CVE-2024-27980 fix; and running the bare command through
+    // cmd.exe lets PATHEXT resolve .cmd/.exe/.bat uniformly, so npx, semgrep
+    // and any other PATH tool all work the same way. Without it a tool reports
+    // unavailable when it is installed — the silent green a gate must never give.
+    return spawnSync(command, args, { ...base, shell: true });
   }
   return spawnSync(command, args, base);
 }
 
+// git sets GIT_DIR / GIT_INDEX_FILE / GIT_WORK_TREE and a few more in the
+// environment when it runs a hook. A child git spawned with those inherited
+// resolves THIS repository instead of the one its cwd points at — which breaks
+// anything that builds a throwaway repository (the hook tests) and can confuse a
+// pre-commit check re-reading the index. Stripping them makes a child git always
+// resolve its repository from its cwd.
+const GIT_REDIRECT_VARS = [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_QUARANTINE_PATH",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_REPLACE_REF_BASE",
+  "GIT_PREFIX",
+];
+export function cleanGitEnv(env = process.env) {
+  const e = { ...env };
+  for (const k of GIT_REDIRECT_VARS) delete e[k];
+  return e;
+}
+
+/**
+ * @param {readonly string[]} args
+ * @returns {import("node:child_process").SpawnSyncReturns<string>}
+ */
 export function git(args) {
-  return spawnSync("git", args, { encoding: "utf8", shell: false });
+  return spawnSync(
+    "git",
+    args,
+    /** @type {import("node:child_process").SpawnSyncOptionsWithStringEncoding} */ ({
+      encoding: "utf8",
+      shell: false,
+      env: cleanGitEnv(),
+    }),
+  );
 }
 
 export function have(command, args = ["--version"]) {

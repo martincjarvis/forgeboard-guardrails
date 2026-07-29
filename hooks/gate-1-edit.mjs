@@ -27,11 +27,35 @@ const tracked = git(["ls-files", "--error-unmatch", path]);
 if (tracked.status !== 0) process.exit(0);
 
 if (have("npx", ["--no-install", "secretlint", "--version"])) {
-  const scan = run("npx", ["--no-install", "secretlint", path]);
+  // JSON output lets a real finding be told apart from a tool or config error:
+  // secretlint emits a JSON array of messages when it finds something, and a
+  // stack trace when it cannot run. An error is not a breach, and a gate never
+  // claims one the scan did not establish (cross-gate rules).
+  const scan = run("npx", [
+    "--no-install",
+    "secretlint",
+    "--format",
+    "json",
+    path,
+  ]);
   if (scan.status !== 0) {
-    process.stderr.write(`gate 1: security finding in ${path}\n`);
+    let messages = null;
+    try {
+      const parsed = JSON.parse(scan.stdout);
+      messages = Array.isArray(parsed) ? parsed : (parsed?.messages ?? null);
+    } catch {
+      messages = null;
+    }
+    if (Array.isArray(messages) && messages.length > 0) {
+      process.stderr.write(`gate 1: security finding in ${path}\n`);
+      process.stderr.write(`${JSON.stringify(messages, null, 2)}\n`);
+      process.exit(2);
+    }
+    process.stderr.write(
+      `gate 1: secret scan unavailable for ${path} — secretlint did not complete cleanly ` +
+        `(not a confirmed finding); gate 2 re-checks at commit\n`,
+    );
     process.stderr.write(`${scan.stdout || ""}${scan.stderr || ""}\n`);
-    process.exit(2);
   }
 } else {
   // A tool that is not installed is reported as unavailable, never as a pass.

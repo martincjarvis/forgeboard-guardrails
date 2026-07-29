@@ -23,22 +23,45 @@ function resolveBase() {
     : null;
 }
 
+// File class — derived from .gitattributes through the guardrail-class attribute
+// (file-classes.md, ADR-0003), not from a path regex. An unclassified file is
+// production: the fail-safe direction, so a file nothing declares is held to the
+// strictest class rather than silently dropped from every measure. If
+// check-attr itself cannot run the result is unverifiable, and the strictest
+// class is still the safe answer.
+function classOf(file) {
+  const r = git(["check-attr", "guardrail-class", "--", file]);
+  if (r.status !== 0) return "production";
+  const m = r.stdout.match(/guardrail-class:\s*(\S+)/);
+  return !m || m[1] === "unspecified" ? "production" : m[1];
+}
+
+// file-classes.md: production and configuration count toward change size; test,
+// documentation and agent-context do not. A threshold that punishes tests
+// teaches the author to write fewer of them.
+const COUNTED = new Set(["production", "configuration"]);
+
 const base = resolveBase();
 if (!base) process.exit(0); // No base to compare against: nothing to measure.
 
 const findings = [];
 const warnings = [];
 
-// Test and documentation lines are excluded from change size deliberately: a
-// threshold that punishes tests teaches the author to write fewer of them.
-const excluded = /(^|\/)(tests?|spec|__tests__)\/|\.(test|spec)\.|\.(md|txt)$/i;
+// Report what was derived (cross-gate rules): the thresholds in force and where
+// they come from. These are this standard's defaults; no stack analyser
+// overrides them for this repository.
+process.stderr.write(
+  `gate 4: thresholds change-warn=${CHANGE_WARN} change-error=${CHANGE_ERROR} ` +
+    `file-length-error=${FILE_LENGTH_ERROR} (standard defaults; file class via git check-attr)\n`,
+);
 
 const numstat = git(["diff", "--numstat", `${base}...HEAD`]);
+let counted = 0;
 if (numstat.status === 0) {
-  let counted = 0;
   for (const line of numstat.stdout.split("\n")) {
     const [added, deleted, file] = line.split("\t");
-    if (!file || added === "-" || excluded.test(file)) continue;
+    if (!file || added === "-") continue;
+    if (!COUNTED.has(classOf(file))) continue;
     counted += Number(added) + Number(deleted);
   }
 
@@ -58,7 +81,9 @@ if (numstat.status === 0) {
   }
 }
 
-// File length, over files the change touched that still exist.
+// File length: thresholds.md applies this to production and test files only.
+// Production over the error band blocks; test over it warns (its warn band),
+// because a long test file is usually repetitive rather than badly designed.
 const names = git([
   "diff",
   "--name-only",
@@ -67,14 +92,14 @@ const names = git([
 ]);
 if (names.status === 0) {
   for (const file of names.stdout.split("\n")) {
-    if (!file || excluded.test(file) || !existsSync(file)) continue;
-    if (!statSync(file).isFile()) continue;
+    if (!file || !existsSync(file) || !statSync(file).isFile()) continue;
+    const cls = classOf(file);
+    if (cls !== "production" && cls !== "test") continue;
     const lines = readFileSync(file, "utf8").split("\n").length;
-    if (lines > FILE_LENGTH_ERROR) {
-      findings.push(
-        `${file} is ${lines} lines (> ${FILE_LENGTH_ERROR}); split it into smaller units.`,
-      );
-    }
+    if (lines <= FILE_LENGTH_ERROR) continue;
+    const msg = `${file} is ${lines} lines (> ${FILE_LENGTH_ERROR}); split it into smaller units.`;
+    if (cls === "production") findings.push(msg);
+    else warnings.push(msg.replace(";", " (test file — warn band);"));
   }
 }
 
