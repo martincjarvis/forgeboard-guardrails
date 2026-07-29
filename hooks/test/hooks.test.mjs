@@ -28,6 +28,7 @@ import {
   classifyLicence,
   licenceAcceptable,
   checkLicencePolicy,
+  licenceExpressionAcceptable,
 } from "../../scripts/check-licence-policy.mjs";
 import { checkSuppressions } from "../../scripts/check-suppressions.mjs";
 import { normalizeSarifPaths } from "../../scripts/lib.mjs";
@@ -807,6 +808,95 @@ test("licence policy: permissive passes at either scope; weak copyleft passes fo
   assert.equal(licenceAcceptable("GPL-3.0-only", "Development"), false);
 });
 
+test("SPDX expression evaluation: OR passes if any disjunct is acceptable at scope", () => {
+  // The exact false positive audit 6 found: `JSONStream (MIT OR Apache-2.0)`
+  // and type-fest's `(MIT OR CC0-1.0)`, both on the runtime allow list —
+  // blocked before fix 8 because the whole string was looked up as one
+  // identifier, which matches nothing.
+  assert.equal(
+    licenceExpressionAcceptable("MIT OR Apache-2.0", "Runtime").acceptable,
+    true,
+  );
+  assert.equal(
+    licenceExpressionAcceptable("(MIT OR CC0-1.0)", "Runtime").acceptable,
+    true,
+  );
+  // Both disjuncts unacceptable: blocked, and the refusal names both.
+  const blocked = licenceExpressionAcceptable(
+    "GPL-3.0-only OR AGPL-3.0-only",
+    "Runtime",
+  );
+  assert.equal(blocked.acceptable, false);
+  assert.equal(blocked.blockers.length, 2);
+  assert.deepEqual(
+    blocked.blockers.map((b) => b.id),
+    ["GPL-3.0-only", "AGPL-3.0-only"],
+  );
+});
+
+test("SPDX expression evaluation: AND requires every conjunct to be acceptable", () => {
+  assert.equal(
+    licenceExpressionAcceptable("MIT AND Apache-2.0", "Runtime").acceptable,
+    true,
+  );
+  const verdict = licenceExpressionAcceptable(
+    "MIT AND GPL-3.0-only",
+    "Runtime",
+  );
+  assert.equal(
+    verdict.acceptable,
+    false,
+    "one unacceptable conjunct blocks the whole AND expression",
+  );
+  assert.deepEqual(
+    verdict.blockers.map((b) => b.id),
+    ["GPL-3.0-only"],
+    "only the failing conjunct is named — MIT is not the reason this blocks",
+  );
+});
+
+test("SPDX expression evaluation: parentheses nest, mixing AND and OR correctly", () => {
+  // (MIT OR Apache-2.0) AND CC0-1.0 — the brief's own nesting example.
+  assert.equal(
+    licenceExpressionAcceptable("(MIT OR Apache-2.0) AND CC0-1.0", "Runtime")
+      .acceptable,
+    true,
+  );
+  // Same shape, but the AND term is unacceptable — nesting must not let the
+  // OR's pass leak past the AND.
+  assert.equal(
+    licenceExpressionAcceptable(
+      "(MIT OR Apache-2.0) AND GPL-3.0-only",
+      "Runtime",
+    ).acceptable,
+    false,
+  );
+});
+
+test("SPDX expression evaluation: WITH is one identifier, not silently split into a passing term", () => {
+  // GPL-2.0-only WITH Classpath-exception-2.0 is not on either allow list as
+  // a whole; splitting it would let the bare "GPL-2.0-only" half be judged
+  // instead (still failing here, but for the wrong reason) or, worse, let an
+  // exception clause on an otherwise-permissive base licence pass unchecked.
+  const verdict = licenceExpressionAcceptable(
+    "GPL-2.0-only WITH Classpath-exception-2.0",
+    "Development",
+  );
+  assert.equal(verdict.acceptable, false);
+  assert.equal(verdict.blockers.length, 1);
+  assert.equal(
+    verdict.blockers[0].id,
+    "GPL-2.0-only WITH Classpath-exception-2.0",
+    "the exception clause must not be dropped from the identifier looked up",
+  );
+});
+
+test("SPDX expression evaluation: an unknown identifier blocks, named in the refusal", () => {
+  const verdict = licenceExpressionAcceptable("Beerware", "Development");
+  assert.equal(verdict.acceptable, false);
+  assert.deepEqual(verdict.blockers, [{ id: "Beerware", category: "other" }]);
+});
+
 test("licence policy is a visible skip, naming the reason, when not triggered", () => {
   const { findings, skips } = checkLicencePolicy(false);
   assert.deepEqual(findings, []);
@@ -840,6 +930,27 @@ test("licence policy refuses a missing register, and refuses a resolved dependen
   assert.match(refused.stderr, /copyleft-thing@1\.0\.0/);
   assert.match(refused.stderr, /GPL-3\.0-only/);
 
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("licence policy (full pipeline): a compound SPDX expression on the runtime allow list passes — audit 6's JSONStream / type-fest regression", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
+      "| JSONStream | 1.3.5 | MIT OR Apache-2.0 | Transitive | Runtime | tooling | example | | | | |\n" +
+      "| type-fest | 4.41.0 | (MIT OR CC0-1.0) | Transitive | Runtime | tooling | example | | | | |\n",
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-licence-policy.mjs", dir);
+  assert.equal(
+    r.status,
+    0,
+    "MIT is on the runtime allow list, so both compound expressions must pass",
+  );
   rmSync(dir, { recursive: true, force: true });
 });
 

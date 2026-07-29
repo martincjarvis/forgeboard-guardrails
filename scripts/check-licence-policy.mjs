@@ -87,13 +87,113 @@ export function classifyLicence(licence) {
 
 /** Pure verdict for one register row: true if the licence is acceptable for
  *  the recorded scope. Exported so the four-category rule is directly
- *  testable without a register file on disk. */
+ *  testable without a register file on disk. Takes a single identifier —
+ *  the leaf of an SPDX expression, or a plain register row that never had
+ *  one. Compound expressions (below) call this once per identifier; nothing
+ *  here changes what "acceptable" means. */
 export function licenceAcceptable(licence, scope) {
   const category = classifyLicence(licence);
   const isRuntime = /^runtime$/i.test((scope ?? "").trim());
   if (category === "permissive") return true;
   if (category === "weak-copyleft") return !isRuntime;
   return false; // "unknown" and "other" both block
+}
+
+// --- SPDX licence expression evaluation (fix 8; gate-6-pull-request.md) ---
+//
+// A register row's licence cell can be a bare identifier ("MIT") or a
+// compound SPDX expression ("(MIT OR CC0-1.0)", "GPL-2.0-only WITH
+// Classpath-exception-2.0"). Looking up the whole string as one identifier —
+// what this file did before — never matches an allow list entry for a
+// compound expression, and blocks it wrongly regardless of what it actually
+// permits. No dependency added: the grammar needed is small enough to write
+// directly — AND/OR with parentheses, AND binding tighter than OR (the SPDX
+// license-expression grammar), and `A WITH B` treated as one identifier
+// requiring its own allow-list entry rather than silently split into a
+// passing term (an exception clause narrows what the base licence permits;
+// it does not fall away for being unrecognised).
+const TOKEN_RE = /\(|\)|[^\s()]+/g;
+function tokenizeLicenceExpression(expr) {
+  return (expr ?? "").trim().match(TOKEN_RE) ?? [];
+}
+
+/** Recursive-descent parser for one licence-register cell. Returns a string
+ *  leaf (one identifier, or "A WITH B" joined back into one), or
+ *  { op: "AND" | "OR", left, right }. An empty or malformed expression
+ *  degrades to a leaf of the input string, which classifyLicence already
+ *  treats as "unknown" or "other" — parse failure blocks the same way an
+ *  unrecognised identifier does, never a silent pass. */
+export function parseLicenceExpression(expr) {
+  const tokens = tokenizeLicenceExpression(expr);
+  let i = 0;
+  const peek = () => tokens[i];
+  const next = () => tokens[i++];
+
+  function parseOr() {
+    let left = parseAnd();
+    while (peek() === "OR") {
+      next();
+      left = { op: "OR", left, right: parseAnd() };
+    }
+    return left;
+  }
+  function parseAnd() {
+    let left = parseAtom();
+    while (peek() === "AND") {
+      next();
+      left = { op: "AND", left, right: parseAtom() };
+    }
+    return left;
+  }
+  function parseAtom() {
+    if (peek() === "(") {
+      next();
+      const node = parseOr();
+      if (peek() === ")") next();
+      return node;
+    }
+    let id = next() ?? "";
+    if (peek() === "WITH") {
+      next();
+      id = `${id} WITH ${next() ?? ""}`;
+    }
+    return id;
+  }
+
+  return parseOr();
+}
+
+/** Evaluates a parsed expression against one scope. `A OR B` is acceptable
+ *  if either disjunct is (the consumer chooses); `A AND B` requires both.
+ *  `blockers` names the identifier(s) actually responsible for a block —
+ *  empty when acceptable — so the finding can say which term failed rather
+ *  than restating the whole expression. */
+export function evaluateLicenceExpression(node, scope) {
+  if (typeof node === "string") {
+    const acceptable = licenceAcceptable(node, scope);
+    return {
+      acceptable,
+      blockers: acceptable
+        ? []
+        : [{ id: node, category: classifyLicence(node) }],
+    };
+  }
+  const left = evaluateLicenceExpression(node.left, scope);
+  const right = evaluateLicenceExpression(node.right, scope);
+  const acceptable =
+    node.op === "AND"
+      ? left.acceptable && right.acceptable
+      : left.acceptable || right.acceptable;
+  return {
+    acceptable,
+    blockers: acceptable ? [] : [...left.blockers, ...right.blockers],
+  };
+}
+
+/** Parse-then-evaluate in one call — what checkLicencePolicy actually wants
+ *  per register row. */
+export function licenceExpressionAcceptable(licence, scope) {
+  return evaluateLicenceExpression(parseLicenceExpression(licence), scope);
 }
 
 /** { findings, skips }. `scanTriggered` is the caller's own scope decision —
@@ -128,19 +228,22 @@ export function checkLicencePolicy(scanTriggered) {
 
   const findings = [];
   for (const row of parseRegisterRows(md)) {
-    if (licenceAcceptable(row.licence, row.scope)) continue;
-    const category = classifyLicence(row.licence);
+    const verdict = licenceExpressionAcceptable(row.licence, row.scope);
+    if (verdict.acceptable) continue;
     const list = /^runtime$/i.test(row.scope) ? "runtime" : "development";
+    const blockedBy = verdict.blockers
+      .map((b) => `'${b.id || "(none recorded)"}' (${b.category})`)
+      .join(", ");
     findings.push({
       check: "dependency licence policy",
       path: REGISTER,
       problem:
-        `${row.dep}@${row.version} carries licence '${row.licence || "(none recorded)"}' ` +
-        `(${category}), scope ${row.scope || "(none recorded)"} — not on the ${list} allow list`,
-      remedy:
-        category === "unknown"
-          ? "determine the actual licence and record it, or remove the dependency"
-          : "record a decision accepting it and add the licence to the allow list, or replace the dependency",
+        `${row.dep}@${row.version} carries licence '${row.licence || "(none recorded)"}', ` +
+        `scope ${row.scope || "(none recorded)"} — not acceptable on the ${list} allow list ` +
+        `(blocked by ${blockedBy})`,
+      remedy: verdict.blockers.some((b) => b.category === "unknown")
+        ? "determine the actual licence and record it, or remove the dependency"
+        : "record a decision accepting it and add the licence to the allow list, or replace the dependency",
     });
   }
   return { findings, skips };
