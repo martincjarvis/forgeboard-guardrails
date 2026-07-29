@@ -314,6 +314,16 @@ surfaced by the deploy engine from the manifest, not by any component. This is
 the cross-cutting invariant that makes packages self-describing and deployable
 without side-channel state.
 
+### Packages exclude tooling by class
+
+A component's package contains its production and configuration files only.
+Files [classed `tooling`](guardrails/file-classes.md) — the gate
+scripts and other development-only automation a repository writes for
+itself — are excluded from every package **by that class**, never by a
+hand-maintained ignore list that drifts out of step with what the repository
+actually added. The same `.gitattributes` declaration that classifies a file
+for the gates is what packaging reads.
+
 ### Component model — object map, dependsOn DAG
 
 `components` is an **object keyed by component name** (no `name` field, no
@@ -526,6 +536,8 @@ Three bands run through the strategy:
       the tooling.
 - [ ] The `deploy` component carries its own version and package but sits
       outside the deployed `components` DAG.
+- [ ] A component's package contains no file classed `tooling` — checked by
+      inspecting the package contents, not the source tree.
 - [ ] A change to a deploy script or the descriptor runs the full ordered
       deploy plus launch-smoke in CI on the branch/PR before merge.
 - [ ] CI runs every component's test suite on every branch/PR, independent of

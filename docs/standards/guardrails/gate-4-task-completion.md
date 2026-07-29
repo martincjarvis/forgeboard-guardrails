@@ -17,12 +17,12 @@ Measures the **whole branch against its base**, so it catches accumulation that
 no single commit shows. Collects every finding before reporting — no stop at the
 first failure, because the author wants the full list once.
 
-| #   | Check               | Type | Measures                                                   | Applies to                            | Warn band                   | Error band | Override        |
-| --- | ------------------- | ---- | ---------------------------------------------------------- | ------------------------------------- | --------------------------- | ---------- | --------------- |
-| 1   | Change size         | Size | Added + deleted lines across the branch                    | Production and configuration together | Push back                   | Block      | Recorded marker |
-| 2   | File length         | Size | Lines per file                                             | Production, test                      | Push back (production only) | Block      | None            |
-| 3   | Context-file length | Size | Lines per agent-facing document                            | Agent context                         | Warn                        | Block      | None            |
-| 4   | Complexity          | Size | Cyclomatic complexity, function length and parameter count | Production, test                      | Push back (production only) | Block      | None            |
+| #   | Check               | Type | Measures                                                   | Applies to                                     | Warn band                   | Error band | Override        |
+| --- | ------------------- | ---- | ---------------------------------------------------------- | ---------------------------------------------- | --------------------------- | ---------- | --------------- |
+| 1   | Change size         | Size | Added + deleted lines across the branch                    | Production, configuration and tooling together | Push back                   | Block      | Recorded marker |
+| 2   | File length         | Size | Lines per file                                             | Production, test                               | Push back (production only) | Block      | None            |
+| 3   | Context-file length | Size | Lines per agent-facing document                            | Agent context                                  | Warn                        | Block      | None            |
+| 4   | Complexity          | Size | Cyclomatic complexity, function length and parameter count | Production, test                               | Push back (production only) | Block      | None            |
 
 Every row has both bands, with the verdicts the Size type fixes. Only change
 size takes an override, and the marker reaches nothing else — a branch may
@@ -47,13 +47,13 @@ warning that was ignored.
 
 It applies to the classes each check already counts, and only those:
 
-| Check                   | Pushes back for                           | Warns for           |
-| ----------------------- | ----------------------------------------- | ------------------- |
-| Change size             | Production **and** configuration together | —                   |
-| File length, complexity | Production files                          | Test files          |
-| Context-file length     | —                                         | Agent-context files |
+| Check                   | Pushes back for                                    | Warns for           |
+| ----------------------- | -------------------------------------------------- | ------------------- |
+| Change size             | Production, configuration **and** tooling together | —                   |
+| File length, complexity | Production files                                   | Test files          |
+| Context-file length     | —                                                  | Agent-context files |
 
-Change size never separates its two counted classes, because it is one number
+Change size never separates its three counted classes, because it is one number
 about one branch: a change of four hundred configuration lines and one of four
 hundred production lines both warrant the same question, and a mixed total is
 not made safe by its composition. The per-file measures do separate, because a
@@ -108,7 +108,7 @@ Two rules the gate cannot check, which the reviewer must:
 
 | Check                 | Command                                                                              |
 | --------------------- | ------------------------------------------------------------------------------------ |
-| Change size           | `git diff --shortstat origin/main...HEAD -- <production and config paths>`           |
+| Change size           | `git diff --shortstat origin/main...HEAD -- <production, config and tooling paths>`  |
 | Per-file line counts  | `git ls-files -- <paths> \| xargs wc -l \| sort -n`                                  |
 | Complexity            | The stack's own analyser — `npx eslint --rule '{"complexity":["error",15]}' <paths>` |
 | Agent-document length | `wc -l <agent context paths>`                                                        |
@@ -128,6 +128,9 @@ is a separate question, answered by [Thresholds](thresholds.md).
 ## Verification
 
 - [ ] A branch over the error threshold is blocked, and the override marker unblocks it.
+- [ ] A branch whose size comes entirely from `tooling` files still pushes
+      back in the warn band — change size does not exempt any counted class
+      from the question.
 - [ ] A production file in the warn band produces a push back, not a printed line
       the worker walks past.
 - [ ] The push back names both options — split, or justify — and the answer is a

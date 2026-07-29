@@ -99,13 +99,13 @@ determines the verdict it is allowed to return.
 
 Every gate reads from these. An auditor loads them once and keeps them open.
 
-| Reference                                                        | Answers                                                                        |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [Thresholds](guardrails/thresholds.md)                           | Every number, its default, and when the stack's own analyser overrides it      |
-| [File classes](guardrails/file-classes.md)                       | What counts as production, test, configuration, documentation or agent context |
-| [Components](guardrails/components.md)                           | What a component is, what the map declares, and the changed-component rule     |
-| [Registers](guardrails/registers.md)                             | The three checked-in records, their columns, and what each gate does with them |
-| [Change-triggered checks](guardrails/change-triggered-checks.md) | Which checks run only when their inputs move, and which also run on a schedule |
+| Reference                                                        | Answers                                                                                 |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Thresholds](guardrails/thresholds.md)                           | Every number, its default, and when the stack's own analyser overrides it               |
+| [File classes](guardrails/file-classes.md)                       | What counts as production, test, configuration, documentation, agent context or tooling |
+| [Components](guardrails/components.md)                           | What a component is, what the map declares, and the changed-component rule              |
+| [Registers](guardrails/registers.md)                             | The three checked-in records, their columns, and what each gate does with them          |
+| [Change-triggered checks](guardrails/change-triggered-checks.md) | Which checks run only when their inputs move, and which also run on a schedule          |
 
 ## Cross-cutting rules
 

@@ -196,6 +196,14 @@ Changed-line coverage is a separate floor, enforced in the pipeline — see
 numbers are misleading: a single journey touches most of the code and reports a
 figure that says nothing about whether any of it is tested.
 
+**Coverage measures production code only.** Files
+[classed `tooling`](guardrails/file-classes.md) — a repository's own
+gate scripts and other development automation — are excluded from the metric
+entirely, the same way they are never deployed. Counting them pressures the
+floor downward for a number that no longer means what it claims.
+[File classes](guardrails/file-classes.md) states the one exception: a
+repository whose product is the tooling itself.
+
 ## Artifact categories
 
 Never merged — a hundred low-severity findings must not bury a coverage
@@ -245,6 +253,7 @@ improvement as suspicious.
 - [ ] Coverage is measured on unit and integration, and the command owns its
       threshold — proved by raising the floor above current coverage and seeing
       the gate refuse, not by reading the configuration.
+- [ ] The coverage report contains no file classed `tooling`.
 
 ## References
 
