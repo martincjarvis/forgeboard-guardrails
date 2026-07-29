@@ -18,6 +18,11 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  classifyAdvisories,
+  acceptedAdvisoryIds,
+  checkDependencyAdvisories,
+} from "../../scripts/check-dependency-advisories.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -418,6 +423,105 @@ test("protected-branch check refuses on the derived default branch, allows a fea
     onFeature.status,
     0,
     "the same repository on a feature branch is not refused",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// --- scripts/check-dependency-advisories.mjs — gate 6 check 6 (docs/
+// standards/guardrails/gate-6-pull-request.md, change-triggered-checks.md).
+// `npm audit` is network-bound and its result changes as advisories publish,
+// so these test the pure classification against a fixed, synthetic report —
+// not a live `npm audit` run — the same reason check-dependency-advisories.mjs
+// splits classifyAdvisories out from the impure orchestration around it.
+
+function auditReport(entries) {
+  const vulnerabilities = {};
+  for (const [name, severity, urls = []] of entries) {
+    vulnerabilities[name] = {
+      name,
+      severity,
+      via: urls.map((url) => ({ url })),
+    };
+  }
+  return { vulnerabilities };
+}
+
+test("dependency advisory scan blocks a runtime dependency at high severity", () => {
+  // thresholds.md: block for runtime is "high and above". No accepted ids, no
+  // runtime/dev distinction needed to reach the block band.
+  const report = auditReport([["left-pad", "high"]]);
+  const findings = classifyAdvisories(report, {
+    runtimeNames: new Set(["left-pad"]),
+  });
+  assert.equal(findings.length, 1);
+  assert.match(
+    findings[0].problem,
+    /left-pad carries a high advisory \(runtime dependency\)/,
+  );
+  assert.match(
+    findings[0].remedy,
+    /block severity has no accepted-record path/,
+  );
+});
+
+test("dependency advisory scan does not push back a development-only dependency below its band", () => {
+  // thresholds.md: development-only push-back is "high"; moderate is below
+  // it and must not fire — the same package would push back if it were a
+  // runtime dependency (push-back for runtime is "medium"/moderate).
+  const report = auditReport([["left-pad", "moderate"]]);
+  const findings = classifyAdvisories(report, { runtimeNames: new Set() });
+  assert.equal(findings.length, 0);
+});
+
+test("dependency advisory scan pushes back a development-only dependency at high severity, unless an Accepted ADR names its advisory id", () => {
+  const report = auditReport([
+    ["left-pad", "high", ["https://github.com/advisories/GHSA-aaaa-bbbb-cccc"]],
+  ]);
+  const unaccepted = classifyAdvisories(report, { runtimeNames: new Set() });
+  assert.equal(
+    unaccepted.length,
+    1,
+    "high severity, dev-only, is the push-back band",
+  );
+  assert.match(unaccepted[0].problem, /ghsa-aaaa-bbbb-cccc/);
+
+  const accepted = classifyAdvisories(report, {
+    runtimeNames: new Set(),
+    acceptedIds: new Set(["ghsa-aaaa-bbbb-cccc"]),
+  });
+  assert.equal(
+    accepted.length,
+    0,
+    "a decision record naming the advisory id clears the push-back band",
+  );
+});
+
+test("dependency advisory scan is a visible skip, naming the reason, when not triggered", () => {
+  const { findings, skips } = checkDependencyAdvisories(false);
+  assert.deepEqual(findings, []);
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /dependency advisory scan/);
+  assert.match(skips[0], /no dependency change and not a scheduled run/);
+});
+
+test("acceptedAdvisoryIds reads GHSA ids only from Accepted ADRs, not Proposed ones", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-"));
+  writeFileSync(
+    join(dir, "0001-accepted.md"),
+    "---\nstatus: Accepted\n---\n\nAccepts GHSA-aaaa-bbbb-cccc.\n",
+  );
+  writeFileSync(
+    join(dir, "0002-proposed.md"),
+    "---\nstatus: Proposed\n---\n\nWould accept GHSA-dddd-eeee-ffff.\n",
+  );
+  const ids = acceptedAdvisoryIds(dir);
+  assert.ok(
+    ids.has("ghsa-aaaa-bbbb-cccc"),
+    "an Accepted ADR's advisory id is read",
+  );
+  assert.ok(
+    !ids.has("ghsa-dddd-eeee-ffff"),
+    "a Proposed ADR does not yet accept anything",
   );
   rmSync(dir, { recursive: true, force: true });
 });

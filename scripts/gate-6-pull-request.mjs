@@ -40,6 +40,7 @@ import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
+import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
 
 /** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
@@ -134,6 +135,16 @@ function depsAt(ref) {
   const lic = checkLicenceCompleteness(lockChanged);
   findings.push(...lic.findings);
   skips.push(...lic.skips);
+
+  // Check 6 (gate 6) — dependency advisory scan. Change-triggered like the
+  // licence register above, plus scheduled: GITHUB_EVENT_NAME is "schedule"
+  // when the sibling cron trigger (dependency-advisory-schedule.yml) invokes
+  // this same script, so the advisory database is checked even on a day
+  // nobody touched a dependency (change-triggered-checks.md).
+  const scheduled = process.env.GITHUB_EVENT_NAME === "schedule";
+  const advisories = checkDependencyAdvisories(lockChanged || scheduled);
+  findings.push(...advisories.findings);
+  skips.push(...advisories.skips);
 }
 
 // --- Check 10 (gate 2) — file size -----------------------------------------

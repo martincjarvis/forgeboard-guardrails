@@ -1,0 +1,38 @@
+# Gate 6 check 6 — dependency advisory scan, scheduled leg
+# (docs/standards/guardrails/change-triggered-checks.md: "the advisory check
+# is change-triggered plus scheduled — the schedule is what catches the
+# advisory published against code nobody is currently editing").
+#
+# The change-triggered half of the same check runs inside
+# scripts/gate-6-pull-request.mjs, wired to pull-request.yml, whenever a lock
+# file is in the pull request's range. This is the other half: a daily run
+# (thresholds.md: "Advisory scan schedule: Daily") against the default
+# branch, so a newly published advisory is caught without anyone touching a
+# dependency. Both legs call the same module, scripts/check-dependency-
+# advisories.mjs, so there is exactly one implementation of the check.
+name: Dependency advisory scan (scheduled)
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  advisory-scan:
+    name: dependency advisory scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Scan the resolved dependency set for advisories
+        run: node scripts/check-dependency-advisories.mjs

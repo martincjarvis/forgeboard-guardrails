@@ -7,7 +7,7 @@
 // allow list (registers.md: "completeness and policy are different checks").
 //
 // cspell:ignore Unlicense
-import { readStaged, run, report } from "./lib.mjs";
+import { readStaged, resolvedDependencyTree, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
 export const REGISTER = "docs/registers/dependency-licence-register.md";
@@ -44,35 +44,6 @@ function parseRegister() {
   return rows;
 }
 
-/** The resolved tree, direct and transitive, as a Map of name -> version.
- *  `npm ls --all --json` is what registers.md names as the no-extra-tooling
- *  option, and it is already a pinned devDependency's neighbour — nothing new
- *  to install. Returns null when the tree could not be read at all (`npm ci`
- *  never ran, or the output is not JSON), which is unverifiable rather than
- *  clean and must not be read as "nothing resolved". */
-function resolvedDependencies() {
-  const r = run("npm", ["ls", "--all", "--json"]);
-  let tree;
-  try {
-    tree = JSON.parse(r.stdout || "");
-  } catch {
-    return null;
-  }
-  const deps = new Map();
-  const seen = new Set();
-  (function walk(node) {
-    for (const [name, info] of Object.entries(node?.dependencies ?? {})) {
-      if (info?.version) deps.set(name, info.version);
-      const key = `${name}@${info?.version}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        walk(info);
-      }
-    }
-  })(tree);
-  return deps;
-}
-
 /** { findings, skips }. `lockChanged` is the caller's own scope decision — the
  *  staged set locally, the pull request's changed-file range in CI — so this
  *  module makes no assumption about where the scope came from. */
@@ -85,7 +56,7 @@ export function checkLicenceCompleteness(lockChanged) {
     return { findings: [], skips };
   }
 
-  const resolved = resolvedDependencies();
+  const resolved = resolvedDependencyTree();
   if (!resolved) {
     return {
       findings: [

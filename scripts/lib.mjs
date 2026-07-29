@@ -233,6 +233,39 @@ export function withStagedWorkingTree(fn) {
   }
 }
 
+/** The resolved dependency tree, direct and transitive, as a Map of
+ *  name -> version. `npm ls --all --json` is the no-extra-tooling option
+ *  (registers.md), optionally narrowed with `--omit=dev` to the runtime
+ *  subset — the same runtime/development split gate 6 checks 6 and 7 both
+ *  need (registers.md: "scope changes the answer for both"). Returns null
+ *  when the tree could not be read at all (`npm ci` never ran, or the output
+ *  is not JSON), which is unverifiable rather than clean and must not be
+ *  read as "nothing resolved". */
+export function resolvedDependencyTree({ omitDev = false } = {}) {
+  const args = ["ls", "--all", "--json"];
+  if (omitDev) args.push("--omit=dev");
+  const r = run("npm", args);
+  let tree;
+  try {
+    tree = JSON.parse(r.stdout || "");
+  } catch {
+    return null;
+  }
+  const deps = new Map();
+  const seen = new Set();
+  (function walk(node) {
+    for (const [name, info] of Object.entries(node?.dependencies ?? {})) {
+      if (info?.version) deps.set(name, info.version);
+      const key = `${name}@${info?.version}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        walk(info);
+      }
+    }
+  })(tree);
+  return deps;
+}
+
 /** Locate the default branch's remote tip, as a rev to diff against. */
 export function resolveBase() {
   const head = git(["rev-parse", "--abbrev-ref", "origin/HEAD"]);
