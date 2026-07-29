@@ -2,9 +2,9 @@
 // cross-platform module the agent hooks use, so Windows resolving `npx` to
 // `npx.cmd` is handled in one place and these scripts stay shell-free.
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { git, run, have, cleanGitEnv } from "../hooks/lib/run.mjs";
+import { git, run, have, cleanGitEnv, resolveBase } from "../hooks/lib/run.mjs";
 
-export { git, run, have, cleanGitEnv };
+export { git, run, have, cleanGitEnv, resolveBase };
 
 // Note: git exports GIT_DIR / GIT_INDEX_FILE / GIT_WORK_TREE (and a few more)
 // into the environment when it runs a hook, so a child git spawned with those
@@ -264,15 +264,6 @@ export function resolvedDependencyTree({ omitDev = false } = {}) {
     }
   })(tree);
   return deps;
-}
-
-/** Locate the default branch's remote tip, as a rev to diff against. */
-export function resolveBase() {
-  const head = git(["rev-parse", "--abbrev-ref", "origin/HEAD"]);
-  const candidate = head.status === 0 ? head.stdout.trim() : "origin/main";
-  return git(["rev-parse", "--verify", "--quiet", candidate]).status === 0
-    ? candidate
-    : null;
 }
 
 /** GitHub's code-scanning ingestion treats a SARIF `artifactLocation.uri`

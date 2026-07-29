@@ -7,7 +7,7 @@
 //
 // Exit 0 reports. Exit 2 blocks the hand-off.
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { git } from "./lib/run.mjs";
+import { git, resolveBase } from "./lib/run.mjs";
 
 const CHANGE_WARN = 400;
 const CHANGE_ERROR = 800;
@@ -25,15 +25,6 @@ const FUNCTION_LENGTH_WARN = 60;
 const FUNCTION_LENGTH_ERROR = 100;
 const PARAM_COUNT_WARN = 5;
 const PARAM_COUNT_ERROR = 7;
-
-// The base is whatever the remote calls its default, falling back to main.
-function resolveBase() {
-  const head = git(["rev-parse", "--abbrev-ref", "origin/HEAD"]);
-  const candidate = head.status === 0 ? head.stdout.trim() : "origin/main";
-  return git(["rev-parse", "--verify", candidate]).status === 0
-    ? candidate
-    : null;
-}
 
 // File class — derived from .gitattributes through the guardrail-class attribute
 // (file-classes.md, ADR-0003), not from a path regex. An unclassified file is
@@ -241,7 +232,15 @@ async function measureComplexity(names, findings, warnings) {
 
 async function main() {
   const base = resolveBase();
-  if (!base) process.exit(0); // No base to compare against: nothing to measure.
+  if (!base) {
+    // No base to compare against: origin/HEAD could not be resolved. A
+    // silent exit(0) here would read as "nothing to measure" when the truth
+    // is "could not tell" — say so instead (cross-gate-rules.md).
+    process.stderr.write(
+      "gate 4: SKIP change size / file length / complexity — origin/HEAD could not be resolved\n",
+    );
+    process.exit(0);
+  }
 
   const findings = [];
   const warnings = [];

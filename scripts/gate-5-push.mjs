@@ -21,10 +21,14 @@ const rl = createInterface({ input: process.stdin });
 for await (const line of rl) {
   const [oldrev, newrev] = line.split(" ");
   if (!newrev) continue;
-  range =
-    /^0+$/.test(oldrev) && baseline
-      ? `${baseline}..${newrev}`
-      : `${oldrev}..${newrev}`;
+  const isNewBranch = /^0+$/.test(oldrev);
+  if (isNewBranch && !baseline) {
+    skips.push(
+      "pushed range — origin/HEAD could not be resolved, cannot compute the range for a new branch",
+    );
+  } else {
+    range = isNewBranch ? `${baseline}..${newrev}` : `${oldrev}..${newrev}`;
+  }
   break;
 }
 if (range) process.stderr.write(`gate 5: pushed range ${range}\n`);

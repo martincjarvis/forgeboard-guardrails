@@ -83,6 +83,27 @@ export function have(command, args = ["--version"]) {
   return !probe.error && probe.status === 0;
 }
 
+/** Locate the default branch's remote tip, as a rev to diff against. Derived,
+ *  not declared: `origin/HEAD` is git's own record of which branch is
+ *  default, written by `git clone` or `git remote set-head`. There is no
+ *  hardcoded fallback name — a shallow or partial clone, or a stale symref,
+ *  can leave `origin/HEAD` unresolvable while `origin/main` still exists,
+ *  and guessing "main" in that case would use an unverified name as though
+ *  it had been derived. Returns null when it cannot be resolved; every
+ *  caller must then skip visibly rather than proceed with a name nobody
+ *  derived (cross-gate-rules.md: "A check that could not run says so, rather
+ *  than passing or asserting a cause"). The single source of this
+ *  derivation — scripts/lib.mjs re-exports it rather than repeating it, and
+ *  gate-4-task-completion.mjs (the distributed hook) imports it directly. */
+export function resolveBase() {
+  const head = git(["rev-parse", "--abbrev-ref", "origin/HEAD"]);
+  if (head.status !== 0) return null;
+  const candidate = head.stdout.trim();
+  return git(["rev-parse", "--verify", "--quiet", candidate]).status === 0
+    ? candidate
+    : null;
+}
+
 export async function readEvent() {
   if (process.stdin.isTTY) return {};
   const chunks = [];

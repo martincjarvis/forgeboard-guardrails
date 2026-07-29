@@ -55,7 +55,11 @@ function git(cwd, args) {
   return r;
 }
 
-/** A repository with one commit on main, and origin/main pointing at it. */
+/** A repository with one commit on main, and origin/main and a symbolic
+ *  origin/HEAD pointing at it — the same two refs a real `git clone` writes,
+ *  so resolveBase() resolves the base by genuine derivation, not by a
+ *  fallback (lib.mjs's resolveBase has none: see the dedicated tests below
+ *  for the single-failure case where origin/HEAD is missing). */
 function scratchRepo() {
   const dir = mkdtempSync(join(tmpdir(), "gate-"));
   git(dir, ["init", "-q", "-b", "main", "."]);
@@ -65,6 +69,11 @@ function scratchRepo() {
   git(dir, ["add", "-A"]);
   git(dir, ["commit", "-qm", "chore: base"]);
   git(dir, ["update-ref", "refs/remotes/origin/main", "main"]);
+  git(dir, [
+    "symbolic-ref",
+    "refs/remotes/origin/HEAD",
+    "refs/remotes/origin/main",
+  ]);
   return dir;
 }
 
@@ -495,9 +504,8 @@ test("gate 2 checks 12/13 read the staged tree, not a working-tree fix that was 
 
 test("protected-branch check refuses on the derived default branch, allows a feature branch", () => {
   // gate-2-commit.md, check 1: the protected branch name is derived from
-  // origin/HEAD (here, resolveBase's origin/main fallback — scratchRepo sets
-  // refs/remotes/origin/main but no symbolic origin/HEAD, exactly like a bare
-  // remote without one), never configured. Exercised as its own module
+  // origin/HEAD (here, a real symbolic ref — scratchRepo sets it up the same
+  // way `git clone` does), never configured. Exercised as its own module
   // (scripts/check-protected-branch.mjs), not the full pre-commit.mjs
   // pipeline, so the result depends only on this check — not on whichever
   // external tools (secretlint, etc.) happen to resolve from a throwaway
@@ -518,6 +526,65 @@ test("protected-branch check refuses on the derived default branch, allows a fea
     0,
     "the same repository on a feature branch is not refused",
   );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("resolveBase has no hardcoded fallback: an absent origin/HEAD with origin/main still present is a visible skip, not a guessed name", () => {
+  // The single-failure case (lib.mjs:resolveBase, fix 14): a shallow clone,
+  // partial clone, or stale symref can delete refs/remotes/origin/HEAD while
+  // refs/remotes/origin/main stays behind. A hardcoded "origin/main" fallback
+  // would use that guessed name as though it had been derived, and the
+  // protected-branch check would silently pass on a repository it never
+  // actually resolved a base for. This is the realistic case — the doubly-
+  // unresolvable one (no origin/main either) is not what a partial clone
+  // produces and is not what this test exercises.
+  const dir = scratchRepo();
+  git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
+  assert.equal(
+    git(dir, ["rev-parse", "--verify", "--quiet", "refs/remotes/origin/main"])
+      .status,
+    0,
+    "origin/main must still resolve — this is the single-failure case, not the doubly-unresolvable one",
+  );
+
+  const r = runScript("scripts/check-protected-branch.mjs", dir);
+  assert.equal(
+    r.status,
+    0,
+    "with no base resolvable, the check must skip rather than block or silently pass on a guessed name",
+  );
+  assert.match(
+    r.stderr,
+    /origin\/HEAD could not be resolved/,
+    "the skip must name the reason, not read as a silent pass",
+  );
+  assert.doesNotMatch(
+    r.stderr,
+    /origin\/main/,
+    "must not fall back to the hardcoded name and report as though it had been derived",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("gate 6 reports visibly and refuses to proceed when origin/HEAD is unresolvable and no base was given", () => {
+  const dir = scratchRepo();
+  git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
+  // GITHUB_BASE_REF must be absent for this to exercise resolveBase()'s own
+  // null path rather than the pull_request-event argument path.
+  const env = Object.fromEntries(
+    Object.entries(CLEAN_ENV).filter(([k]) => k !== "GITHUB_BASE_REF"),
+  );
+  const r = spawnSync(
+    process.execPath,
+    [join(ROOT, "scripts/gate-6-pull-request.mjs")],
+    { cwd: dir, encoding: "utf8", env },
+  );
+  assert.notEqual(
+    r.status,
+    0,
+    "gate 6 must not proceed when it cannot resolve a base to diff against",
+  );
+  assert.match(r.stderr, /cannot resolve the base branch/);
   rmSync(dir, { recursive: true, force: true });
 });
 

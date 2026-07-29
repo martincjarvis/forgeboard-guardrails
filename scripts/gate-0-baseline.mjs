@@ -6,30 +6,39 @@
 //
 // Exit 0 — the baseline holds, work may start. Exit 2 — a red baseline stops the
 // work and is reported, never worked through.
-import { run, git, report } from "./lib.mjs";
+import { run, git, resolveBase, report } from "./lib.mjs";
 
 const findings = [];
 const skips = [];
 const counts = {};
 
-// Report the derivations: the default branch and the commands each check uses.
-const baseHead = git(["rev-parse", "--abbrev-ref", "origin/HEAD"]);
-const base = baseHead.status === 0 ? baseHead.stdout.trim() : "origin/main";
-process.stderr.write(`gate 0: base is ${base}\n`);
+// Report the derivation: the default branch each check below diffs against.
+// origin/HEAD is the only source (no hardcoded fallback) — an unresolvable
+// origin/HEAD skips the rebase check visibly rather than guessing a name.
+const base = resolveBase();
+if (base) {
+  process.stderr.write(`gate 0: base is ${base}\n`);
+} else {
+  process.stderr.write("gate 0: base could not be resolved (origin/HEAD)\n");
+}
 
 // Check 1 — rebased onto base. Fetch first; if the fetch cannot run, the rebase
 // state is unknown and that is reported rather than assumed clean.
-const fetched = git(["fetch", "--quiet", "--all"]);
-if (fetched.status !== 0) {
-  skips.push("rebase check — `git fetch` failed, cannot compare to the base");
+if (!base) {
+  skips.push("rebase check — origin/HEAD could not be resolved, check skipped");
 } else {
-  const behind = git(["rev-list", "--count", `HEAD..${base}`]);
-  if (behind.status === 0 && Number(behind.stdout.trim()) > 0) {
-    findings.push({
-      check: "rebased onto base",
-      problem: `workspace is ${behind.stdout.trim()} commit(s) behind ${base}`,
-      remedy: `run \`git rebase ${base}\` before starting work`,
-    });
+  const fetched = git(["fetch", "--quiet", "--all"]);
+  if (fetched.status !== 0) {
+    skips.push("rebase check — `git fetch` failed, cannot compare to the base");
+  } else {
+    const behind = git(["rev-list", "--count", `HEAD..${base}`]);
+    if (behind.status === 0 && Number(behind.stdout.trim()) > 0) {
+      findings.push({
+        check: "rebased onto base",
+        problem: `workspace is ${behind.stdout.trim()} commit(s) behind ${base}`,
+        remedy: `run \`git rebase ${base}\` before starting work`,
+      });
+    }
   }
 }
 
