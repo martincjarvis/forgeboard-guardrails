@@ -509,6 +509,36 @@ Three bands run through the strategy:
   recorded in a demonstration record held by the consuming programme. The
   integration evidence that the whole mechanism works end to end.
 
+## Verification
+
+- [ ] Each component's version is computed only from conventional commits
+      touching its own declared `paths`, and a test-only change bumps nothing.
+- [ ] A component with no releasable commit on its `paths` keeps its last
+      released version while sibling components move.
+- [ ] A published version is never rebuilt, and a branch prerelease's
+      monotonic CI build-counter qualifier means a rebase, force-push, or
+      workflow re-run never re-mints an already-published version.
+- [ ] `appVersion` moves only from public components' bumps; a non-public
+      component's change floors it at patch and never raises it further.
+- [ ] Every component and the app start at `0.0.0`, and no commit is marked
+      breaking (`!` / `BREAKING CHANGE:`) while the component is in 0.x.
+- [ ] `1.0.0` is cut by a deliberate human decision, never auto-promoted by
+      the tooling.
+- [ ] The `deploy` component carries its own version and package but sits
+      outside the deployed `components` DAG.
+- [ ] A change to a deploy script or the descriptor runs the full ordered
+      deploy plus launch-smoke in CI on the branch/PR before merge.
+- [ ] CI runs every component's test suite on every branch/PR, independent of
+      whether that component's `paths` moved its version.
+- [ ] A component is a prerelease iff its own `paths` changed on the branch;
+      an unchanged dependency stays stable even when what it depends on is a
+      prerelease.
+- [ ] The engine deploys a component only when its manifest version differs
+      from what is already installed at the target, so a re-run of an
+      already-deployed manifest produces only `SKIP` lines.
+- [ ] A component's `verify` step never checks for a component that depends
+      on it — only its own `dependsOn` closure.
+
 ## References
 
 - [ADR-0001](../ADR/0001-per-component-version-derivation.md) — versions are

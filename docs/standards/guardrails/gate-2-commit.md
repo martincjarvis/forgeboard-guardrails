@@ -18,6 +18,14 @@ Checks run in the fixed order below and stop at the first failure.
 | 2   | Staged-content isolation | Integrity | After isolation, the files on disk still differ from the index, or the comparison itself cannot run                      |
 | 3   | Dependency lock sync     | Integrity | A manifest is staged without its lock file, or a lock file is staged with neither a manifest change nor a stated upgrade |
 
+**Check 1 runs locally regardless of whether the server-side equivalent can
+currently be configured.** [Gate 6](gate-6-pull-request.md) names branch
+protection as the authority; that authority being unreachable — a private
+repository on a plan without it, say — is a reason to record the gap, not a
+reason to drop the local refusal. Dropping both leaves a protected branch with
+no refusal at all: this check is what actually stops a direct push when
+nothing server-side does.
+
 **Partial staging is supported, and check 2 is what makes it safe.** Staging
 half a file's changes is normal and this gate judges the staged half. Achieving
 that takes a mechanism, and check 2 verifies **that mechanism worked**, before
@@ -114,6 +122,10 @@ was chosen.
 | 15  | Suppression register        | Policy        | A suppression comment exists with no complete register row                                                  |
 | 16  | Dependency licence register | Policy        | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to |
 | 17  | Link and anchor integrity   | Documentation | A link resolves to nothing, resolves ambiguously, or names a heading that does not exist                    |
+
+Check 11 runs a linter and a type checker together, and neither substitutes for
+the other — see
+[thresholds: the stack's analysers win](thresholds.md#the-stacks-analysers-win).
 
 Check 13 runs two kinds together: unit tests, and the architecture tests that
 assert on the shape of the code rather than its behaviour. Both need nothing but
@@ -229,6 +241,10 @@ formatter for C#, the compiler's own analysers over an external pass.
 ## Verification
 
 - [ ] A commit on a protected branch is refused.
+- [ ] The protected-branch check still runs, and still refuses, on a host where
+      the server-side branch-protection equivalent cannot currently be
+      configured — the platform limitation is a recorded gap, not a reason to
+      drop the local check.
 - [ ] A change touching one component builds and tests that component only.
 - [ ] A change to a component's dependency also builds and tests its consumers.
 - [ ] A partially staged file is judged on its staged half only.

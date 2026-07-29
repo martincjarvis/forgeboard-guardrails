@@ -193,6 +193,13 @@ Rules that make the evidence worth publishing:
   only when green withholds them exactly when they are needed.
 - **A skipped check is published as skipped, with its reason.** An absent entry
   and a passing one must not look the same.
+- **A fallback that produces plausible-looking output is not a visible skip.**
+  A check that cannot run — a tool never installed, a fetch that failed —
+  must be published as unavailable, naming what was missing, not replaced with
+  placeholder output shaped like a real result. A step that runs the tool,
+  swallows a failure, and writes a stand-in file on the same path a genuine
+  report would occupy fails this even though something was written every run:
+  the artefact reads as evidence and nobody notices the tool was never there.
 - **Coverage carries its delta against the base**, which check 8 enforces.
 - **Findings are line-annotated where the platform supports it.** A finding
   nobody sees during review is a finding that ships.
@@ -296,6 +303,9 @@ pipeline refuses the merge.
 - [ ] Coverage reports a delta against the base, enforced as check 8.
 - [ ] Static-analysis findings appear as annotations on the changed lines.
 - [ ] A skipped check is visibly skipped, with a reason, in the published evidence.
+- [ ] A check whose tool is missing or unreachable publishes an unavailable
+      result naming what was missing — not a placeholder file that reads like a
+      genuine artefact on a run where the tool never ran.
 - [ ] End-to-end tests run here or at gate 8, and the checklist states which.
 - [ ] Health checks pass before any end-to-end test runs against the provisioned
       environment.

@@ -110,6 +110,30 @@ Three tiers run through the policy:
 
 _Tiers 1 and 2 are the semantic residue — the judgements no analyser can make. The `logging-review` skill carries them._
 
+## Verification
+
+- [ ] The production default level is INFO, and TRACE/DEBUG never ship as the
+      floor.
+- [ ] Each event's level matches the level-mapping table — a compensated error
+      is WARN, not ERROR; a non-fatal error handled centrally is ERROR, not WARN.
+- [ ] Third-party output is capped at WARN/ERROR by a category filter — no
+      third-party category is admitted at INFO or DEBUG.
+- [ ] No logging call reaches a static (`Console.WriteLine`, raw `console.log`,
+      `System.Diagnostics.Trace`/`Debug`) — every call goes through the
+      DI-provided or injected logger.
+- [ ] No PII appears in a logged field at any level without a redaction layer
+      between the field and the sink; an auditable INFO event carries an
+      identifier, never the PII itself.
+- [ ] A measured value — a rate, a count, a latency — is emitted as a metric,
+      not logged as a discrete message.
+- [ ] A test captures logs scoped to itself, asserts the expected event,
+      level and structured fields with PII absent, and fails on any
+      unexpected WARN or ERROR during the run.
+- [ ] Distributed tracing context (trace and span identifiers) crosses every
+      component boundary from client to database.
+- [ ] Each Tier-0 rule in the per-stack table has its analyser or lint rule
+      actually wired into the build, not merely named in this document.
+
 ## References
 
 - The two stacks this policy realizes for are .NET and React with TypeScript;

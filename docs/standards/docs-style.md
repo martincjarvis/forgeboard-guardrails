@@ -124,6 +124,23 @@ Everything else is judgement. No gate can tell whether prose is concise or wheth
 provenance was front-loaded, and pretending otherwise would put a number on it that
 people would then write to.
 
+## Verification
+
+- [ ] Every document under `/docs` has non-empty `type`, `summary`, and
+      `read_when` frontmatter, and `type` is one of the four listed values or a
+      document class's own declared convention.
+- [ ] The document opens with its title and a one-line purpose — not with why
+      it exists, what it deliberately does not cover, or the decisions behind it.
+- [ ] `## References` is the last section, and no provenance appears earlier
+      in the document.
+- [ ] The document's structure matches its declared `type` — a `reference`
+      scans as tables and lists, a `how-to` runs prerequisites → numbered steps
+      → verification, an `explanation` leads with rationale.
+- [ ] One term is used per concept throughout the document — no synonym
+      swapped in for readability.
+- [ ] A skill mentioned in the document sits as an aside next to the guidance
+      it automates, never as the structure the document is organised around.
+
 ## References
 
 - [ADR conventions](../ADR/README.md) — the one document class with extra fields.

@@ -38,6 +38,16 @@ already has that stack covered. See
 [cross-gate rules: checks are tiered by cost](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)
 for the full rule and why excluding a covered stack removes the backstop.
 
+**A type checker is not a linter, either.** The same distinction
+[cross-gate rules](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)
+draws for complexity holds one level over: a type checker verifies that values
+match their declared types; a linter enforces the rules about how code is
+shaped — banned patterns, dead code, unused values, style. Turning a type
+checker's strictness up satisfies neither a linter check nor a complexity
+check that calls for one — `tsc --strict` is not an ESLint configuration,
+however strict its settings, and a repository that treats it as one has shipped
+no linter at all.
+
 ## The table
 
 | Threshold                      | Default                                                                                    | Applies to                                            |
@@ -98,6 +108,9 @@ for the full rule and why excluding a covered stack removes the backstop.
       recommendation where one exists, and the gap-fill default only where none does.
 - [ ] No native analyser rule has been disabled to substitute a number from this
       table.
+- [ ] A stack whose only specialised analyser is a type checker still has a
+      linter configured — the type checker's strictness is not treated as
+      satisfying the lint check.
 - [ ] A stack's own analyser being authoritative for its values has not been used
       to exclude that stack from the general-purpose scan.
 - [ ] Every developer, agent and pipeline run resolves the same configuration.
