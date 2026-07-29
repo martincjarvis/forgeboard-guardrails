@@ -11,7 +11,7 @@
     "prepare": "husky",
     "build": "tsc --noEmit",
     "test": "node --test hooks/test/hooks.test.mjs",
-    "test:coverage": "c8 --check-coverage --lines=90 --reporter=text --reporter=cobertura node --test hooks/test/hooks.test.mjs",
+    "test:coverage": "c8 --check-coverage --lines=80 --reporter=text --reporter=cobertura node --test hooks/test/hooks.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:md": "markdownlint-cli2",

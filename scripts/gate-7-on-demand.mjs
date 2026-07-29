@@ -211,14 +211,18 @@ function npmBin(name) {
 
 // --- Policy: workspace capability check ---
 {
-  const lp = git(["config", "--get", "core.longpaths"]);
-  if (lp.status !== 0 || !/true/i.test(lp.stdout.trim())) {
-    add(
-      "workspace capability — long paths",
-      "core.longpaths",
-      "long-path support is not enabled; a deep path can fail to clone or build on Windows",
-      "run `git config --global core.longpaths true` (a gate reports; it does not set this for you)",
-    );
+  // Long-path support is a Windows-only git setting; POSIX handles long paths
+  // natively, so the check is reported only where it can actually bite.
+  if (process.platform === "win32") {
+    const lp = git(["config", "--get", "core.longpaths"]);
+    if (lp.status !== 0 || !/true/i.test(lp.stdout.trim())) {
+      add(
+        "workspace capability — long paths",
+        "core.longpaths",
+        "long-path support is not enabled; a deep path can fail to clone or build on Windows",
+        "run `git config --global core.longpaths true` (a gate reports; it does not set this for you)",
+      );
+    }
   }
   const attr = readFileSync(".gitattributes", "utf8");
   if (!/^\* text=auto eol=lf/m.test(attr)) {

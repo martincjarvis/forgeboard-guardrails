@@ -33,15 +33,41 @@ if (staged.length === 0) {
   note("no staged files; repository-wide checks still run");
 }
 
-// Check 3 — dependency lock sync. A manifest without its lock blocks; a lock
-// without a manifest change pushes back (no author present to answer, so block).
+// Check 3 — dependency lock sync. The lock file tracks dependencies, so this
+// fires only when the dependency set in the manifest actually changed — a script
+// or metadata edit to package.json is not a dependency change and does not need a
+// new lock. A dependency change without its lock blocks; a lock without a
+// manifest change pushes back (no author present to answer, so block).
+const DEP_FIELDS = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
+  "bundleDependencies",
+  "overrides",
+  "resolutions",
+];
+function depsAt(ref) {
+  const r = git(["show", ref]);
+  if (r.status !== 0) return "";
+  try {
+    const p = JSON.parse(r.stdout);
+    return JSON.stringify(
+      Object.fromEntries(DEP_FIELDS.filter((f) => p[f]).map((f) => [f, p[f]])),
+    );
+  } catch {
+    return "";
+  }
+}
 const manifestStaged = staged.some((f) => f === "package.json");
 const lockStaged = staged.some((f) => f === "package-lock.json");
-if (manifestStaged && !lockStaged) {
+const depsChanged = depsAt("HEAD:package.json") !== depsAt(":package.json");
+if (depsChanged && !lockStaged) {
   findings.push({
     check: "dependency lock sync",
     path: "package.json",
-    problem: "package.json is staged without package-lock.json",
+    problem:
+      "a dependency in package.json changed but package-lock.json is not staged",
     remedy: "stage the lock file so the dependency set is the one declared",
   });
 }
