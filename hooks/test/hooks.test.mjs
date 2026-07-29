@@ -23,6 +23,11 @@ import {
   acceptedAdvisoryIds,
   checkDependencyAdvisories,
 } from "../../scripts/check-dependency-advisories.mjs";
+import {
+  classifyLicence,
+  licenceAcceptable,
+  checkLicencePolicy,
+} from "../../scripts/check-licence-policy.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -502,6 +507,70 @@ test("dependency advisory scan is a visible skip, naming the reason, when not tr
   assert.equal(skips.length, 1);
   assert.match(skips[0], /dependency advisory scan/);
   assert.match(skips[0], /no dependency change and not a scheduled run/);
+});
+
+// --- scripts/check-licence-policy.mjs — gate 6 check 7 (docs/standards/
+// guardrails/gate-6-pull-request.md, "Four licence categories, not two").
+
+test("licence policy classifies the four categories", () => {
+  assert.equal(classifyLicence("MIT"), "permissive");
+  assert.equal(classifyLicence("MPL-2.0"), "weak-copyleft");
+  assert.equal(classifyLicence(""), "unknown");
+  assert.equal(classifyLicence("UNKNOWN"), "unknown");
+  assert.equal(classifyLicence("GPL-3.0-only"), "other");
+});
+
+test("licence policy: permissive passes at either scope; weak copyleft passes for development but blocks at runtime; unknown and other always block", () => {
+  assert.equal(licenceAcceptable("MIT", "Runtime"), true);
+  assert.equal(licenceAcceptable("MIT", "Development"), true);
+  assert.equal(licenceAcceptable("MPL-2.0", "Development"), true);
+  assert.equal(
+    licenceAcceptable("MPL-2.0", "Runtime"),
+    false,
+    "weak copyleft blocks the moment it ships",
+  );
+  assert.equal(
+    licenceAcceptable("", "Development"),
+    false,
+    "no licence at all is refused, never passed as unclassified-yet",
+  );
+  assert.equal(licenceAcceptable("GPL-3.0-only", "Development"), false);
+});
+
+test("licence policy is a visible skip, naming the reason, when not triggered", () => {
+  const { findings, skips } = checkLicencePolicy(false);
+  assert.deepEqual(findings, []);
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /dependency licence policy/);
+});
+
+test("licence policy refuses a missing register, and refuses a resolved dependency outside the allow list", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+
+  // No register at all yet: refused, naming that it is missing — never
+  // passed silently for lack of anything to compare against
+  // (gate-6-pull-request.md: "no licence file at all is refused").
+  const missing = runScript("scripts/check-licence-policy.mjs", dir);
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /does not exist/);
+
+  // A register row naming a licence outside both allow lists (strong
+  // copyleft here) is refused even though the row itself is complete.
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
+      "| copyleft-thing | 1.0.0 | GPL-3.0-only | Direct | Development | tooling | example | | | | |\n",
+  );
+  git(dir, ["add", "-A"]);
+  const refused = runScript("scripts/check-licence-policy.mjs", dir);
+  assert.equal(refused.status, 2);
+  assert.match(refused.stderr, /copyleft-thing@1\.0\.0/);
+  assert.match(refused.stderr, /GPL-3\.0-only/);
+
+  rmSync(dir, { recursive: true, force: true });
 });
 
 test("acceptedAdvisoryIds reads GHSA ids only from Accepted ADRs, not Proposed ones", () => {

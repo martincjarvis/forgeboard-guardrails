@@ -40,6 +40,7 @@ import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
+import { checkLicencePolicy } from "./check-licence-policy.mjs";
 import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
 
@@ -135,6 +136,14 @@ function depsAt(ref) {
   const lic = checkLicenceCompleteness(lockChanged);
   findings.push(...lic.findings);
   skips.push(...lic.skips);
+
+  // Check 7 (gate 6) — dependency licence policy. Reads the same register as
+  // completeness above, judged against the allow list rather than for a
+  // missing row (registers.md: "completeness and policy are different
+  // checks"); change-triggered the same way.
+  const policy = checkLicencePolicy(lockChanged);
+  findings.push(...policy.findings);
+  skips.push(...policy.skips);
 
   // Check 6 (gate 6) — dependency advisory scan. Change-triggered like the
   // licence register above, plus scheduled: GITHUB_EVENT_NAME is "schedule"
