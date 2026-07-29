@@ -12,16 +12,17 @@ The same checks, invoked without a trigger: before opening a review, or when
 adopting the toolkit in an existing repository. Reports rather than blocks,
 because the caller decides the consequence.
 
-| Check                       | Type          | Note                                                                                             |
-| --------------------------- | ------------- | ------------------------------------------------------------------------------------------------ |
-| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                              |
-| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                 |
-| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                        |
-| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                            |
-| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                    |
-| Link and anchor integrity   | Documentation | With or without repair                                                                           |
-| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid                                  |
-| Workspace capability check  | Policy        | Long-path support on, text normalisation declared, large-file storage configured where supported |
+| Check                       | Type          | Note                                                                                                                                                 |
+| --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                                                                                  |
+| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                                                                     |
+| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                                                                            |
+| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                                                                                |
+| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                                                                        |
+| Link and anchor integrity   | Documentation | With or without repair                                                                                                                               |
+| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid                                                                                      |
+| Workspace capability check  | Policy        | Long-path support on, text normalisation declared, large-file storage configured where supported                                                     |
+| Refusal-proof audit         | Policy        | A blocking check's negative fixture passed instead of being refused ([cross-gate rules](cross-gate-rules.md#every-blocking-check-proves-it-refuses)) |
 
 **Line endings are normalised in the repository, not left to each machine.**
 `.gitattributes` declares `* text=auto eol=lf` and marks binary files as binary,
@@ -72,6 +73,7 @@ clone.
 | Large-file storage          | `git lfs env` · `git lfs track`                                                                                    |
 | Installed hooks             | `git config --get core.hooksPath` and list that directory                                                          |
 | Platform capabilities       | `gh api repos/:owner/:repo` · `az repos policy list`                                                               |
+| Refusal-proof audit         | `node scripts/check-refusal-proofs.mjs`                                                                            |
 
 The history scan is the one to reach for a purpose-built tool for: walking every
 reachable commit is not something a file-oriented scanner does well, and the
@@ -106,6 +108,9 @@ the level-1 answer.
       normalised — check one rather than assuming.
 - [ ] A large binary is stored via large-file storage where the remote supports
       it, and the decision is recorded where it does not.
+- [ ] The refusal-proof audit runs, and a `does not refuse` verdict is treated
+      as a finding — never silently read as green because the check it is
+      about still exited 0 on real input.
 
 ## References
 

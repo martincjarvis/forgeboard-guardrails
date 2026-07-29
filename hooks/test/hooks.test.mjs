@@ -1,3 +1,4 @@
+// cspell:ignore fixtured lintstagedrc symref
 // The hooks are the only code in this repository, and they run on every edit on
 // somebody's machine. Their logic — thresholds, the override marker, which files
 // count — is exactly the kind that fails quietly, so it leaves a runnable check
@@ -32,6 +33,7 @@ import {
 } from "../../scripts/check-licence-policy.mjs";
 import { checkSuppressions } from "../../scripts/check-suppressions.mjs";
 import { normalizeSarifPaths } from "../../scripts/lib.mjs";
+import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -1203,4 +1205,54 @@ test("normalizeSarifPaths does not throw when the SARIF file is missing", () => 
     normalizeSarifPaths(join(dir, "does-not-exist.sarif")),
   );
   rmSync(dir, { recursive: true, force: true });
+});
+
+// --- scripts/check-refusal-proofs.mjs — fix 9a, the refusal-proof contract
+// (docs/standards/guardrails/cross-gate-rules.md, "Every blocking check
+// proves it refuses"). Only the pure classification rule and a fast,
+// file-content regression guard run here: the full registry
+// (scripts/check-refusal-proofs.mjs's own CLI) shells out to semgrep, cspell
+// and markdownlint-cli2 and takes upward of twenty seconds — appropriate for
+// gate 7 and the weekly CI audit this is deliberately NOT wired into per
+// commit (the standard's own rule), wrong for hooks/test/hooks.test.mjs,
+// which runs on every commit that touches hooks/. That full run was verified
+// by hand: `node scripts/check-refusal-proofs.mjs` reported all eight
+// fixtured checks as `refuses` and exited 0.
+
+test("classifyFixtureResult: the three-state contract itself", () => {
+  assert.equal(
+    classifyFixtureResult(true),
+    "refuses",
+    "a fixture the check blocked",
+  );
+  assert.equal(
+    classifyFixtureResult(false),
+    "does-not-refuse",
+    "a fixture the check passed anyway — decorative, a finding",
+  );
+  assert.equal(
+    classifyFixtureResult(null),
+    "no-fixture",
+    "the fixture could not be run at all — unverified, never a pass",
+  );
+});
+
+test("regression guard: .lintstagedrc.json's cspell invocation uses a flag cspell actually recognises", () => {
+  // The exact bug fix 9a's own audit found while writing this contract:
+  // cspell's CLI is commander-based, and an unrecognised flag
+  // (`--no-must-find-file`, missing the plural) prints "unknown option" and
+  // still exits 0 — the check never scans anything and reads as a pass. This
+  // is the third failure shape cross-gate-rules.md names by name ("the tool
+  // silently examines nothing and reports success"), found in this
+  // repository's own lint-staged config, not merely a hypothetical.
+  const config = JSON.parse(
+    readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
+  );
+  const spellCmd = config["*.{md,mdx}"].find((c) => c.includes("cspell"));
+  assert.match(spellCmd, /--no-must-find-files\b/);
+  assert.doesNotMatch(
+    spellCmd,
+    /--no-must-find-file\b/,
+    "the singular form is not a real cspell flag and is silently ignored, not enforced",
+  );
 });

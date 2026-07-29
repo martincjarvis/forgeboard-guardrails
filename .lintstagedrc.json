@@ -3,7 +3,7 @@
   "*.{md,mdx}": [
     "prettier --write",
     "markdownlint-cli2",
-    "cspell lint --no-progress --no-must-find-file"
+    "cspell lint --no-progress --no-must-find-files"
   ],
   "*.{js,mjs,cjs,ts,tsx,json,jsonc,yml,yaml}": "prettier --write"
 }

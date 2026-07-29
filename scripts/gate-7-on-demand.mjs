@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { trackedFiles, isText, have, run, git } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
+import { checkRefusalProofs } from "./check-refusal-proofs.mjs";
 
 const findings = [];
 const skips = [];
@@ -254,6 +255,32 @@ function npmBin(name) {
 skips.push(
   "platform capability audit — run on the host (gh api / az repos policy); not a local check",
 );
+
+// --- Policy: refusal-proof audit (fix 9a; cross-gate-rules.md, "Every
+// blocking check proves it refuses"). REFUSAL_PROOF_FIXTURE guards against
+// the recursion this would otherwise cause: one of the audit's own fixtures
+// runs this very script against a scratch repository to prove the semgrep
+// wrapper refuses, and that nested run must not spawn the audit again.
+// Reported into gate 7's own findings/skips, never a reason for this sweep
+// to exit non-zero — gate 7 reports, it does not block (the dedicated CI
+// workflow, refusal-proof-audit.yml, is where "does not refuse" blocks).
+if (!process.env.REFUSAL_PROOF_FIXTURE) {
+  const { refuses, doesNotRefuse, noFixture } = await checkRefusalProofs();
+  for (const c of doesNotRefuse) {
+    add(
+      "refusal-proof audit",
+      c,
+      `${c} was given its negative fixture and did not refuse it — the check is decorative`,
+      "restore whatever makes the check actually fail on a bad input (a missing --error/--max-warnings flag, a tool that always exits 0)",
+    );
+  }
+  for (const c of noFixture) skips.push(`refusal-proof audit — ${c}`);
+  if (refuses.length) {
+    skips.push(
+      `refusal-proof audit — ${refuses.length} check(s) proved they refuse their negative fixture`,
+    );
+  }
+}
 
 // Report. Gate 7 reports; the caller decides. It does not block.
 for (const s of skips) process.stderr.write(`gate 7: SKIP ${s}\n`);

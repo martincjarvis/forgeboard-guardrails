@@ -23,9 +23,15 @@ read_when: Adding a check to a repository's gates.
 4. **If it blocks, add it to the pull request pipeline and to the required
    status checks.** Those are two separate acts, and a blocking check with no
    server-side equivalent is advisory whatever it says locally.
-5. **Decide what evidence it publishes**, and in what format the host ingests
+5. **If it blocks, give it a negative fixture** — an input it must refuse —
+   and register it with the [refusal-proof
+   audit](cross-gate-rules.md#every-blocking-check-proves-it-refuses). Do this
+   at birth: a fixture is cheapest to write from the same understanding of
+   what a bad input looks like that just went into steps 1–4, and a check with
+   none reads exactly as unverified as one nobody has gotten to yet.
+6. **Decide what evidence it publishes**, and in what format the host ingests
    without conversion.
-6. **Add its row to the gate's table and its line to that gate's checklist.** A
+7. **Add its row to the gate's table and its line to that gate's checklist.** A
    check with no checklist line is one nobody will ever verify is still working.
 
 ## Verification
@@ -36,10 +42,13 @@ read_when: Adding a check to a repository's gates.
 - [ ] A heavyweight, general-purpose or network-bound check was not placed at a
       fast-path gate merely because its inputs were sufficient there.
 - [ ] If it blocks, it is both re-run server-side and named in the required list.
+- [ ] If it blocks, it has a negative fixture in the refusal-proof audit — or is
+      named there as `no fixture` rather than left out of the audit entirely.
 - [ ] It appears in a gate table and in that gate's verification checklist.
 
 ## References
 
 - [Guardrail standards](../guardrail-standards.md) — the gate index and check types.
-- [Cross-gate rules](cross-gate-rules.md) — the tooling ladder and the local-versus-server rule.
+- [Cross-gate rules](cross-gate-rules.md) — the tooling ladder, the local-versus-server
+  rule, and the refusal-proof contract every blocking check carries.
 - [Thresholds](thresholds.md) — where any number it introduces belongs.

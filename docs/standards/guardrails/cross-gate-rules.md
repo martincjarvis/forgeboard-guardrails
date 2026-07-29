@@ -4,6 +4,8 @@ summary: The rules every gate holds regardless of what it checks — ordering, t
 read_when: Building a gate, or judging whether an existing one is defective in a way its checks would not reveal.
 ---
 
+<!-- cspell:ignore fixtured -->
+
 # Cross-gate rules
 
 These hold for every gate. A gate that breaks one of them is defective even when
@@ -208,6 +210,52 @@ Silence is indistinguishable from a pass. Every run distinguishes three states �
 passed, skipped, suppressed by decision — and a check nobody notices missing is
 worse than one that was never there.
 
+## Every blocking check proves it refuses
+
+A check can read green for reasons that have nothing to do with the input it was
+given. Three shapes recur, and a list of known-bad tools that produce them goes
+stale the day a new one is adopted:
+
+- **The tool always exits 0** and signals a finding only in its own output
+  (`dotnet list package --vulnerable` never fails the process; the finding is
+  text on stdout nobody parsed).
+- **The tool needs a flag to turn a finding into a failure, and the flag is
+  missing** — semgrep without `--error` exits 0 regardless of what it found.
+  This repository shipped that exact bug once.
+- **The tool silently examines nothing and reports success** — cspell printing
+  `Files checked: 0` because every path given was ignored, or a glob that
+  matched nothing.
+
+The contract closes the class instead of chasing examples of it:
+
+> Every blocking check carries a negative fixture — an input it must refuse —
+> and an assertion that it does. A check that cannot demonstrate refusal
+> reports as `unverified`, never as a pass.
+
+Three states, not two, the same discipline as
+[a check that did not enforce says why](#a-check-that-did-not-enforce-says-why)
+one level deeper:
+
+| State             | Means                                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- |
+| `refuses`         | The fixture was tried and the check blocked it, as required.                                                   |
+| `does not refuse` | The fixture was tried and the check passed it anyway — a finding: the check is decorative.                     |
+| `no fixture`      | Nobody has written one yet, or the tool it needs is unavailable here — unverified, and must not read as green. |
+
+**Runs at [gate 7](gate-7-on-demand.md) and in CI, never per commit.** This
+guards a wiring defect, and wiring changes only when wiring changes — running
+it on every commit would pay a repeated cost for a property that does not move
+between runs. `does not refuse` is a real defect and fails the audit;
+`no fixture` is an audit gap, reported and left open rather than blocking every
+run until every blocking check has one.
+
+**A new check acquires its fixture at birth, not later.**
+[Placing a new check](placing-a-new-check.md) is where this is enforced — a
+check with no negative fixture is exactly as unverified the day it is added as
+a check nobody has gotten to yet, and it is cheapest to write the fixture
+alongside the check, from the same understanding of what a bad input looks
+like.
+
 ## Auto-repair only where the fix is unambiguous
 
 Formatting, yes. A link with one candidate target, yes. Anything requiring a
@@ -237,6 +285,12 @@ choice is reported, not guessed.
 - [ ] Indentation, character set and line endings are declared once in
       `.editorconfig`, and no tool's own configuration contradicts it.
 - [ ] A bespoke check has a recorded reason no existing tool covered it.
+- [ ] Every blocking check carries a negative fixture, and the fixture is run —
+      at gate 7 and in CI, not per commit — and reports `refuses`,
+      `does not refuse` or `no fixture`, never a silent pass for the checks
+      that have not been fixtured yet.
+- [ ] A check reported `does not refuse` is treated as the defect it is, not
+      left decorative because its green exit still reads as a pass elsewhere.
 
 ## References
 
