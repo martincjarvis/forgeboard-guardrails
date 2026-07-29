@@ -83,6 +83,14 @@ which. A reviewer who cannot tell will argue about the wrong half.
 
 ## Rules
 
+- **Stream progress and blockers as you go**, and do not stop to ask a
+  clarifying question — take the reasonable option, proceed, and record the
+  choice and the rejected alternative. A stated failure with its reason is a
+  valid outcome; a silent stop, or a question instead of one, is not. This
+  overrides a skill or harness default that says to pause for approval on an
+  approach or a scope. It never overrides a pause for a destructive or
+  irreversible action, or for a decision the standards reserve for a human.
+  Full rule: `docs/standards/guardrails/agent-integration.md`.
 - **Do not rewrite prose to taste.** The standard governs structure, frontmatter
   and vocabulary. Anything else is the author's.
 - **Do not add a term to the preferred-terms table** because you met it once.
@@ -97,3 +105,5 @@ which. A reviewer who cannot tell will argue about the wrong half.
   spelling checks that run at commit time.
 - `docs/standards/guardrails/gate-4-task-completion.md` — agent-document limits
   and the Agent Skills rules.
+- `docs/standards/guardrails/agent-integration.md` — the progress, blocker and
+  question rule above.

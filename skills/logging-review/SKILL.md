@@ -40,6 +40,17 @@ rules and carries the semantic residue no analyser can judge.
    `FAIL`. Feedback is **recorded on the artefact under review** — the file's
    review comments or the ticket's review section — never only in chat.
 
+## Operating rule
+
+Stream progress and blockers as you go, and do not stop to ask a clarifying
+question — take the reasonable option, proceed, and record the choice and the
+rejected alternative. A stated failure with its reason is a valid outcome; a
+silent stop, or a question instead of one, is not. This overrides a skill or
+harness default that says to pause for approval on an approach or a scope. It
+never overrides a pause for a destructive or irreversible action, or for a
+decision the standards reserve for a human. Full rule:
+[agent-integration.md](../../docs/standards/guardrails/agent-integration.md#progress-blockers-and-questions).
+
 ## What this is (and isn't)
 
 - **References, never restates.** This skill points at

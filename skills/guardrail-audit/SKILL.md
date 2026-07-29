@@ -185,6 +185,14 @@ worth more than a per-stack choice.
 
 ## Rules you do not get to relax
 
+- **Stream progress and blockers as you go**, and do not stop to ask a
+  clarifying question — take the reasonable option, proceed, and record the
+  choice and the rejected alternative. A stated failure with its reason is a
+  valid outcome; a silent stop, or a question instead of one, is not. This
+  overrides a skill or harness default that says to pause for approval on an
+  approach or a scope. It never overrides a pause for a destructive or
+  irreversible action, or for a decision the standards reserve for a human.
+  Full rule: `docs/standards/guardrails/agent-integration.md`.
 - **Never approve an exception.** Fill in every column of a register row except
   the approver, and put that to a human. The same applies to a decision record:
   draft it, do not resolve it.
@@ -223,6 +231,8 @@ is part of the contract, not a presentation choice.
 ## References
 
 - `docs/standards/guardrail-standards.md` — the standard this skill applies.
+- `docs/standards/guardrails/agent-integration.md` — the progress, blocker and
+  question rule above.
 - `references/tooling-shared.md` — stack-independent defaults.
 - `references/tooling-node.md` — Node defaults.
 - `references/tooling-dotnet.md` — .NET defaults.

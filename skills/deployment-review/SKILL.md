@@ -98,6 +98,14 @@ outranks a missing smoke test, because everything downstream trusts the version.
 
 ## Rules
 
+- **Stream progress and blockers as you go**, and do not stop to ask a
+  clarifying question — take the reasonable option, proceed, and record the
+  choice and the rejected alternative. A stated failure with its reason is a
+  valid outcome; a silent stop, or a question instead of one, is not. This
+  overrides a skill or harness default that says to pause for approval on an
+  approach or a scope. It never overrides a pause for a destructive or
+  irreversible action, or for a decision the standards reserve for a human.
+  Full rule: `docs/standards/guardrails/agent-integration.md`.
 - **Never propose hand-editing a version** to correct a derivation. Fix the
   derivation or the commit scope that fed it.
 - **Never propose republishing over an existing version.** Publish a new one.
@@ -113,3 +121,5 @@ outranks a missing smoke test, because everything downstream trusts the version.
 - `docs/standards/guardrails/gate-3-commit-message.md` — version derivation.
 - `docs/ADR/0001-per-component-version-derivation.md` — why the detector is the
   toolkit's own.
+- `docs/standards/guardrails/agent-integration.md` — the progress, blocker and
+  question rule above.

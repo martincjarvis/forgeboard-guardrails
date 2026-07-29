@@ -137,6 +137,14 @@ should say.
 
 ## Rules
 
+- **Stream progress and blockers as you go**, and do not stop to ask a
+  clarifying question — take the reasonable option, proceed, and record the
+  choice and the rejected alternative. A stated failure with its reason is a
+  valid outcome; a silent stop, or a question instead of one, is not. This
+  overrides a skill or harness default that says to pause for approval on an
+  approach or a scope. It never overrides a pause for a destructive or
+  irreversible action, or for a decision the standards reserve for a human.
+  Full rule: `docs/standards/guardrails/agent-integration.md`.
 - **Do not relabel a test to make it fit.** Moving a test between kinds without
   changing what it needs relabels the problem.
 - **Do not propose adding end-to-end tests to raise confidence.** More of the
@@ -155,3 +163,5 @@ should say.
 - `docs/standards/testing-strategy.md` — the tiers, coverage and artifacts.
 - `docs/standards/guardrails/gate-5-push.md` — the push gate's boundary.
 - `docs/standards/guardrails/flaky-tests.md` — retries and quarantine.
+- `docs/standards/guardrails/agent-integration.md` — the progress, blocker and
+  question rule above.
