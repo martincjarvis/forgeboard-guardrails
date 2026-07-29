@@ -61,10 +61,10 @@ function classOf(file) {
   return !value || value === "unspecified" ? "production" : value;
 }
 
-// file-classes.md: production and configuration count toward change size;
-// test, documentation and agent-context do not. A threshold that punishes
-// tests teaches the author to write fewer of them.
-const COUNTED = new Set(["production", "configuration"]);
+// file-classes.md: production, configuration and tooling count toward change
+// size; test, documentation and agent-context do not. A threshold that
+// punishes tests teaches the author to write fewer of them.
+const COUNTED = new Set(["production", "configuration", "tooling"]);
 
 // Check 1 — change size (thresholds.md, gate-4-task-completion.md row 1).
 // Counted files together count as one number; the override marker clears

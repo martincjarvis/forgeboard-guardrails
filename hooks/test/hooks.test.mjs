@@ -303,6 +303,32 @@ test("a file classed as configuration counts toward change size but has no lengt
   rmSync(dir, { recursive: true, force: true });
 });
 
+test("a file classed as tooling counts toward change size but has no length limit", () => {
+  // file-classes.md: "Configuration and tooling count toward change size but
+  // carry no length limit" — tooling is Yes in the class table's "Counted in
+  // change size" column, the same as configuration above. A single 900-line
+  // tooling file crosses the change-size error threshold on its own.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(
+    join(dir, ".gitattributes"),
+    "tools/** guardrail-class=tooling\n",
+  );
+  mkdirSync(join(dir, "tools"), { recursive: true });
+  writeFileSync(join(dir, "tools", "big.mjs"), lines(900));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "build: large tooling script"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(r.status, 2, "tooling counts toward change size");
+  assert.match(r.stderr, /change size/);
+  assert.doesNotMatch(
+    r.stderr,
+    /split it into smaller units/,
+    "tooling has no length limit",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test("gate 4 blocks a production file with a function over the complexity error threshold", () => {
   // gate-4-task-completion.md row 4, thresholds.md: complexity error is 15.
   // 16 chained branches gives McCabe complexity 17 — over the error band.
