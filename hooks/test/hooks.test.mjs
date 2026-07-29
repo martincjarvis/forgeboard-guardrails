@@ -36,6 +36,7 @@ import {
   normalizeSarifPaths,
   classifyTestCoverageOutcome,
 } from "../../scripts/lib.mjs";
+import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -1304,4 +1305,21 @@ test("classifyTestCoverageOutcome: a command that never ran (neither summary pre
     /shortfall|below the .* floor|%/,
     "must not claim a coverage shortfall when the command never ran to completion",
   );
+});
+
+// --- scripts/check-osv-scanner.mjs — fix 9b. osv-scanner is external,
+// PATH-resolved and never bundled (ADR-0002), exactly like semgrep and
+// lizard, and it is not installed on this host — which is the point: most
+// consumers hit the skip path before they ever install the tool, so that is
+// what this test exercises for real, not a mocked absence.
+test("osv-scanner check is a visible skip, naming the tool, when it is not on PATH", () => {
+  const { findings, skips } = checkOsvScanner();
+  assert.deepEqual(
+    findings,
+    [],
+    "an unavailable tool must never read as a passing scan",
+  );
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /osv-scanner/);
+  assert.match(skips[0], /not on PATH/);
 });

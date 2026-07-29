@@ -4,17 +4,30 @@ summary: The expensive local tests, run once per push — coverage and integrati
 read_when: Deciding which kind of test something is, or why an end-to-end test must not run at push time.
 ---
 
-<!-- cspell:ignore oneline -->
+<!-- cspell:ignore oneline govulncheck -->
 
 # Gate 5 — Push
 
 The expensive tests live here. They run once per push rather than once per
 commit, and they judge the whole range being pushed.
 
-| #   | Check             | Type        | Runs for                | Fails when                                        |
-| --- | ----------------- | ----------- | ----------------------- | ------------------------------------------------- |
-| 1   | Coverage          | Correctness | The repository          | The coverage command exits non-zero               |
-| 2   | Integration tests | Correctness | Changed components only | An integration test for a changed component fails |
+| #   | Check                                     | Type        | Runs for                    | Fails when                                              |
+| --- | ----------------------------------------- | ----------- | --------------------------- | ------------------------------------------------------- |
+| 1   | Coverage                                  | Correctness | The repository              | The coverage command exits non-zero                     |
+| 2   | Integration tests                         | Correctness | Changed components only     | An integration test for a changed component fails       |
+| 3   | Cross-stack dependency scan (osv-scanner) | Security    | The resolved dependency set | osv-scanner reports an advisory with no accepted record |
+
+Check 3 is not component-scoped like check 2 — it reads the resolved
+dependency set, the same repository-wide shape check 1 already has, not the
+files the push touched. Placed here rather than gate 2 because it is
+network-bound (it queries the OSV database), and gates 1 and 2 fire on every
+edit or commit ([placing-a-new-check](placing-a-new-check.md)). It does not
+replace a stack's own scanner (`govulncheck`, `cargo audit`, and so on) —
+those stay where they are faster or more precise; this is the
+general-purpose backstop that runs regardless
+([cross-gate rules](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)).
+External, resolved from `PATH`, never bundled — the same treatment as
+semgrep and lizard ([ADR-0002](../../ADR/0002-analysis-tool-distribution.md)).
 
 The command that owns the coverage floor also runs the unit suite, so a
 non-zero exit has three possible causes, not one: a failing unit test, a
@@ -48,12 +61,13 @@ racing on one environment produce failures that belong to neither change.
 
 ## Running it by hand
 
-| Check             | Node                                  | .NET                                          |
-| ----------------- | ------------------------------------- | --------------------------------------------- |
-| Coverage          | `npm test -- --coverage`              | `dotnet test --collect:"XPlat Code Coverage"` |
-| Integration tests | `npm run test:integration`            | `dotnet test --filter Category=Integration`   |
-| End-to-end tests  | `npx playwright test`                 | `dotnet test --filter Category=EndToEnd`      |
-| The pushed range  | `git log --oneline origin/main..HEAD` | —                                             |
+| Check                       | Node                                  | .NET                                          |
+| --------------------------- | ------------------------------------- | --------------------------------------------- |
+| Coverage                    | `npm test -- --coverage`              | `dotnet test --collect:"XPlat Code Coverage"` |
+| Integration tests           | `npm run test:integration`            | `dotnet test --filter Category=Integration`   |
+| End-to-end tests            | `npx playwright test`                 | `dotnet test --filter Category=EndToEnd`      |
+| Cross-stack dependency scan | `osv-scanner --format json -r .`      | `osv-scanner --format json -r .`              |
+| The pushed range            | `git log --oneline origin/main..HEAD` | —                                             |
 
 The offline test is the one worth running deliberately: disable network access,
 clear any infrastructure credentials, and run the suite. Anything that fails was
@@ -76,10 +90,15 @@ reaching outside the repository's own boundary and is not an integration test.
 - [ ] Integration tests that need a database or broker get it from a disposable
       container the run creates and destroys.
 - [ ] End-to-end tests exist, and run at gate 6 or gate 8 rather than here.
+- [ ] The cross-stack dependency scan reports a visible, named skip when
+      osv-scanner is not on `PATH` — never a silent pass.
+- [ ] The cross-stack dependency scan still runs for a stack that already has
+      its own specialised advisory scanner, rather than being excluded from it.
 
 ## References
 
-- [Components](components.md) — what scopes checks 2 and 3.
+- [Components](components.md) — what scopes check 2; check 3 is
+  repository-wide instead, like check 1.
 - [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — changed-line
   coverage, and where deployment-dependent tests may run.
 - [Gate 8 — Release](gate-8-release.md) — where they run otherwise.

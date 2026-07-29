@@ -219,6 +219,7 @@ const NO_FIXTURE = [
   "repository-wide tests (gate 2 check 14) — self-referential; not yet fixtured here",
   "dependency licence register completeness (gate 2 check 16) — needs a resolved npm dependency tree from a scratch install; not yet fixtured here",
   "repository-wide complexity scan (lizard, gate 7) — needs a scratch repository the same shape as the semgrep fixture above; not yet fixtured here",
+  "cross-stack dependency scan (osv-scanner, gate 5 check 3 / gate 6 check 10) — osv-scanner is not installed on this host at all (fix 9b's own point); its skip path is covered by a dedicated test (hooks/test/hooks.test.mjs), but a refusal fixture needs the tool itself and cannot be verified here",
 ];
 
 /** The three-state contract itself, as a pure function: a fixture returns

@@ -62,14 +62,21 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install semgrep and lizard
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - name: Install semgrep, lizard and osv-scanner
         # ADR-0002: the toolkit bundles no analysis tools. This repository's
         # own checks resolve them from PATH the same way a consuming
         # repository's do; installing them is this workflow's job, not
         # scripts/gate-6-pull-request.mjs's — a failed install fails this step
         # on its own, rather than the check silently reporting the tool
-        # unavailable and passing.
-        run: pip install semgrep lizard
+        # unavailable and passing. osv-scanner (fix 9b) is a Go binary, hence
+        # `go install` rather than pip.
+        run: |
+          pip install semgrep lizard
+          go install github.com/google/osv-scanner/cmd/osv-scanner@latest
 
       - name: Install dependencies
         run: npm ci
@@ -100,6 +107,14 @@ jobs:
           sarif_file: semgrep-results.sarif
           category: semgrep-${{ matrix.os }}
         continue-on-error: true # missing file (no source changed) is not a gate failure
+
+      - name: Publish cross-stack dependency findings (osv-scanner SARIF)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: osv-results.sarif
+          category: osv-scanner-${{ matrix.os }}
+        continue-on-error: true # missing file (tool unavailable, or nothing found) is not a gate failure
 
       - name: Publish test and coverage reports
         if: always()

@@ -4,6 +4,8 @@ summary: The authoritative gate — every local check re-run server-side on the 
 read_when: Building or auditing a pull request pipeline, or configuring branch protection.
 ---
 
+<!-- cspell:ignore govulncheck -->
+
 # Gate 6 — Pull request pipeline
 
 The authoritative gate. Every gate above runs on the author's machine and is
@@ -17,17 +19,18 @@ evidence but does not block leaves the merge to whoever is impatient.
 
 ## 6.1 Revalidation
 
-| #   | Check                           | Type        | Fails when                                                                                                                    |
-| --- | ------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Clean-checkout provenance       | Integrity   | The pipeline builds anything the repository does not contain                                                                  |
-| 2   | Merge-result build              | Correctness | The **merge result** fails to build, not merely the branch tip                                                                |
-| 3   | Every blocking local check      | Correctness | Any check from gates 2–5 fails when re-run server-side                                                                        |
-| 4   | Whole-repository build and test | Correctness | Any component fails, changed or not                                                                                           |
-| 5   | End-to-end tests                | Correctness | Health checks fail, or an end-to-end test fails, against an environment the pipeline provisioned and destroyed                |
-| 6   | Dependency advisory scan        | Security    | A dependency carries an advisory at or above the block severity, or one at the push-back severity with no record accepting it |
-| 7   | Dependency licence policy       | Policy      | A resolved dependency, direct or transitive, carries a licence outside the allow list                                         |
-| 8   | Changed-line coverage           | Correctness | Coverage of the lines this change added or modified is below the floor                                                        |
-| 9   | Untrusted-run isolation         | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                           |
+| #   | Check                                     | Type        | Fails when                                                                                                                    |
+| --- | ----------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Clean-checkout provenance                 | Integrity   | The pipeline builds anything the repository does not contain                                                                  |
+| 2   | Merge-result build                        | Correctness | The **merge result** fails to build, not merely the branch tip                                                                |
+| 3   | Every blocking local check                | Correctness | Any check from gates 2–5 fails when re-run server-side                                                                        |
+| 4   | Whole-repository build and test           | Correctness | Any component fails, changed or not                                                                                           |
+| 5   | End-to-end tests                          | Correctness | Health checks fail, or an end-to-end test fails, against an environment the pipeline provisioned and destroyed                |
+| 6   | Dependency advisory scan                  | Security    | A dependency carries an advisory at or above the block severity, or one at the push-back severity with no record accepting it |
+| 7   | Dependency licence policy                 | Policy      | A resolved dependency, direct or transitive, carries a licence outside the allow list                                         |
+| 8   | Changed-line coverage                     | Correctness | Coverage of the lines this change added or modified is below the floor                                                        |
+| 9   | Untrusted-run isolation                   | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                           |
+| 10  | Cross-stack dependency scan (osv-scanner) | Security    | osv-scanner reports an advisory with no accepted record, published as SARIF                                                   |
 
 Check 1 is the reason this gate exists in its current form. A local run proves
 the checks pass **on that machine**, with that machine's tool versions, caches
@@ -172,6 +175,17 @@ reach is a credential a stranger can exfiltrate by editing a pipeline file. An
 untrusted run gets the checks and none of the secrets: no deployment
 credentials, no publishing tokens, no environment provisioning. Where a check
 genuinely needs a credential, it runs after a human has looked, not before.
+
+Check 10 is the local re-run cross-gate-rules.md requires of anything blocking
+that also runs at a local gate — here, [gate 5's own cross-stack dependency
+scan](gate-5-push.md). It reads the whole resolved dependency set, the same
+repository-wide shape as checks 6 and 7, and publishes SARIF the way static
+analysis findings do (evidence row 12) rather than a bespoke format. It does
+not replace a stack's own advisory scanner — `govulncheck`, `cargo audit` and
+the rest stay where they are faster or more precise
+([cross-gate rules](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)) —
+and it is external, resolved from `PATH`, never bundled, the same as semgrep
+and lizard ([ADR-0002](../../ADR/0002-analysis-tool-distribution.md)).
 
 ## 6.2 Published evidence
 
@@ -331,6 +345,9 @@ pipeline refuses the merge.
 - [ ] A check whose tool is missing or unreachable publishes an unavailable
       result naming what was missing — not a placeholder file that reads like a
       genuine artefact on a run where the tool never ran.
+- [ ] The cross-stack dependency scan (osv-scanner) runs here as well as at
+      gate 5, and its SARIF is published — the local-versus-server rule
+      applies to it the same as any other blocking check.
 - [ ] End-to-end tests run here or at gate 8, and the checklist states which.
 - [ ] Health checks pass before any end-to-end test runs against the provisioned
       environment.

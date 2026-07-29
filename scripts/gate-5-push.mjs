@@ -17,6 +17,7 @@ import {
   classifyTestCoverageOutcome,
   report,
 } from "./lib.mjs";
+import { checkOsvScanner } from "./check-osv-scanner.mjs";
 import { createInterface } from "node:readline";
 
 const findings = [];
@@ -78,5 +79,14 @@ skips.push(
   "integration tests — none configured for any component yet; gate 5 has " +
     "nothing to run. Add integration tests under a component path to exercise this",
 );
+
+// Check 3 — cross-stack dependency scan (osv-scanner; fix 9b). Placed here,
+// not gate 2, because it is network-bound (placing-a-new-check.md); PATH-
+// resolved and never bundled (ADR-0002), the same as semgrep and lizard.
+{
+  const { findings: found, skips: sk } = checkOsvScanner();
+  findings.push(...found);
+  skips.push(...sk);
+}
 
 report("gate 5", findings, skips);

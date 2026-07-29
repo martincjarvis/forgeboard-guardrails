@@ -269,6 +269,39 @@ if (changedText.length) {
   }
 }
 
+// --- Check 10 (gate 6) — cross-stack dependency scan (osv-scanner; fix 9b) -
+// Whole-repository, not range-scoped: it reads the resolved dependency tree,
+// not the files this range touched (the same reason checks 6/7 above read
+// the whole tree rather than the diff). Re-run here server-side, with a
+// SARIF upload, the way cross-gate-rules.md requires of anything blocking
+// that also runs at a local gate (gate 5 — scripts/gate-5-push.mjs).
+if (have("osv-scanner", ["--version"])) {
+  const sarif = "osv-results.sarif";
+  const osv = run("osv-scanner", [
+    "--format",
+    "sarif",
+    "--output",
+    sarif,
+    "-r",
+    ".",
+  ]);
+  const osvOut = (osv.stdout || "") + (osv.stderr || "");
+  process.stderr.write(osvOut);
+  normalizeSarifPaths(sarif);
+  if (osv.status !== 0) {
+    fail(
+      "cross-stack dependency scan (osv-scanner)",
+      "",
+      osvOut || "osv-scanner exited non-zero; see the uploaded SARIF report",
+      "upgrade the flagged dependency, or record why the advisory does not apply",
+    );
+  }
+} else {
+  skip(
+    "cross-stack dependency scan (osv-scanner) — not on PATH; the workflow's install step should have put it there",
+  );
+}
+
 // --- Check 17 (gate 2) — link and anchor integrity --------------------------
 // Reads the whole documentation corpus already (checkLinks.mjs: "a file move
 // leaves the broken link in a file nobody staged"); no range adaptation
