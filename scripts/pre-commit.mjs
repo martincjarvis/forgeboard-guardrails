@@ -21,10 +21,19 @@ import {
 import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
+import { checkProtectedBranch } from "./check-protected-branch.mjs";
 
 const findings = [];
 const skips = [];
 const note = (s) => skips.push(s);
+
+// Check 1 — protected branch. Runs first, per gate 2's fixed order (2.1).
+{
+  const branch = checkProtectedBranch();
+  findings.push(...branch.findings);
+  skips.push(...branch.skips);
+}
+if (findings.length) report("gate 2", findings, skips);
 
 const staged = stagedFiles();
 if (staged.length === 0) {

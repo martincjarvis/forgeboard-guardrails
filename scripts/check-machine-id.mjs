@@ -9,8 +9,7 @@
 // What it flags: absolute paths into a user's home (/home/<name>, /Users/<name>,
 // C:\\Users\\<name>), which identify a machine and a person. Placeholders pass:
 // the fail-safe is a leak, not a convention.
-import { readFileSync } from "node:fs";
-import { trackedFiles, isText, report } from "./lib.mjs";
+import { trackedFiles, isText, readStaged, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
 // A username segment: letter first, then word/dot/hyphen. Excludes regex
@@ -75,7 +74,7 @@ const PATTERNS = [
   { name: "macOS home path", re: new RegExp(`/Users/(${SEG})`) },
   {
     name: "Windows home path",
-    re: new RegExp(`[A-Za-z]:\\\\\\\\Users\\\\(${SEG})`),
+    re: new RegExp(`[A-Za-z]:\\\\Users\\\\(${SEG})`),
   },
 ];
 
@@ -95,7 +94,7 @@ export function checkMachineId(files) {
     if (!isText(file)) continue;
     let md;
     try {
-      md = readFileSync(file, "utf8");
+      md = readStaged(file);
     } catch {
       continue;
     }

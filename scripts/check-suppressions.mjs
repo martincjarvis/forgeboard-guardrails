@@ -4,9 +4,8 @@
 // docs/registers/suppression-register.md (bypass-and-exceptions.md). A broadened
 // annotation, or a marker with no register row, is the finding this catches.
 // The register itself is the reviewed record; a generated inventory is not one.
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { trackedFiles, isText, classOf, splitLines, report } from "./lib.mjs";
+import { trackedFiles, isText, classOf, readStaged, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
 const REGISTER = "docs/registers/suppression-register.md";
@@ -70,7 +69,7 @@ function parseRegister() {
   const rows = [];
   let md;
   try {
-    md = readFileSync(REGISTER, "utf8");
+    md = readStaged(REGISTER);
   } catch {
     return rows;
   }
@@ -118,7 +117,7 @@ export function checkSuppressions(files) {
     }
     let md;
     try {
-      md = readFileSync(file, "utf8");
+      md = readStaged(file);
     } catch {
       continue;
     }

@@ -90,6 +90,21 @@ export function splitLines(s) {
     .filter(Boolean);
 }
 
+/** Read a path's staged content — the git-index blob, via `git show :<path>` —
+ *  rather than the working tree. During a commit the working tree can already
+ *  differ from what is staged (a file edited after `git add`), and a check
+ *  that reads disk there judges content that is not what is being committed
+ *  (gate-2-commit.md: staged-content isolation, and the checks in 2.3 that
+ *  read file content — 9, 15, 17 — the same as the file-scoped ones in 2.2).
+ *  Falls back to the working tree when there is no index entry: an untracked
+ *  path, or a whole-repository sweep run outside a commit (gate 7), where
+ *  there is no staged/unstaged distinction to protect and the working tree is
+ *  the thing actually being swept. */
+export function readStaged(file) {
+  const r = git(["show", `:${file}`]);
+  return r.status === 0 ? r.stdout : readFileSync(file, "utf8");
+}
+
 /** Locate the default branch's remote tip, as a rev to diff against. */
 export function resolveBase() {
   const head = git(["rev-parse", "--abbrev-ref", "origin/HEAD"]);

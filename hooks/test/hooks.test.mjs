@@ -59,6 +59,20 @@ function runHook(name, cwd, stdin = "") {
   });
 }
 
+// The repository root, one level up from hooks/ — where scripts/ (the git-hook
+// orchestrator and its checks) lives, as opposed to hooks/ (the agent hooks
+// above). Repo-root-relative so a script resolves its cwd-relative git calls
+// against the scratch repository, exactly as it would run from .husky.
+const ROOT = join(HOOKS, "..");
+
+function runScript(relPath, cwd, args = []) {
+  return spawnSync(process.execPath, [join(ROOT, relPath), ...args], {
+    cwd,
+    encoding: "utf8",
+    env: CLEAN_ENV,
+  });
+}
+
 function lines(n, text = "x") {
   return `${text}\n`.repeat(n);
 }
@@ -257,6 +271,73 @@ test("a file classed as configuration counts toward change size but has no lengt
     r.stderr,
     /split it into smaller units/,
     "configuration has no length limit",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// --- scripts/ — gate 2, the commit-time checks (docs/standards/guardrails/
+// gate-2-commit.md). These build the same throwaway repository, but exercise
+// scripts/*.mjs rather than hooks/*.mjs.
+
+test("machine-id check reads the staged blob, not a working copy edited after `git add`", () => {
+  // gate-2-commit.md, check 2: a file edited after staging must still be
+  // judged on what is in the index. Stage a violation, then edit the working
+  // copy to remove it WITHOUT re-staging — the commit still contains the
+  // violation, and a check reading disk here would wrongly clear it.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, "notes.txt"), "C:\\Users\\martin\\notes.txt\n");
+  git(dir, ["add", "-A"]);
+  writeFileSync(join(dir, "notes.txt"), "clean, no machine id here\n");
+  const r = runScript("scripts/check-machine-id.mjs", dir, ["notes.txt"]);
+  assert.equal(
+    r.status,
+    2,
+    "the staged blob still names a user; the working copy is not what is committed",
+  );
+  assert.match(r.stderr, /machine-identifying content/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("machine-id check flags a real single-backslash Windows home path", () => {
+  // The Windows pattern required two backslashes before `Users` and one after
+  // — a real path (one and one) never matched. `martin` is not on the
+  // placeholder list (unlike the generic `someone`/`user`/`example` names),
+  // so this is a straight regex test.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, "notes.txt"), "C:\\Users\\martin\\notes.txt\n");
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-machine-id.mjs", dir, ["notes.txt"]);
+  assert.equal(r.status, 2, "a real Windows home path must be flagged");
+  assert.match(r.stderr, /Windows home path/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("protected-branch check refuses on the derived default branch, allows a feature branch", () => {
+  // gate-2-commit.md, check 1: the protected branch name is derived from
+  // origin/HEAD (here, resolveBase's origin/main fallback — scratchRepo sets
+  // refs/remotes/origin/main but no symbolic origin/HEAD, exactly like a bare
+  // remote without one), never configured. Exercised as its own module
+  // (scripts/check-protected-branch.mjs), not the full pre-commit.mjs
+  // pipeline, so the result depends only on this check — not on whichever
+  // external tools (secretlint, etc.) happen to resolve from a throwaway
+  // repository with no node_modules of its own.
+  const dir = scratchRepo();
+  const onMain = runScript("scripts/check-protected-branch.mjs", dir);
+  assert.equal(
+    onMain.status,
+    2,
+    "a commit staged directly on the protected branch must be refused",
+  );
+  assert.match(onMain.stderr, /protected branch/);
+
+  git(dir, ["checkout", "-qb", "feature"]);
+  const onFeature = runScript("scripts/check-protected-branch.mjs", dir);
+  assert.equal(
+    onFeature.status,
+    0,
+    "the same repository on a feature branch is not refused",
   );
   rmSync(dir, { recursive: true, force: true });
 });

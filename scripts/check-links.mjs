@@ -8,9 +8,9 @@
 // command. External links are platform capability scanning (level 1) and are
 // skipped here, reported rather than fetched: a gate that needs the network to
 // run is a gate people route around.
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, resolve, normalize } from "node:path";
-import { trackedFiles, splitLines } from "./lib.mjs";
+import { trackedFiles, readStaged } from "./lib.mjs";
 
 const FENCE = /^(\s*)(```+|~~~+)/;
 
@@ -129,7 +129,7 @@ function resolveTarget(linkFile, target, trackedSet) {
     if (!targetPath.endsWith(".md")) return null; // anchor on a non-md file: leave
     let md;
     try {
-      md = readFileSync(targetPath, "utf8");
+      md = readStaged(targetPath);
     } catch {
       return null;
     }
@@ -150,7 +150,7 @@ export function checkLinks(files) {
     if (!file.endsWith(".md")) continue;
     let md;
     try {
-      md = readFileSync(file, "utf8");
+      md = readStaged(file);
     } catch {
       continue;
     }
