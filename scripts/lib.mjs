@@ -274,3 +274,34 @@ export function resolveBase() {
     ? candidate
     : null;
 }
+
+/** GitHub's code-scanning ingestion treats a SARIF `artifactLocation.uri`
+ *  with backslashes as naming a different file from the same path written
+ *  with forward slashes. pull-request.yml runs the identical semgrep scan on
+ *  two matrix legs; on Linux it already emits `hooks/lib/run.mjs`, but the
+ *  Windows leg emits `hooks\lib\run.mjs` — GitHub's ingestion never
+ *  reconciles the two, so the same finding double-counts, cannot anchor to
+ *  the changed lines it should annotate, and cannot be dismissed once for
+ *  both legs. Every artifact URI in the file is normalised to forward
+ *  slashes before the workflow uploads it — a no-op on Linux, where the
+ *  paths already are forward slashes. A missing or unreadable file is left
+ *  alone; the caller's own status check reports that separately. */
+export function normalizeSarifPaths(path) {
+  let sarif;
+  try {
+    sarif = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return;
+  }
+  for (const run_ of sarif.runs ?? []) {
+    for (const result of run_.results ?? []) {
+      for (const loc of result.locations ?? []) {
+        const artifact = loc.physicalLocation?.artifactLocation;
+        if (artifact && typeof artifact.uri === "string") {
+          artifact.uri = artifact.uri.replace(/\\/g, "/");
+        }
+      }
+    }
+  }
+  writeFileSync(path, JSON.stringify(sarif));
+}

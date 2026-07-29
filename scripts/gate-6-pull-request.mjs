@@ -43,6 +43,7 @@ import { checkLicenceCompleteness } from "./check-licence.mjs";
 import { checkLicencePolicy } from "./check-licence-policy.mjs";
 import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
+import { normalizeSarifPaths } from "./lib.mjs";
 
 /** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
 const findings = [];
@@ -240,6 +241,7 @@ if (changedText.length) {
     );
     const sgOut = (sg.stdout || "") + (sg.stderr || "");
     process.stderr.write(sgOut);
+    normalizeSarifPaths(sarif);
     if (sg.status !== 0) {
       // Path is empty for the same reason as the secret scan above: the
       // per-finding location lives in the SARIF file, not in a joined list

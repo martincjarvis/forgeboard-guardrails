@@ -29,6 +29,7 @@ import {
   checkLicencePolicy,
 } from "../../scripts/check-licence-policy.mjs";
 import { checkSuppressions } from "../../scripts/check-suppressions.mjs";
+import { normalizeSarifPaths } from "../../scripts/lib.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -829,4 +830,59 @@ test("suppression check excludes its own source from the scan", () => {
   // directly).
   const findings = checkSuppressions(["scripts/check-suppressions.mjs"]);
   assert.deepEqual(findings, []);
+});
+
+// --- scripts/lib.mjs — normalizeSarifPaths (.github/workflows/pull-
+// request.yml's SARIF upload; the Windows matrix leg's semgrep emits
+// backslash paths GitHub's ingestion treats as a different file from the
+// Linux leg's forward-slash ones).
+
+function sarifWith(uri) {
+  return {
+    runs: [
+      {
+        results: [
+          {
+            locations: [{ physicalLocation: { artifactLocation: { uri } } }],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+test("normalizeSarifPaths rewrites a backslash artifact URI to forward slashes", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sarif-"));
+  const file = join(dir, "results.sarif");
+  writeFileSync(file, JSON.stringify(sarifWith("hooks\\lib\\run.mjs")));
+  normalizeSarifPaths(file);
+  const rewritten = JSON.parse(readFileSync(file, "utf8"));
+  assert.equal(
+    rewritten.runs[0].results[0].locations[0].physicalLocation.artifactLocation
+      .uri,
+    "hooks/lib/run.mjs",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("normalizeSarifPaths leaves an already-forward-slash URI (the Linux leg) unchanged", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sarif-"));
+  const file = join(dir, "results.sarif");
+  writeFileSync(file, JSON.stringify(sarifWith("hooks/lib/run.mjs")));
+  normalizeSarifPaths(file);
+  const rewritten = JSON.parse(readFileSync(file, "utf8"));
+  assert.equal(
+    rewritten.runs[0].results[0].locations[0].physicalLocation.artifactLocation
+      .uri,
+    "hooks/lib/run.mjs",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("normalizeSarifPaths does not throw when the SARIF file is missing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sarif-"));
+  assert.doesNotThrow(() =>
+    normalizeSarifPaths(join(dir, "does-not-exist.sarif")),
+  );
+  rmSync(dir, { recursive: true, force: true });
 });
