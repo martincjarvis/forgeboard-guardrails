@@ -138,6 +138,24 @@ was copied from — a footer line in its own `## References` section is enough.
 Provenance is what turns "might this be stale" into a diff someone can
 actually run against the named commit, rather than a worry nobody can act on.
 
+**Rewrite or drop what a copy cannot carry.** An instantiated standard's own
+links point at paths the canonical corpus has, and a consumer may not —
+`branch-protection.md` here links `../../../skills/repository-bootstrap/
+SKILL.md`, a path this toolkit ships that a consumer with no `skills/` tree
+does not. Two outcomes close the link check honestly: retarget the link at
+wherever the consumer actually records that procedure (its own `AGENTS.md`,
+its enforcement map, an adoption note), or drop it when nothing in the
+consumer replaces what it pointed at. Neither is "leave the old path and let
+gate 2 refuse it."
+
+**A replacement sentence must name a location that actually contains the
+thing.** "The adoption procedure is recorded in `AGENTS.md` and the
+enforcement map" is only true if `AGENTS.md` or the enforcement map actually
+says so — a sentence that satisfies the link checker while asserting
+something false has not fixed the gap, it has hidden it behind a passing
+gate. Open the file the sentence names before writing it; a link check
+proves the target exists, never that the claim about it is true.
+
 **Add the enforcement map — the part no upstream text can supply**, because it
 names the consuming repository's own files: which configuration file or gate
 actually enforces each standard, not merely which document describes it. A
@@ -151,6 +169,15 @@ argument against copying the standards verbatim, applied one level down to
 what enforces them. This repository carries its own instance:
 [Standards enforcement](../standards-enforcement.md), since it is built under
 the standards it defines and asks nothing of a consumer it does not do itself.
+
+**The enforcement map is also where a dropped adoption-procedure link goes to
+live**, for a standard whose canonical form points at a script run once
+during setup rather than a gate run on every commit: a row naming the script
+(`scripts/configure-branch-protection.mjs`) and where it is invoked from is
+exactly the consumer-specific fact the map exists to carry, and it is where
+an implementer asking "where is this recorded" will actually find something
+— rather than the standards-only search that found nothing and produced the
+false replacement sentence above.
 
 ## What this does not govern
 
@@ -200,6 +227,12 @@ people would then write to.
 - [ ] An enforcement map exists, naming the configuration file or gate that
       enforces each standard the repository carries — and every file it names
       actually exists.
+- [ ] A link inside an instantiated standard that pointed at a path the
+      canonical corpus has and the consumer does not (a `skills/` tree, a
+      script the consumer never ported) is retargeted at where the consumer
+      actually records that procedure, or dropped — never left broken and
+      never satisfied by a replacement sentence that asserts a location
+      that, checked, does not contain the thing.
 
 ## References
 
