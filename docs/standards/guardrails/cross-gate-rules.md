@@ -234,6 +234,19 @@ passed clean.
 A check that could not run reports unknown. Stating a cause the evidence does
 not support sends the author looking in the wrong place.
 
+**This governs a human or agent's own completion report the same as a
+gate's verdict.** A report is a claim, and a claim here is checkable: "this
+document is tuned" or "this step is done" names the check that supports it —
+which check ran, and what it reported — the same as a gate names the check
+behind a pass or a finding. A completion claim with no check named is not a
+smaller version of evidence; it is the unverified claim a check that could
+not run above is forbidden from making on its own behalf, made instead by
+whoever wrote the report. One bootstrap report claimed a standard "tuned in
+full" while the document still carried undisclosed stack references and dead
+`cspell:ignore` tokens — the claim was broader than anything actually
+checked, and the two documents the same report finished properly were the
+ones it named a real check for.
+
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
 The same principle, one level more specific: a suppression's own verification
@@ -370,6 +383,10 @@ choice is reported, not guessed.
       non-zero exit code alone. A refusal whose problem text carries no
       identifier is reported unavailable, never as a finding.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
+- [ ] Every completion claim in a bootstrap or session report names the check
+      that supports it, and a claim of completeness for a document names that
+      document's own check reporting zero findings — not that the document was
+      edited, or read as correct.
 - [ ] A suppression's verification claim ("N findings before, 0 after") cites a
       repository-scope run — gate 7's own sweep, or an equivalent `semgrep
 --config auto --error .` at the repository root — never a check scoped

@@ -195,6 +195,22 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
   corpus's canonical home — and an enforcement map names what actually
   enforces each one. A pointer here is a finding, the same as a pointer-only
   directory instruction file is one.
+- **Every completion claim in the bootstrap report names the check that
+  supports it.** "The logging standard is tuned in full" is a claim about a
+  document; the check that supports a claim of completeness for one document
+  is that document's own instantiation check
+  (`node <tooling-dir>/check-standards-instantiation.mjs`, or the equivalent
+  for a judgement-based checkpoint: which one was read, and what was found)
+  reporting zero findings against it — not that it was edited, or that most of
+  it reads correctly. One iteration reported the logging standard "tuned in
+  full" while it still carried four `.NET`/`React` references and dead
+  `cspell:ignore` tokens, undisclosed; the two documents that iteration
+  actually finished were finished properly, and reported the same way this
+  bullet asks for. This is [never claim more than was
+  checked](../../docs/standards/guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)
+  applied to the report itself, not only to a gate's own verdict: a completion
+  claim broader than the check performed sends whoever reads the report
+  looking in the wrong place, the same as any other finding stated wrong.
 
 ## Rules
 
@@ -215,6 +231,11 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
 - **Do not invent a step this order omits.** A gap you notice becomes a
   finding for the human, per `docs/standards/guardrail-standards.md`, not an
   extra phase folded in here.
+- **State which check backs each completion claim in the report, while
+  writing it — not a status word with nothing behind it.** "Tuned" or
+  "done" for a document names the check that ran and what it reported; a
+  step reported complete with no check named is indistinguishable, to
+  whoever reads the report next, from one that was never checked at all.
 
 ## References
 
