@@ -256,6 +256,44 @@ a check nobody has gotten to yet, and it is cheapest to write the fixture
 alongside the check, from the same understanding of what a bad input looks
 like.
 
+## Every quality script is wired or declared
+
+A manifest script reads as an inventory of checks the repository runs. Nothing
+enforces that by itself — `package.json`'s `scripts` is just strings, and a
+script nobody invokes sits there looking exactly as real as one a gate runs on
+every commit. This repository shipped that gap three times over: `lint` was
+declared and invoked nowhere until an earlier fix wired it into the commit
+gate; `spell` ran against Markdown only, through lint-staged, while its own
+script definition swept the whole repository; `gate:7` itself is never invoked
+by another gate, and must not be flagged for that — it is the on-demand entry
+point, not a check something else owns.
+
+The first two are worse than an absent script: to anyone scanning the manifest
+they answer "is this enforced?" with a confident yes. This is the sibling
+defect to [every blocking check proves it refuses](#every-blocking-check-proves-it-refuses):
+that contract catches a check wired but structurally unable to fail; this one
+catches a check declared but never invoked by anything. Both present as green
+to a reader who checks only the surface — a passing run, or a script that
+merely exists.
+
+> Every quality script in the manifest is either invoked by a named gate, or
+> declared as on-demand with the gate that would otherwise own it. A script
+> that no gate invokes and no declaration covers is a finding.
+
+Matching is on the tool and the flag that makes it a check — `--max-warnings
+0`, the SPDX-aware flag, the tool name itself — not on the manifest script's
+own exact command line. `npm run lint` is never typed anywhere in this
+repository; the commit gate invokes `eslint --max-warnings 0` directly, which
+is the same check by a different route and counts as wired. A script whose
+claimed wiring no longer matches the file it points at (the flag was renamed,
+the call was removed) is exactly as unwired as one that was never wired at
+all — the check re-reads the claimed evidence rather than trusting a table
+that once said so.
+
+**Runs at [gate 7](gate-7-on-demand.md), the same tier as the refusal-proof
+audit and for the same reason:** this guards a wiring property, and wiring
+changes only when wiring changes.
+
 ## Auto-repair only where the fix is unambiguous
 
 Formatting, yes. A link with one candidate target, yes. Anything requiring a
@@ -291,6 +329,10 @@ choice is reported, not guessed.
       that have not been fixtured yet.
 - [ ] A check reported `does not refuse` is treated as the defect it is, not
       left decorative because its green exit still reads as a pass elsewhere.
+- [ ] Every script in the manifest is invoked by a named gate, hook or
+      workflow, or declared on-demand with the gate that would otherwise own
+      it — checked at gate 7, and no declaration is trusted without re-reading
+      the file it claims as evidence.
 
 ## References
 

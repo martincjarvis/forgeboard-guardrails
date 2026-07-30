@@ -37,6 +37,7 @@ import {
   classifyTestCoverageOutcome,
 } from "../../scripts/lib.mjs";
 import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
+import { checkScriptWiring } from "../../scripts/check-script-wiring.mjs";
 import { run } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
@@ -1426,4 +1427,51 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
   assert.equal(skips.length, 1);
   assert.match(skips[0], /osv-scanner/);
   assert.match(skips[0], /not on PATH/);
+});
+
+test("quality-script wiring: every script in this repository's own package.json is accounted for — wired or declared on-demand, nothing unwired", () => {
+  // Fix 16. Runs against the real manifest and the real gate/hook source, not
+  // a fixture — the whole point is that THIS repository's own scripts are
+  // fully accounted for right now. `spell` is wired here specifically
+  // because fix 15 extended cspell to the code glob; before that fix this
+  // same assertion would have put `spell` in `unwired`.
+  const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+  const readFile = (file) => readFileSync(join(ROOT, file), "utf8");
+  const { wired, onDemand, unwired } = checkScriptWiring(pkg.scripts, readFile);
+  assert.deepEqual(unwired, []);
+  assert.ok(wired.includes("lint"));
+  assert.ok(wired.includes("spell"));
+  assert.ok(onDemand.includes("gate:7"));
+  // Every script in the manifest lands in exactly one bucket — none silently
+  // dropped.
+  assert.equal(wired.length + onDemand.length, Object.keys(pkg.scripts).length);
+});
+
+test("quality-script wiring: a script with no gate wiring and no on-demand declaration is reported unwired, naming it", () => {
+  // A synthetic manifest entry standing in for the exact defect fix 16
+  // closes: a script added to package.json that nothing invokes and nobody
+  // declared on-demand. checkScriptWiring must not silently pass it.
+  const { wired, onDemand, unwired } = checkScriptWiring({
+    typecheck: "tsc --noEmit --strict",
+  });
+  assert.deepEqual(wired, []);
+  assert.deepEqual(onDemand, []);
+  assert.equal(unwired.length, 1);
+  assert.match(unwired[0], /typecheck/);
+  assert.match(unwired[0], /no gate.*invokes it/);
+});
+
+test("quality-script wiring: a WIRING claim that no longer matches the file's actual content is reported unwired, not trusted blind", () => {
+  // Self-verification, not a hardcoded assertion: if `lint`'s declared
+  // evidence (the eslint invocation in pre-commit.mjs) drifts away — the
+  // flag is renamed, the call is removed — this must catch that rather than
+  // keep reporting `lint` as wired forever because a table once said so.
+  const { wired, unwired } = checkScriptWiring(
+    { lint: "eslint --max-warnings 0 hooks scripts" },
+    () => "this file no longer invokes eslint at all",
+  );
+  assert.deepEqual(wired, []);
+  assert.equal(unwired.length, 1);
+  assert.match(unwired[0], /lint/);
+  assert.match(unwired[0], /drifted/);
 });

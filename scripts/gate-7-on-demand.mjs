@@ -17,6 +17,7 @@ import { trackedFiles, isText, have, run, git } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkRefusalProofs } from "./check-refusal-proofs.mjs";
+import { checkScriptWiring } from "./check-script-wiring.mjs";
 
 const findings = [];
 const skips = [];
@@ -278,6 +279,34 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
   if (refuses.length) {
     skips.push(
       `refusal-proof audit — ${refuses.length} check(s) proved they refuse their negative fixture`,
+    );
+  }
+}
+
+// --- Policy: quality-script wiring audit (fix 16; cross-gate-rules.md,
+// "Every quality script is wired or declared"). A script in package.json
+// that no gate invokes and no on-demand declaration covers reads as a
+// check the repository runs when nothing runs it — worse than an absent
+// script. Also a wiring property, also reported rather than blocked.
+{
+  const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  const { wired, onDemand, unwired } = checkScriptWiring(pkg.scripts);
+  for (const s of unwired) {
+    add(
+      "quality-script wiring",
+      "package.json",
+      s,
+      "wire the script into the gate that owns its concern, or declare it on-demand in scripts/check-script-wiring.mjs naming the gate that would otherwise own it",
+    );
+  }
+  if (wired.length) {
+    skips.push(
+      `quality-script wiring — ${wired.length} script(s) confirmed wired: ${wired.join(", ")}`,
+    );
+  }
+  if (onDemand.length) {
+    skips.push(
+      `quality-script wiring — ${onDemand.length} script(s) declared on-demand: ${onDemand.join(", ")}`,
     );
   }
 }
