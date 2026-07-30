@@ -88,6 +88,79 @@ over one set of rows, not one check behind a mode flag: gate 2 asks "is this
 row complete except for approval," gate 6 asks "has a person approved it,"
 and collapsing them would report the wrong verdict for whichever gate asked.
 
+## Approval is an event, not a field
+
+**An approver field is evidence a review happened, not a declaration that
+one may be assumed.** A field can be typed by anyone at any time; an event
+leaves a trace. The rule this section adds is mechanical and needs no new
+metadata: **an approval is recorded in a commit distinct from the one that
+introduces what it approves.** A register row or a decision record that
+arrives already approved, in the same commit that created it, has not been
+reviewed by anyone — whoever is named.
+
+Audit 13 found the gap this closes: a bootstrapped repository landed an ADR
+and five register rows, all naming the same person, all already accepted —
+inside the single bootstrap commit, hours after that person had approved the
+identical text in a _different_ repository.
+`scripts/check-adr-approver.mjs`, `scripts/check-suppressions.mjs` and
+`scripts/check-licence-policy.mjs` all exited 0, because none of them reads
+git history or authorship — each reads only the current text, which cannot
+tell a name a human typed from a name an agent copied. The code comment on
+`check-adr-approver.mjs`'s own remedy — "an agent may not fill this in
+itself" — is a social instruction in a comment, not something the code
+checked.
+
+Stamping a repository name into the artefact would not have closed this: the
+name travels with everything else that gets copied. The defect is one level
+deeper than a missing field — the corpus treated approval as something that
+could be filled, when it is something that has to happen.
+
+**Mechanically checkable, and it cannot be satisfied by copying**: a copy
+lands in one commit, so the approval must follow in another.
+`scripts/check-approval-provenance.mjs` is the check, wired blocking at
+[gate 2](gate-2-commit.md) (staged content against `HEAD`) and
+[gate 6](gate-6-pull-request.md) (per commit in the pull request's range, so
+two separate, legitimate commits — a row filed, then approved later — are
+never mistaken for one suspicious change). Both only ever examine commits
+going forward; a `--commit <sha>` mode is the blunt instrument for auditing
+one commit by hand — a bootstrap commit under review, say — without sweeping
+the whole history and re-flagging a repository's own earlier, legitimately
+single-commit decisions forever.
+
+- An ADR is checked whole: if it did not exist immediately before the
+  commit under test, and the commit's version is `status: Accepted` with a
+  human named as approver and reads as accepting a risk, licence,
+  suppression or opt-out, the approval and the record arrived together.
+- A register row is checked by identity — its first two cells (Code+Scope
+  for a suppression row, Dependency+Version for a licence row, the same
+  pair each register's own convention already treats as the row's
+  identity): if no row with that identity existed immediately before the
+  commit under test, and the commit's version already names an approver,
+  the same defect applies. A row filed with its Approver cell blank and
+  approved by a later, separate commit — the ordinary, healthy path this
+  corpus already documents below — is unaffected: only the approver cell
+  changed, and the row's identity already existed.
+
+**Instantiation strips approvals — the same rule from the opposite
+direction.** Copying an ADR or a register row into a new repository is not
+copying a review that happened there; see [docs-style.md: standards in a
+consuming repository](../docs-style.md#standards-in-a-consuming-repository)
+and the bootstrap skill's own step 9.
+
+**Checkpoints:**
+
+- No approver field is set in the same commit that introduced the row or
+  record it approves — `scripts/check-approval-provenance.mjs`, checked at
+  gate 2 and gate 6.
+- An instantiated ADR of a reserved class arrives `Proposed`, with no
+  approver — answerable by looking, at instantiation.
+- An instantiated register row arrives with an empty approver cell —
+  answerable by looking, at instantiation.
+- A commit under review (a bootstrap commit, say) contains no filled
+  approver field anywhere it did not already exist — `node
+scripts/check-approval-provenance.mjs --commit <sha>`, run by hand. The
+  blunt instrument, and the one that would have caught audit 13's finding.
+
 ## The suppression register
 
 | Column            | Holds                                         |
@@ -224,6 +297,16 @@ table.
       visible, unresolved) and blocks the merge at gate 6 (no author present
       to answer it) — the same rows, two different verdicts, not one check
       with a mode flag.
+- [ ] A row or an ADR of a reserved class that arrives already approved, in
+      the same commit that introduced it, is refused at gate 2 and gate 6 —
+      `scripts/check-approval-provenance.mjs`
+      ([approval is an event, not a field](#approval-is-an-event-not-a-field)).
+      The same row, filed with a blank approver and approved by a later,
+      separate commit, is not refused.
+- [ ] An instantiated ADR of a reserved class arrives `Proposed` with no
+      approver, and an instantiated register row arrives with an empty
+      approver cell — copying a rule is right, copying an acceptance of a
+      risk made in a different repository is not.
 - [ ] Every row has a removal condition, and none of them is "never".
 - [ ] A row covers exactly one rule at one path (or one dependency, or one
       test) — never more than the one it names. A marker naming several rules

@@ -146,6 +146,21 @@ read off a fact the repository already states, never a judgement call:
 | Whether multi-component rules apply            | [The component map](guardrails/components.md) — one component means no deployment ordering, no cross-component prerelease propagation, no per-component version table           |
 | Whether gate 8's environment procedure applies | Whether any deployment target is an environment rather than a registry — [gate 8](guardrails/gate-8-release.md)'s health-check, smoke-test and rollback checks apply only there |
 | Which file classes to document                 | The classes `.gitattributes` actually declares ([file classes](guardrails/file-classes.md))                                                                                     |
+| Whether an approval survives                   | Never — it is stripped, not derived. See below.                                                                                                                                 |
+
+**Instantiation strips approvals.** An approver names a human who reviewed
+_this repository's_ record, and a copy carries no such review with it,
+whatever the source said. An ADR of a reserved class (registers.md's four:
+risk, licence, suppression, opt-out) arrives `status: Proposed` with
+`approver` removed; a register row arrives with its Approver cell empty. A
+bootstrapped repository once carried both across byte-identical — an
+`Accepted` ADR and five register rows, all naming the same person, all
+already approved before that person had reviewed anything in the new
+repository — because the corpus's own rules say who may approve and which
+record type needs one, never which repository a name is scoped to. See
+[registers.md: approval is an event, not a
+field](guardrails/registers.md#approval-is-an-event-not-a-field) for the
+mechanical check this instantiation rule exists beside.
 
 A repository whose only manifest is `package.json` carries only the Node and
 TypeScript rows of any per-stack table — the .NET, Python, Java, Go, Rust, PHP

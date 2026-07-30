@@ -52,6 +52,7 @@ import { checkLicencePolicy } from "./check-licence-policy.mjs";
 import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
 import { checkAdrApprover } from "./check-adr-approver.mjs";
+import { checkApprovalProvenanceRange } from "./check-approval-provenance.mjs";
 import { normalizeSarifPaths, filterSuppressedSarif } from "./lib.mjs";
 
 /** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
@@ -363,6 +364,16 @@ for (const f of unapprovedSuppressionFindings()) findings.push(f);
 // licence, suppression or opt-out is a standing decision, not scoped to
 // this pull request's own range.
 for (const f of checkAdrApprover()) findings.push(f);
+
+// --- Fix 49 — approval provenance, once per commit in the range -------------
+// Server-side re-validation of the same gate-2 check above, over every
+// commit the pull request actually added (checkCommitRange's own reasoning
+// in check-scope.mjs: "adapts per commit... not once against the branch
+// tip") — comparing the range's two endpoints as a single diff would treat
+// two separate, legitimate commits (a row filed, then approved later) as
+// one suspicious change, which is exactly the pattern this check must not
+// refuse.
+for (const f of checkApprovalProvenanceRange(logRange)) findings.push(f);
 
 // --- Gate 3 — commit message, once per commit in the range ------------------
 // gate-6-pull-request.md: "commit-message structure and scope agreement run

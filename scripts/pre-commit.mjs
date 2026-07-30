@@ -26,6 +26,7 @@ import { checkMachineId } from "./check-machine-id.mjs";
 import { checkProtectedBranch } from "./check-protected-branch.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
 import { checkAdrApprover } from "./check-adr-approver.mjs";
+import { checkApprovalProvenanceStaged } from "./check-approval-provenance.mjs";
 
 const findings = [];
 const skips = [];
@@ -193,6 +194,26 @@ for (const row of pendingSuppressionApprovals()) {
 // commit that references it.
 {
   const found = checkAdrApprover();
+  if (found.length) report("gate 2", found, skips);
+}
+
+// Fix 49 — approval is an event, not a field. A staged ADR or register row
+// that already carries a filled approver, and did not exist at HEAD before
+// this commit, arrives pre-approved rather than reviewed — the same defect
+// class as check 22 above, caught by reading history rather than only the
+// present text.
+{
+  const found = checkApprovalProvenanceStaged({
+    stagedFiles: staged,
+    readBefore: (p) => {
+      const r = git(["show", `HEAD:${p}`]);
+      return r.status === 0 ? r.stdout : null;
+    },
+    readAfter: (p) => {
+      const r = git(["show", `:${p}`]);
+      return r.status === 0 ? r.stdout : null;
+    },
+  });
   if (found.length) report("gate 2", found, skips);
 }
 

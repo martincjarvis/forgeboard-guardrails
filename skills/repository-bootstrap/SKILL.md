@@ -140,6 +140,18 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    upstream commit each instantiated standard was copied from, so drift
    becomes a diff someone can run rather than a worry nobody can act on.
 
+   **Copying an ADR or a register row carries no approval with it.** This
+   step tunes `docs/standards/`, not `docs/ADR/` or `docs/registers/` — but
+   an implementer who also carries an approved decision record or register
+   row across (a licence acceptance, an accepted suppression) must strip the
+   approval when copying it, the same as any other content this step tunes:
+   an ADR of a reserved class arrives `status: Proposed` with `approver`
+   removed, a register row arrives with its Approver cell empty. An approver
+   names a human who reviewed _this_ repository's record; a byte-identical
+   copy proves no such review happened here, whatever the source said. See
+   [registers.md: approval is an event, not a
+   field](../../docs/standards/guardrails/registers.md#approval-is-an-event-not-a-field).
+
    **Wire what you copy, in the same commit as the copy.** A reference
    checker is not adopted by sitting in the tooling directory:
    `scripts/check-standards-instantiation.mjs` must be copied into this

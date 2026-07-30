@@ -80,7 +80,10 @@ function parseFrontmatter(text) {
   return fields;
 }
 
-function frontmatterField(text, field) {
+// Exported so check-approval-provenance.mjs (fix 49) can read the same two
+// fields off a file's "before" and "after" content without re-implementing
+// frontmatter parsing a second time.
+export function frontmatterField(text, field) {
   return parseFrontmatter(text)[field.toLowerCase()] ?? "";
 }
 

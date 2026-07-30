@@ -147,11 +147,64 @@ export function checkToolingCoverageLeakage({
   };
 }
 
+// --- Fix 52 — the tooling-suite requirement is text nobody implements ------
+// testing-strategy.md states it in full: "A repository carrying ported gate
+// or check scripts runs a `tooling tests` suite against them… its absence is
+// not a silent default, one way or the other." Audit 13 found a repository
+// with 26 `tooling`-classed scripts, no test file covering any of them, and
+// nothing positioned to notice — `check-script-wiring.mjs` asks whether a
+// script is *invoked by a gate*, never whether it is *tested*, so a script
+// wired into every gate and never once exercised by a test still reads wired.
+//
+// Mechanical proxy, the same shape checkToolingClassDeclared above already
+// uses: a test-classed file's own text names at least one tooling-classed
+// file's basename. Crude, deliberately — this is a text search, the same
+// weight as findStackReferencesOutsideList in check-standards-
+// instantiation.mjs, not a coverage-instrumentation read (tooling is
+// excluded from coverage by design, so coverage cannot answer this
+// question). It answers exactly what audit 13 found missing: whether
+// anything that looks like a test even mentions the tooling scripts at all.
+export function checkToolingTestSuiteExists({
+  files = trackedFiles(),
+  classify = classOf,
+  isToolkit = () => deriveComponent() !== null,
+  readFile = (f) => readFileSync(f, "utf8"),
+} = {}) {
+  if (isToolkit()) return [];
+  const toolingFiles = files.filter((f) => classify(f) === "tooling");
+  if (toolingFiles.length === 0) return [];
+  const toolingNames = toolingFiles.map((f) => basename(f));
+  const testFiles = files.filter((f) => classify(f) === "test");
+  const tested = testFiles.some((tf) => {
+    let text = "";
+    try {
+      text = readFile(tf);
+    } catch {
+      return false;
+    }
+    return toolingNames.some((name) => text.includes(name));
+  });
+  if (tested) return [];
+  return [
+    {
+      check: "tooling test suite (testing-strategy.md)",
+      path: "",
+      problem:
+        `${toolingFiles.length} file(s) classed \`tooling\` ` +
+        `(${toolingFiles.slice(0, 5).join(", ")}${toolingFiles.length > 5 ? ", …" : ""}) ` +
+        "but no file classed `test` names any of them — no tooling tests suite exists",
+      remedy:
+        "add a test suite exercising the ported gate/check scripts, change-triggered and blocking at gate 6 when the range touches a `tooling`-classed file, and unconditional at gate 7 and on a schedule — testing-strategy.md#tooling-code-is-excluded-from-the-products-coverage-floor-not-from-testing",
+    },
+  ];
+}
+
 const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const declared = checkToolingClassDeclared();
   const { findings: leakFindings, skips } = checkToolingCoverageLeakage();
-  const findings = [...declared, ...leakFindings];
+  const suiteFindings = checkToolingTestSuiteExists();
+  const findings = [...declared, ...leakFindings, ...suiteFindings];
   for (const s of skips) process.stderr.write(`SKIP ${s}\n`);
   for (const f of findings) {
     process.stderr.write(
