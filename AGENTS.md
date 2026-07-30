@@ -34,5 +34,22 @@ approval, an accepted risk, a conflict between two standing directives. Those
 are not clarifying questions; they are the decisions someone else has to own.
 An agent that cannot tell the difference should ask.
 
+**"Reaches outside this repository" is about the destination, not the
+distance from the working tree.** Configuring the repository a task is
+actually about — its branch protection, its required checks, its host
+settings — is part of that task, however far the change lands from a local
+file, and is not what this clause holds back. Bootstrapping a repository
+against these standards names that explicitly: configuring gate 6's merge
+policy is one of the adoption steps
+([`skills/repository-bootstrap/SKILL.md`](skills/repository-bootstrap/SKILL.md)),
+not a line deferred to a closing checklist, and
+[`docs/standards/guardrails/branch-protection.md`](docs/standards/guardrails/branch-protection.md)
+runs it from the agent's own authenticated session during bootstrap. What the
+clause holds back is a _different_ destination the task was never asked to
+touch — pushing to a repository nobody named, publishing to a package
+registry, notifying a third party. The reserved list above is closed and
+explicit; host configuration on the repository the task is about is not on
+it.
+
 Full rule and rationale:
 [`docs/standards/guardrails/agent-integration.md`](docs/standards/guardrails/agent-integration.md#progress-blockers-and-questions).
