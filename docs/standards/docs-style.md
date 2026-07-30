@@ -4,7 +4,7 @@ summary: How documents in /docs are structured — frontmatter, section order, a
 read_when: Writing or revising anything under /docs.
 ---
 
-<!-- cspell:ignore Diataxis diffable -->
+<!-- cspell:ignore Diataxis diffable pyproject -->
 
 # Documentation style standard
 
@@ -133,6 +133,45 @@ health-check procedure — it carries what it is actually held to, and records
 what it left out and why, the same "state what was actually checked" discipline
 this corpus asks of everything else.
 
+**Derive what to drop — do not judge it.** This is
+[ADR-0003](../ADR/0003-derive-configuration.md)'s own principle — a gate reads
+what the repository already states rather than a bespoke declaration — turned
+on the corpus's own documentation. Two implementers tuning the same repository
+must reach the same result, which is only possible if what to keep or drop is
+read off a fact the repository already states, never a judgement call:
+
+| What to tune                                   | Derived from                                                                                                                                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Which stacks' tooling to keep                  | The languages actually present — the manifests each stack already carries: `package.json`, `*.csproj`/`*.sln`, `pyproject.toml`, `go.mod`, `Cargo.toml` and their siblings      |
+| Whether multi-component rules apply            | [The component map](guardrails/components.md) — one component means no deployment ordering, no cross-component prerelease propagation, no per-component version table           |
+| Whether gate 8's environment procedure applies | Whether any deployment target is an environment rather than a registry — [gate 8](guardrails/gate-8-release.md)'s health-check, smoke-test and rollback checks apply only there |
+| Which file classes to document                 | The classes `.gitattributes` actually declares ([file classes](guardrails/file-classes.md))                                                                                     |
+
+A repository whose only manifest is `package.json` carries only the Node and
+TypeScript rows of any per-stack table — the .NET, Python, Java, Go, Rust, PHP
+and Ruby rows are removed, not commented out or left "in case it becomes
+relevant." A reader cannot tell aspiration from requirement, and a table with
+seven stacks and one actually in use reads as if none of them were checked —
+the defect Audit 10 found: an instantiated `docs/standards` carrying the same
+file count as this toolkit's own, because nothing had been removed.
+
+**Record every removal**, in a `PROVENANCE` note or a short section of the
+enforcement map: the property of the repository that made the content
+inapplicable — "no .NET in this repository," "single component, no
+cross-component ordering," "registry deployment, no environments." That is
+what lets someone re-derive the corpus later, and what stops a reviewer
+wondering whether an omission was deliberate or missed.
+
+**Tuning removes content; it never removes the checklist that catches
+under-tuning.** The seven checks in [Verification](#verification) below are
+not stack-specific or component-specific content — they are a property of
+having been instantiated at all, and every consuming repository's copy carries
+all seven regardless of its own stack list or component count. Reading "remove
+content that cannot apply" as licence to drop the multi-component checkpoint
+because the repository has one component is the same misreading that produced
+Audit 10's finding in the first place — it prunes the check, not the content
+the check exists to catch.
+
 **Record provenance.** Each instantiated standard names the upstream commit it
 was copied from — a footer line in its own `## References` section is enough.
 Provenance is what turns "might this be stale" into a diff someone can
@@ -179,6 +218,35 @@ an implementer asking "where is this recorded" will actually find something
 — rather than the standards-only search that found nothing and produced the
 false replacement sentence above.
 
+### Write for the consuming repository's reader
+
+An instantiated document serves a **different reader** from the corpus that
+generated it. This corpus argues with alternatives, records superseded
+reasoning and justifies each rule to someone deciding whether to adopt it. The
+consuming repository's reader has already adopted it and needs to know what
+applies here, what enforces it, and what to do when it fires.
+
+Keep the reasoning that answers _why this rule exists_ — a reader who does not
+understand a rule routes around it. Drop the reasoning that answers _why this
+rule rather than a different one_ — that is this corpus's adoption argument,
+not the repository's, and it belongs upstream. Concretely, an instantiated
+document is:
+
+- **Shorter than its source.** The rejected alternatives and the adoption
+  argument are exactly what the previous paragraph said to drop, and they are
+  most of what makes a corpus document long.
+- **Specific.** "Coverage floor 80% over `src/`, enforced by `c8` at gate 5" —
+  not "a coverage floor appropriate to the repository." A number and the tool
+  that enforces it are checkable; an adjective is not.
+- **Ordered as a process**, where it describes one: what triggers the gate,
+  what it checks, what a refusal says, and what the reader does next, in that
+  order. A gate is a sequence; prose that does not read as one makes the
+  reader reconstruct the order themselves before they can act.
+- **Honest about gaps.** A check the repository cannot run says so, naming the
+  gate that covers it instead — never silently absent. Several bootstrapped
+  repositories already do this well; it is a requirement here, not a nicety
+  some copies happened to include.
+
 ## What this does not govern
 
 - **ADRs** — recording how a decision was made is the genre, not a fault. Their
@@ -194,15 +262,28 @@ the spell check and the link and anchor integrity check: the three frontmatter
 fields being present and non-empty, and the preferred-terms table. The second is a word-list check of the same shape as the cspell gate that
 already runs, so it needs no new tooling.
 
-Instantiation and the enforcement map are judgement, verified at adoption and
-at [gate 7](guardrails/gate-7-on-demand.md) rather than per commit — no gate
-can tell whether a repository customised what it copied instead of taking
-everything, but a missing provenance footer or an enforcement row naming a file
-that does not exist are both things a reader catches on sight.
+Instantiation and the enforcement map are mostly judgement, verified at
+adoption and at [gate 7](guardrails/gate-7-on-demand.md) rather than per
+commit — a missing provenance footer or an enforcement row naming a file that
+does not exist are things a reader catches on sight, the same as any other
+broken claim.
 
-Everything else is judgement. No gate can tell whether prose is concise or whether
-provenance was front-loaded, and pretending otherwise would put a number on it that
-people would then write to.
+Two of the seven instantiation checks are the exception: a stack name outside
+the derived list is a text search, and a multi-component section present at
+one component is a heading search gated on a count. Neither requires reading
+prose for tone or completeness, which is why `scripts/check-standards-instantiation.mjs`
+exists — port it into the consuming repository's own tooling directory and
+run it there, against that repository's **own** instantiated `docs/standards/`.
+It is not run against this corpus's own `docs/standards/`: this repository is
+the canonical source, not an instantiated copy, and correctly documents every
+stack it supports.
+
+Everything else stays judgement, including the other five instantiation
+checks: no gate can tell whether a removal was recorded for the right reason,
+whether a document is concise because it was tuned or merely trimmed, or
+whether prose reads as a process. Pretending otherwise would put a number on
+a property that has none, and people would write to the number instead of the
+requirement it stands in for.
 
 ## Verification
 
@@ -233,6 +314,43 @@ people would then write to.
       actually records that procedure, or dropped — never left broken and
       never satisfied by a replacement sentence that asserts a location
       that, checked, does not contain the thing.
+
+The seven checks below always apply to an instantiated repository's copy —
+they verify that tuning happened, so they are never among the content tuning
+removes. Run them at adoption and at
+[gate 7](guardrails/gate-7-on-demand.md), the same as the rest of this
+section:
+
+- [ ] Every instantiated standard applies only to the stacks the
+      repository's own manifests declare — a language, package manager or
+      analyser named in the copy that is outside the derived stack list is a
+      finding. `scripts/check-standards-instantiation.mjs`
+      (`deriveStackList`, `findStackReferencesOutsideList`) is the mechanical
+      form of this check: derive the stack list from the tracked manifests,
+      then search the instantiated documents for a keyword belonging to a
+      stack not in that list.
+- [ ] No instantiated standard describes multi-component behaviour —
+      deployment ordering, cross-component prerelease propagation, a
+      per-component version table — when [the component map](guardrails/components.md)
+      declares one component. `findMultiComponentContent` in the same script
+      is the mechanical form: a known multi-component heading present while
+      the component count is 1 is a finding.
+- [ ] No instantiated standard describes an environment deployment procedure
+      (health check, smoke test, rollback) when no declared deployment
+      target is an environment.
+- [ ] Every removal is recorded, naming the property of the repository that
+      made the content inapplicable — not merely that something was removed.
+- [ ] Every instantiated document is shorter than its upstream source, or the
+      reason it is not is recorded. This is a **crude proxy**, and
+      deliberately so: its value is that it is unambiguous and fails loudly
+      on a corpus copied rather than tuned — the defect Audit 10 actually
+      found. Treat a pass as evidence tuning happened at all, not as a target
+      — shortening a document by deleting content that still applies games
+      the proxy without fixing what it stands in for.
+- [ ] Every gate document states, in order: what triggers the gate, what it
+      checks, what a refusal says, and what the reader does next.
+- [ ] A check the repository cannot run is named as such, with the gate that
+      covers it instead — never silently absent.
 
 ## References
 

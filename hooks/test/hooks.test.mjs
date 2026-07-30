@@ -65,6 +65,11 @@ import {
 } from "../../scripts/check-adr-approver.mjs";
 import { checkScriptWiring } from "../../scripts/check-script-wiring.mjs";
 import { checkLicenceTableReferences } from "../../scripts/check-licence-table.mjs";
+import {
+  deriveStackList,
+  findStackReferencesOutsideList,
+  findMultiComponentContent,
+} from "../../scripts/check-standards-instantiation.mjs";
 import { run, have } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
@@ -2916,4 +2921,60 @@ test("checkLicenceTableReferences: a reference the network cannot reach at all i
   assert.equal(findings.length, 1);
   assert.match(findings[0].problem, /Unreachable/);
   assert.match(findings[0].problem, /could not be reached/);
+});
+
+// --- scripts/check-standards-instantiation.mjs — reference implementation
+// for two of the seven "instantiated docs are tuned to the repository"
+// checkpoints (docs-style.md#standards-in-a-consuming-repository): a stack
+// name outside the derived list, and multi-component content when the
+// repository has one component. Fixture-based, not run against this
+// toolkit's own docs/standards — that is the canonical corpus, not an
+// instantiated copy, and legitimately names every stack it supports.
+
+test("deriveStackList: a repository with only package.json derives node alone, not the stacks it has no manifest for", () => {
+  const stacks = deriveStackList([
+    "package.json",
+    "src/index.ts",
+    "docs/README.md",
+  ]);
+  assert.deepEqual([...stacks], ["node"]);
+});
+
+test("deriveStackList: a manifest nested under a path is still found, and an unrelated file with a similar name is not mistaken for one", () => {
+  const stacks = deriveStackList(["services/api/go.mod", "go.mod.txt"]);
+  assert.deepEqual([...stacks], ["go"]);
+});
+
+test("findStackReferencesOutsideList: a stack keyword absent from the derived list is a finding, naming the stack, the keyword and the line", () => {
+  const text = "Line one.\nRun `dotnet test` before merging.\n";
+  const findings = findStackReferencesOutsideList(text, new Set(["node"]));
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].stack, "dotnet");
+  assert.equal(findings[0].line, 2);
+});
+
+test("findStackReferencesOutsideList: a keyword for a stack that IS in the derived list raises nothing — a repository naming its own tools is not a finding", () => {
+  const text = "Run `npm test` before merging.\n";
+  const findings = findStackReferencesOutsideList(text, new Set(["node"]));
+  assert.deepEqual(findings, []);
+});
+
+test("findMultiComponentContent: a multi-component heading is a finding when the repository has one component", () => {
+  const text =
+    "# Deployment\n\n## Per-component prerelease (no taint)\n\nRules.\n";
+  const findings = findMultiComponentContent(text, 1);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].line, 3);
+});
+
+test("findMultiComponentContent: the same heading raises nothing once the repository actually has more than one component", () => {
+  const text = "## Per-component prerelease (no taint)\n";
+  const findings = findMultiComponentContent(text, 3);
+  assert.deepEqual(findings, []);
+});
+
+test("findMultiComponentContent: the phrase inside a paragraph rather than a heading is not a finding — only the section itself is", () => {
+  const text = "This paragraph mentions cross-component effects in passing.\n";
+  const findings = findMultiComponentContent(text, 1);
+  assert.deepEqual(findings, []);
 });
