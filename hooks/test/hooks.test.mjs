@@ -1,4 +1,4 @@
-// cspell:ignore fixtured lintstagedrc symref
+// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother
 // The hooks are the only code in this repository, and they run on every edit on
 // somebody's machine. Their logic — thresholds, the override marker, which files
 // count — is exactly the kind that fails quietly, so it leaves a runnable check
@@ -37,6 +37,7 @@ import {
   classifyTestCoverageOutcome,
 } from "../../scripts/lib.mjs";
 import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
+import { run } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -1304,16 +1305,64 @@ test("regression guard: .lintstagedrc.json's cspell invocation uses a flag cspel
   // is the third failure shape cross-gate-rules.md names by name ("the tool
   // silently examines nothing and reports success"), found in this
   // repository's own lint-staged config, not merely a hypothetical.
+  //
+  // Both keys are checked, not just Markdown (fix 15) — gate-2-commit.md
+  // requires spelling on "the file's own vocabulary", with no file-type
+  // restriction, and a checker that only ever read Markdown would answer
+  // "is spelling enforced?" with a confident yes while never opening a
+  // .ts/.mjs file.
   const config = JSON.parse(
     readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
   );
-  const spellCmd = config["*.{md,mdx}"].find((c) => c.includes("cspell"));
-  assert.match(spellCmd, /--no-must-find-files\b/);
-  assert.doesNotMatch(
-    spellCmd,
-    /--no-must-find-file\b/,
-    "the singular form is not a real cspell flag and is silently ignored, not enforced",
+  for (const key of [
+    "*.{md,mdx}",
+    "*.{js,mjs,cjs,ts,tsx,json,jsonc,yml,yaml}",
+  ]) {
+    const spellCmd = config[key].find((c) => c.includes("cspell"));
+    assert.ok(spellCmd, `${key} has no cspell invocation`);
+    assert.match(spellCmd, /--no-must-find-files\b/);
+    assert.doesNotMatch(
+      spellCmd,
+      /--no-must-find-file\b/,
+      "the singular form is not a real cspell flag and is silently ignored, not enforced",
+    );
+  }
+});
+
+test("cspell actually reads code files, not only Markdown — a misspelling in a .mjs comment and in a user-facing string are both flagged", () => {
+  // Fix 15. Runs the exact cspell invocation .lintstagedrc.json's code-glob
+  // key now uses, against a scratch file, to prove the check reads .mjs
+  // content rather than only ever being wired to Markdown. This is the
+  // functional counterpart to the config-shape regression guard above. The
+  // repository's own cspell binary is invoked directly, cwd set to the
+  // fixture's own directory (a relative file argument, exactly what
+  // lint-staged passes) — the same cross-platform `run()` the hooks
+  // themselves use to reach a `.cmd` shim on Windows (hooks/lib/run.mjs).
+  const dir = scratchRepo();
+  writeFileSync(
+    join(dir, "fixture.mjs"),
+    "// a deliberatemisspelling in a comment\n" +
+      'export const message = "a nother deliberatemisspelling in a user-facing string";\n',
   );
+  const config = JSON.parse(
+    readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
+  );
+  const spellCmd = config["*.{js,mjs,cjs,ts,tsx,json,jsonc,yml,yaml}"].find(
+    (c) => c.includes("cspell"),
+  );
+  const [, ...cspellArgs] = spellCmd.split(" "); // drop the leading "cspell"
+  const r = run(
+    join(ROOT, "node_modules", ".bin", "cspell"),
+    [...cspellArgs, "fixture.mjs"],
+    { cwd: dir, env: CLEAN_ENV },
+  );
+  assert.notEqual(
+    r.status,
+    0,
+    "a misspelling in a code file's comment and string must be refused, not silently passed",
+  );
+  assert.match((r.stdout || "") + (r.stderr || ""), /deliberatemisspelling/);
+  rmSync(dir, { recursive: true, force: true });
 });
 
 // --- scripts/lib.mjs:classifyTestCoverageOutcome — fix 11. gate-5-push.md:
