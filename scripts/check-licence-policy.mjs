@@ -119,10 +119,17 @@ function tokenizeLicenceExpression(expr) {
 
 /** Recursive-descent parser for one licence-register cell. Returns a string
  *  leaf (one identifier, or "A WITH B" joined back into one), or
- *  { op: "AND" | "OR", left, right }. An empty or malformed expression
- *  degrades to a leaf of the input string, which classifyLicence already
- *  treats as "unknown" or "other" — parse failure blocks the same way an
- *  unrecognised identifier does, never a silent pass. */
+ *  { op: "AND" | "OR", left, right }, or { unparseable: true, raw } when
+ *  tokens remain after the grammar (AND / OR / WITH / parentheses) is
+ *  exhausted — a non-SPDX string such as "CC BY-SA 4.0" or "Apache 2.0",
+ *  where whitespace looks like a token boundary but is not an operator.
+ *  Stopping at the first unrecognised token and calling what was consumed
+ *  so far ("CC", "Apache") the identifier would name something that was
+ *  never a real licence to begin with; reporting the whole string instead
+ *  gives a maintainer something to actually search for. An empty
+ *  expression still degrades to a leaf of the input string, which
+ *  classifyLicence already treats as "unknown" — that is a different
+ *  failure (nothing recorded) from a string that does not parse. */
 export function parseLicenceExpression(expr) {
   const tokens = tokenizeLicenceExpression(expr);
   let i = 0;
@@ -160,7 +167,11 @@ export function parseLicenceExpression(expr) {
     return id;
   }
 
-  return parseOr();
+  const node = parseOr();
+  if (i < tokens.length) {
+    return { unparseable: true, raw: (expr ?? "").trim() };
+  }
+  return node;
 }
 
 /** Evaluates a parsed expression against one scope. `A OR B` is acceptable
@@ -169,6 +180,15 @@ export function parseLicenceExpression(expr) {
  *  empty when acceptable — so the finding can say which term failed rather
  *  than restating the whole expression. */
 export function evaluateLicenceExpression(node, scope) {
+  if (node && typeof node === "object" && node.unparseable) {
+    // Not a blocked identifier — there was no valid identifier to block.
+    // Quoted whole, so the finding names the string a maintainer actually
+    // has to fix, not a fragment the grammar happened to stop consuming at.
+    return {
+      acceptable: false,
+      blockers: [{ id: node.raw, category: "unparseable" }],
+    };
+  }
   if (typeof node === "string") {
     const acceptable = licenceAcceptable(node, scope);
     return {
@@ -228,6 +248,32 @@ export function checkLicencePolicy(scanTriggered) {
 
   const findings = [];
   for (const row of parseRegisterRows(md)) {
+    // A version cell can itself be a failed read rendered as data — "" or
+    // the literal string "undefined" from a template that never checked
+    // whether the metadata it was interpolating actually resolved
+    // (fix 19). That is a finding in its own right — registers.md requires
+    // a row per dependency AT a version, and a row that cannot be pinned to
+    // one cannot be verified — never something folded silently into the
+    // licence verdict below, and never a value this check echoes back into
+    // another diagnostic. `depLabel` is what the licence finding (if any)
+    // is allowed to call this row; it omits the version rather than repeat
+    // the same unresolved literal.
+    const versionResolved =
+      Boolean(row.version) && !/^undefined$/i.test(row.version);
+    if (!versionResolved) {
+      findings.push({
+        check: "dependency licence policy",
+        path: REGISTER,
+        problem:
+          `${row.dep}'s version could not be resolved — the register row records ` +
+          `${row.version ? `the literal '${row.version}'` : "no version"} rather than one`,
+        remedy:
+          `resolve ${row.dep}'s installed version (for example, \`npm ls ${row.dep}\`) ` +
+          `and correct the register row; a row that is not pinned to a version cannot be judged`,
+      });
+    }
+    const depLabel = versionResolved ? `${row.dep}@${row.version}` : row.dep;
+
     const verdict = licenceExpressionAcceptable(row.licence, row.scope);
     if (verdict.acceptable) continue;
     const list = /^runtime$/i.test(row.scope) ? "runtime" : "development";
@@ -238,12 +284,14 @@ export function checkLicencePolicy(scanTriggered) {
       check: "dependency licence policy",
       path: REGISTER,
       problem:
-        `${row.dep}@${row.version} carries licence '${row.licence || "(none recorded)"}', ` +
+        `${depLabel} carries licence '${row.licence || "(none recorded)"}', ` +
         `scope ${row.scope || "(none recorded)"} — not acceptable on the ${list} allow list ` +
         `(blocked by ${blockedBy})`,
       remedy: verdict.blockers.some((b) => b.category === "unknown")
         ? "determine the actual licence and record it, or remove the dependency"
-        : "record a decision accepting it and add the licence to the allow list, or replace the dependency",
+        : verdict.blockers.some((b) => b.category === "unparseable")
+          ? "correct the licence cell to a valid SPDX expression (the exact identifier, hyphenated, joined only by AND / OR / WITH), then re-run the check"
+          : "record a decision accepting it and add the licence to the allow list, or replace the dependency",
     });
   }
   return { findings, skips };

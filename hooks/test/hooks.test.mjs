@@ -903,6 +903,33 @@ test("SPDX expression evaluation: an unknown identifier blocks, named in the ref
   assert.deepEqual(verdict.blockers, [{ id: "Beerware", category: "other" }]);
 });
 
+test("SPDX expression evaluation: a non-SPDX string is reported as unparseable, quoted whole — not tokenised into a wrong identifier", () => {
+  // Fix 18. 'CC BY-SA 4.0' is not valid SPDX (the identifier is
+  // CC-BY-SA-4.0); a parser that splits on whitespace and stops at the
+  // first token the grammar doesn't recognise would silently drop " BY-SA
+  // 4.0" and name 'CC' as the blocked identifier — a licence that does not
+  // exist, so a maintainer searching the allow list for it finds nothing to
+  // reason about.
+  const cc = licenceExpressionAcceptable("CC BY-SA 4.0", "Development");
+  assert.equal(cc.acceptable, false);
+  assert.deepEqual(cc.blockers, [
+    { id: "CC BY-SA 4.0", category: "unparseable" },
+  ]);
+
+  // Same failure mode: a space instead of the SPDX hyphen.
+  const apache = licenceExpressionAcceptable("Apache 2.0", "Development");
+  assert.equal(apache.acceptable, false);
+  assert.deepEqual(apache.blockers, [
+    { id: "Apache 2.0", category: "unparseable" },
+  ]);
+
+  // A genuinely valid compound expression must still parse and pass.
+  assert.equal(
+    licenceExpressionAcceptable("(MIT OR Apache-2.0)", "Runtime").acceptable,
+    true,
+  );
+});
+
 test("licence policy is a visible skip, naming the reason, when not triggered", () => {
   const { findings, skips } = checkLicencePolicy(false);
   assert.deepEqual(findings, []);
@@ -936,6 +963,34 @@ test("licence policy refuses a missing register, and refuses a resolved dependen
   assert.match(refused.stderr, /copyleft-thing@1\.0\.0/);
   assert.match(refused.stderr, /GPL-3\.0-only/);
 
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("licence policy: an unresolved version is its own finding, and the literal 'undefined' never reaches a diagnostic", () => {
+  // Fix 19. Audit 7's CI: `monocart-coverage-reports@undefined carries
+  // licence 'unknown'` — a failed metadata read (the version) rendered as
+  // data and folded into the same sentence as a second, distinct failure
+  // (the licence).
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
+      "| monocart-coverage-reports | undefined | unknown | Direct | Development | tooling | example | | | | |\n",
+  );
+  git(dir, ["add", "-A"]);
+  const result = runScript("scripts/check-licence-policy.mjs", dir);
+  assert.equal(result.status, 2);
+  // The version failure is reported as its own finding, naming the field.
+  assert.match(
+    result.stderr,
+    /monocart-coverage-reports's version could not be resolved/,
+  );
+  // The literal 'undefined' from the failed read never reaches another
+  // diagnostic — no finding calls the dependency "...@undefined".
+  assert.doesNotMatch(result.stderr, /@undefined/);
   rmSync(dir, { recursive: true, force: true });
 });
 
