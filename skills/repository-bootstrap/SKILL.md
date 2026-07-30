@@ -191,7 +191,13 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    least one recorded removal (or a stated reason none applied) in the same
    commit that created `docs/standards/`, or names the follow-up commit
    tuning is deferred to. A corpus with no removal recorded and no named
-   follow-up is the failure above, recurring.
+   follow-up is the failure above, recurring. **The record lives in a
+   `PROVENANCE` note or the enforcement map — never only in the bootstrap
+   report.** A session report is not where anyone looks a year later; a
+   bootstrapped repository once recorded every removal there, correctly
+   reasoned, with the enforcement map carrying none of it —
+   `findRemovalsOutsideEnforcementMap`
+   (`scripts/check-standards-instantiation.mjs`) is the check.
 
    **Checkpoint, answerable by running:** this step is not finished while
    `node <tooling-dir>/check-standards-instantiation.mjs` reports a finding

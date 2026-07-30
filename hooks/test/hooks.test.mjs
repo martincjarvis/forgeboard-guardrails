@@ -78,6 +78,7 @@ import {
   deriveStackList,
   findStackReferencesOutsideList,
   findMultiComponentContent,
+  findRemovalsOutsideEnforcementMap,
 } from "../../scripts/check-standards-instantiation.mjs";
 import { run, have } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
@@ -3353,6 +3354,81 @@ test("findMultiComponentContent: the phrase inside a paragraph rather than a hea
   const text = "This paragraph mentions cross-component effects in passing.\n";
   const findings = findMultiComponentContent(text, 1);
   assert.deepEqual(findings, []);
+  // findRemovalsOutsideEnforcementMap — fix 53. docs-style.md requires every
+  // instantiation removal be recorded "in a PROVENANCE note or a short section
+  // of the enforcement map." A bootstrapped repository instead recorded every
+  // removal in docs/bootstrap-report.md — a one-time session report — while
+  // docs/standards-enforcement.md carried no removal record at all. This does
+  // not judge whether the removal's stated reason is honest; only whether it
+  // was written down somewhere durable.
+
+  test("findRemovalsOutsideEnforcementMap: a removals heading in a session report with no removals record anywhere durable is refused, naming the report", () => {
+    const findings = findRemovalsOutsideEnforcementMap({
+      reportFiles: [
+        {
+          path: "docs/bootstrap-report.md",
+          text: "## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+        },
+      ],
+      enforcementMapText:
+        "# Standards enforcement\n\n| Standard | Enforced by |\n",
+      instantiatedDocFiles: [],
+    });
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0].path, "docs/bootstrap-report.md");
+    assert.match(
+      findings[0].problem,
+      /neither the enforcement map nor any instantiated standard/,
+    );
+  });
+
+  test("findRemovalsOutsideEnforcementMap: the same report raises nothing once the enforcement map carries its own removals section", () => {
+    const findings = findRemovalsOutsideEnforcementMap({
+      reportFiles: [
+        {
+          path: "docs/bootstrap-report.md",
+          text: "## Removals\n\nDropped the .NET rows.\n",
+        },
+      ],
+      enforcementMapText:
+        "# Standards enforcement\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+      instantiatedDocFiles: [],
+    });
+    assert.deepEqual(findings, []);
+  });
+
+  test("findRemovalsOutsideEnforcementMap: a PROVENANCE note on the instantiated standard itself also satisfies the requirement", () => {
+    const findings = findRemovalsOutsideEnforcementMap({
+      reportFiles: [
+        {
+          path: "docs/bootstrap-report.md",
+          text: "## Removals\n\nDropped the .NET rows.\n",
+        },
+      ],
+      enforcementMapText: "# Standards enforcement\n",
+      instantiatedDocFiles: [
+        {
+          path: "docs/standards/testing-strategy.md",
+          text: "# Testing strategy\n\nBody.\n\n## PROVENANCE\n\nCopied from forgeboard-guardrails; .NET rows dropped, no .csproj here.\n",
+        },
+      ],
+    });
+    assert.deepEqual(findings, []);
+  });
+
+  test("findRemovalsOutsideEnforcementMap: a report with no removals heading at all is not this check's concern", () => {
+    const findings = findRemovalsOutsideEnforcementMap({
+      reportFiles: [
+        {
+          path: "docs/bootstrap-report.md",
+          text: "## Summary\n\nEverything passed.\n",
+        },
+      ],
+      enforcementMapText: null,
+      instantiatedDocFiles: [],
+    });
+    assert.deepEqual(findings, []);
+  });
 });
 
 test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree with a stack reference outside the derived list, refuses and names it", () => {
@@ -3398,6 +3474,54 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
   assert.equal(r.status, 0);
   assert.match(r.stderr, /standards instantiation: 0 findings/);
   rmSync(dir, { recursive: true, force: true });
+  test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree recording a removal only in a session report, refuses and names it (fix 53)", () => {
+    const dir = scratchRepo();
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+    mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+    writeFileSync(
+      join(dir, "docs", "standards", "testing-strategy.md"),
+      "# Testing\n\nRun `npm test` before merging.\n",
+    );
+    writeFileSync(
+      join(dir, "docs", "bootstrap-report.md"),
+      "# Bootstrap report\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+    );
+    writeFileSync(
+      join(dir, "docs", "standards-enforcement.md"),
+      "# Standards enforcement\n\n| Standard | Enforced by |\n| --- | --- |\n",
+    );
+    git(dir, ["add", "-A"]);
+    const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /docs\/bootstrap-report\.md/);
+    assert.match(
+      r.stderr,
+      /neither the enforcement map nor any instantiated standard/,
+    );
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("regression guard: check-standards-instantiation.mjs run for real, the same removal recorded in the enforcement map too, passes clean", () => {
+    const dir = scratchRepo();
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+    mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+    writeFileSync(
+      join(dir, "docs", "standards", "testing-strategy.md"),
+      "# Testing\n\nRun `npm test` before merging.\n",
+    );
+    writeFileSync(
+      join(dir, "docs", "bootstrap-report.md"),
+      "# Bootstrap report\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+    );
+    writeFileSync(
+      join(dir, "docs", "standards-enforcement.md"),
+      "# Standards enforcement\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+    );
+    git(dir, ["add", "-A"]);
+    const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+    assert.equal(r.status, 0);
+    rmSync(dir, { recursive: true, force: true });
+  });
 });
 
 // --- scripts/check-tooling-class.mjs — fix 45. file-classes.md's own rule

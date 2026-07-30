@@ -10,6 +10,18 @@
 // seven checks themselves never pruned) ask whether prose is honest or well
 // formed, which no script here scores; see the standard for why.
 //
+// Fix 53 — one narrow exception, not a third full checkpoint. Whether a
+// removal's stated *reason* is honest and complete stays judgement, same as
+// ever — findRemovalsOutsideEnforcementMap below does not read that. It
+// checks only *where* a removal was written down: docs-style.md requires "a
+// PROVENANCE note or a short section of the enforcement map," and a
+// bootstrapped repository instead recorded every removal in
+// `docs/bootstrap-report.md` — a one-time session report — while its
+// enforcement map carried no removals record at all. A session report is
+// not where anyone looks a year later. This is a heading search, the same
+// mechanical weight as findMultiComponentContent above: does a report-shaped
+// document carry a removals heading that the enforcement map does not.
+//
 // Ported into a CONSUMING repository's own tooling directory and run there,
 // against THAT repository's own instantiated `docs/standards/`. Never run
 // against this toolkit's own `docs/standards/` — this repository is the
@@ -126,6 +138,55 @@ export function findMultiComponentContent(text, componentCount) {
   return findings;
 }
 
+const REMOVAL_HEADING = /^#{1,6}\s*.*\bremoval/i;
+const PROVENANCE_HEADING = /^#{1,6}\s*PROVENANCE\b/i;
+
+/** Does `text` carry a heading naming a removal (`## Removals`, `### What was
+ *  removed`, ...) or a `PROVENANCE` note? Both are docs-style.md's own two
+ *  accepted locations, read structurally rather than for what they say. */
+function hasRemovalRecord(text) {
+  return text
+    .split("\n")
+    .some(
+      (line) => REMOVAL_HEADING.test(line) || PROVENANCE_HEADING.test(line),
+    );
+}
+
+/** Fix 53. `reportFiles` and `instantiatedDocFiles` are each `{ path, text
+ *  }`; `enforcementMapText` is the enforcement map's own content, or `null`
+ *  when the repository carries none yet. A finding names the report that
+ *  recorded a removal and the durable location docs-style.md actually
+ *  requires — never a judgement about whether the removal itself was
+ *  reasoned correctly, which stays out of scope for this function the same
+ *  as it does for the two checks above. */
+export function findRemovalsOutsideEnforcementMap({
+  reportFiles,
+  enforcementMapText,
+  instantiatedDocFiles,
+}) {
+  const reportsWithRemovals = reportFiles.filter((r) =>
+    hasRemovalRecord(r.text),
+  );
+  if (reportsWithRemovals.length === 0) return [];
+  const mapHasRemovals = Boolean(
+    enforcementMapText && hasRemovalRecord(enforcementMapText),
+  );
+  const anyDocHasProvenance = instantiatedDocFiles.some((d) =>
+    hasRemovalRecord(d.text),
+  );
+  if (mapHasRemovals || anyDocHasProvenance) return [];
+  return reportsWithRemovals.map((r) => ({
+    path: r.path,
+    problem:
+      `${r.path} records an instantiation removal, but neither the ` +
+      "enforcement map nor any instantiated standard carries a removals " +
+      "heading or a PROVENANCE note — docs-style.md requires the removal " +
+      "recorded in one of those two, not only in a session report",
+    remedy:
+      "move the removal record (or add it) to a `## Removals` section of the enforcement map, or a `## PROVENANCE` note on the instantiated standard it applies to",
+  }));
+}
+
 const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   // ponytail: component count taken from argv rather than derived from a
@@ -153,6 +214,41 @@ if (isMain) {
       );
     }
   }
+
+  // Fix 53 — a removal recorded only in a one-time session report, not in
+  // the enforcement map or a PROVENANCE note. "Report-shaped" is a filename
+  // convention (`*report*.md` under docs/, outside docs/standards/ itself —
+  // an instantiated standard's own removal note is exactly what this check
+  // must not flag), not a claim that every such file is one.
+  const reportFiles = files
+    .filter(
+      (f) =>
+        f.startsWith("docs/") &&
+        !f.startsWith("docs/standards/") &&
+        /report/i.test(f) &&
+        f.endsWith(".md"),
+    )
+    .map((f) => ({ path: f, text: readFileSync(f, "utf8") }));
+  const enforcementMapPath = "docs/standards-enforcement.md";
+  let enforcementMapText = null;
+  try {
+    enforcementMapText = readFileSync(enforcementMapPath, "utf8");
+  } catch {
+    /* no enforcement map yet — reported the same as an absent one below */
+  }
+  const instantiatedDocFiles = docFiles.map((f) => ({
+    path: f,
+    text: readFileSync(f, "utf8"),
+  }));
+  for (const f of findRemovalsOutsideEnforcementMap({
+    reportFiles,
+    enforcementMapText,
+    instantiatedDocFiles,
+  })) {
+    findingCount++;
+    process.stderr.write(`${f.path}: ${f.problem}\n`);
+  }
+
   process.stderr.write(
     `standards instantiation: ${findingCount} finding${findingCount === 1 ? "" : "s"}\n`,
   );

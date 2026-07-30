@@ -177,6 +177,18 @@ cross-component ordering," "registry deployment, no environments." That is
 what lets someone re-derive the corpus later, and what stops a reviewer
 wondering whether an omission was deliberate or missed.
 
+**A one-time session report — a bootstrap report, a migration summary — is
+not one of the two accepted locations, however completely it states the
+same removals.** A bootstrapped repository once recorded every removal in
+exactly that shape, correctly reasoned, in a document nobody reads a year
+later, while its enforcement map carried no removal record at all. The
+substance was right; the location was not. `findRemovalsOutsideEnforcementMap`
+(`scripts/check-standards-instantiation.mjs`) is the mechanical check: a
+removals heading in a report-shaped document with no matching heading or
+`PROVENANCE` note in the enforcement map or an instantiated standard is a
+finding — it does not judge whether the removal's stated reason is honest,
+only where it was written down.
+
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
 not stack-specific or component-specific content — they are a property of
@@ -383,6 +395,9 @@ section — and, for the two mechanical checks above, additionally blocking at
       target is an environment.
 - [ ] Every removal is recorded, naming the property of the repository that
       made the content inapplicable — not merely that something was removed.
+- [ ] The record lives in a `PROVENANCE` note or the enforcement map, not
+      only in a one-time session report — `findRemovalsOutsideEnforcementMap`
+      (`scripts/check-standards-instantiation.mjs`) is the mechanical form.
 - [ ] Every instantiated document is shorter than its upstream source, or the
       reason it is not is recorded. This is a **crude proxy**, and
       deliberately so: its value is that it is unambiguous and fails loudly
