@@ -23,14 +23,6 @@ import { readFileSync } from "node:fs";
 import { have, run, resolveBase, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
-// ponytail: single-axis `matrix.<key>: [a, b, ...]` support only — enough
-// for this toolkit's own pull-request.yml and the common one-dimensional
-// case (matrix.os, matrix.node-version). A job whose name interpolates two
-// matrix axes, or a matrix built from `include`/`exclude` rather than a
-// flat list, is not expanded correctly; upgrade this if a workflow needs it
-// rather than reaching for a YAML dependency to parse a file this toolkit
-// itself writes (ADR-0011/0015's no-new-dependency line for a job this
-// small).
 function indentOf(line) {
   return line.length - line.trimStart().length;
 }
@@ -109,10 +101,11 @@ function contextsForJob(job) {
 // for this toolkit's own pull-request.yml and the common one-dimensional
 // case (matrix.os, matrix.node-version). A job whose name interpolates two
 // matrix axes, or a matrix built from `include`/`exclude` rather than a
-// flat list, is not expanded correctly; upgrade this if a workflow needs it
-// rather than reaching for a YAML dependency to parse a file this toolkit
-// itself writes (ADR-0011/0015's no-new-dependency line for a job this
-// small).
+// flat list, is not expanded correctly; upgrade this if a workflow needs
+// it rather than reaching for a YAML-parsing dependency to parse a
+// handful of files this toolkit itself writes (ADR-0002's no-bundled-
+// tooling line applies the same reasoning here: write it directly for a
+// job this small, add the dependency when a real workflow needs more).
 /** The exact required-status-check context string(s) a workflow's job(s)
  *  report to GitHub, derived from the job's own `name:` and any matrix it
  *  expands over — not hand-typed, because a matrix job's reported name
