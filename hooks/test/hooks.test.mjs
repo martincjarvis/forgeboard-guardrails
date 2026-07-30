@@ -13,6 +13,7 @@ import {
   mkdirSync,
   writeFileSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
 } from "node:fs";
@@ -1427,6 +1428,34 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
   assert.equal(skips.length, 1);
   assert.match(skips[0], /osv-scanner/);
   assert.match(skips[0], /not on PATH/);
+});
+
+test("regression guard: every GitHub Actions `uses:` in every workflow is pinned to a commit SHA, not a mutable tag", () => {
+  // Fix 17. semgrep's github-actions-mutable-action-tag rule found exactly
+  // this: a workflow written with `uses: actions/checkout@v4` — a tag GitHub
+  // itself, or a compromised action's own maintainer, can move to point at
+  // different code without this file ever changing. A pinned commit SHA is
+  // immutable; a version tag is not.
+  const workflowsDir = join(ROOT, ".github", "workflows");
+  const files = readdirSync(workflowsDir).filter((f) => f.endsWith(".yml"));
+  assert.ok(files.length > 0, "expected at least one workflow file to check");
+  const usesRe = /uses:\s*([^\s#]+)@([^\s#]+)/g;
+  let checked = 0;
+  for (const file of files) {
+    const content = readFileSync(join(workflowsDir, file), "utf8");
+    for (const [, action, ref] of content.matchAll(usesRe)) {
+      checked += 1;
+      assert.match(
+        ref,
+        /^[0-9a-f]{40}$/,
+        `${file}: "${action}@${ref}" is not pinned to a 40-character commit SHA`,
+      );
+    }
+  }
+  assert.ok(
+    checked > 0,
+    "expected at least one `uses:` line across the workflows",
+  );
 });
 
 test("quality-script wiring: every script in this repository's own package.json is accounted for — wired or declared on-demand, nothing unwired", () => {

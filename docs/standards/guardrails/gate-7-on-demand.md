@@ -12,17 +12,18 @@ The same checks, invoked without a trigger: before opening a review, or when
 adopting the toolkit in an existing repository. Reports rather than blocks,
 because the caller decides the consequence.
 
-| Check                       | Type          | Note                                                                                                                                                 |
-| --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                                                                                  |
-| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                                                                     |
-| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                                                                            |
-| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                                                                                |
-| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                                                                        |
-| Link and anchor integrity   | Documentation | With or without repair                                                                                                                               |
-| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid                                                                                      |
-| Workspace capability check  | Policy        | Long-path support on, text normalisation declared, large-file storage configured where supported                                                     |
-| Refusal-proof audit         | Policy        | A blocking check's negative fixture passed instead of being refused ([cross-gate rules](cross-gate-rules.md#every-blocking-check-proves-it-refuses)) |
+| Check                       | Type          | Note                                                                                                                                                            |
+| --------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                                                                                             |
+| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                                                                                |
+| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                                                                                       |
+| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                                                                                           |
+| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                                                                                   |
+| Link and anchor integrity   | Documentation | With or without repair                                                                                                                                          |
+| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid                                                                                                 |
+| Workspace capability check  | Policy        | Long-path support on, text normalisation declared, large-file storage configured where supported                                                                |
+| Refusal-proof audit         | Policy        | A blocking check's negative fixture passed instead of being refused ([cross-gate rules](cross-gate-rules.md#every-blocking-check-proves-it-refuses))            |
+| Quality-script wiring audit | Policy        | A `package.json` script no gate invokes and no on-demand declaration covers ([cross-gate rules](cross-gate-rules.md#every-quality-script-is-wired-or-declared)) |
 
 **Line endings are normalised in the repository, not left to each machine.**
 `.gitattributes` declares `* text=auto eol=lf` and marks binary files as binary,
@@ -74,11 +75,22 @@ clone.
 | Installed hooks             | `git config --get core.hooksPath` and list that directory                                                          |
 | Platform capabilities       | `gh api repos/:owner/:repo` · `az repos policy list`                                                               |
 | Refusal-proof audit         | `node scripts/check-refusal-proofs.mjs`                                                                            |
+| Quality-script wiring audit | `node scripts/check-script-wiring.mjs`                                                                             |
 
 The history scan is the one to reach for a purpose-built tool for: walking every
 reachable commit is not something a file-oriented scanner does well, and the
 platform's own secret scanning covers it on the hosts that offer it — which is
 the level-1 answer.
+
+**A cycle that adds or edits a workflow file runs this sweep before claiming
+completion.** `semgrep --config auto` already scans `.github/workflows/`
+along with everything else — that is what "repository-wide" means — and a
+mutable action tag (`uses: actions/checkout@v4` rather than a pinned commit)
+is exactly the kind of finding it catches. An earlier audit of this toolkit
+found a new workflow added with mutable tags while an existing one had
+already been pinned — a defect the toolkit had closed once, reintroduced in a
+different file. The gap was not a missing rule; the sweep that would have
+caught it before the cycle called itself done simply was not run.
 
 ## Verification
 

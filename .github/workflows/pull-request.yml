@@ -45,24 +45,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out the merge result
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # Full history: the base ref this workflow diffs against, and every
           # commit gate 3 walks, both need history a shallow clone would cut.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           # The floor this repository declares (package.json engines), not
           # whatever happens to be newest — a check that only ever runs on a
           # newer Node than the floor has never verified the floor holds.
           node-version: "20"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.x"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: "stable"
 
@@ -102,7 +102,7 @@ jobs:
 
       - name: Publish static-analysis findings (semgrep SARIF)
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@f081e69141f6ea0aa740920b0c7012cd81a4fbe6 # v3.37.3
         with:
           sarif_file: semgrep-results.sarif
           category: semgrep-${{ matrix.os }}
@@ -110,7 +110,7 @@ jobs:
 
       - name: Publish cross-stack dependency findings (osv-scanner SARIF)
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@f081e69141f6ea0aa740920b0c7012cd81a4fbe6 # v3.37.3
         with:
           sarif_file: osv-results.sarif
           category: osv-scanner-${{ matrix.os }}
@@ -118,7 +118,7 @@ jobs:
 
       - name: Publish test and coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: gate-6-reports-${{ matrix.os }}
           path: |
