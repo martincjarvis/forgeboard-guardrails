@@ -37,6 +37,7 @@ import {
   classifyTestCoverageOutcome,
   extractCoverageAndTestSummary,
   classifyDiffCoverOutcome,
+  diffCoverTotalLines,
   classifyOsvScannerOutcome,
   extractOsvSarifFindings,
   report,
@@ -501,16 +502,30 @@ if (!existsSync(COBERTURA_REPORT)) {
   ]);
   const dcOut = (dc.stdout || "") + (dc.stderr || "");
   process.stderr.write(dcOut);
-  const dcPercent = /^Coverage: ([\d.]+)%/m.exec(dcOut);
-  changedLineCoveragePercent = dcPercent ? Number(dcPercent[1]) : null;
-  if (dc.status !== 0) {
-    const outcome = classifyDiffCoverOutcome(dcOut);
-    fail(
-      "changed-line coverage",
-      undefined,
-      outcome.detail,
-      "add tests for the uncovered lines diff-cover named above",
+  // Fix 51 — a Cobertura report with zero instrumented statements (an
+  // earlier step's test run crashed before writing real coverage) makes
+  // diff-cover print `Total: 0 lines` and `Coverage: 100%`, exiting 0: a
+  // percentage from an empty denominator, not a pass. Checked before the
+  // exit-code branch below, and regardless of it, so this case cannot be
+  // read as a clean 100%.
+  const dcTotal = diffCoverTotalLines(dcOut);
+  if (dcTotal === 0) {
+    changedLineCoveragePercent = null;
+    skip(
+      "changed-line coverage — the report covers zero instrumented statements (Total: 0 lines); a percentage from an empty denominator is not a pass — see the coverage/unit-tests finding above for why nothing was measured",
     );
+  } else {
+    const dcPercent = /^Coverage: ([\d.]+)%/m.exec(dcOut);
+    changedLineCoveragePercent = dcPercent ? Number(dcPercent[1]) : null;
+    if (dc.status !== 0) {
+      const outcome = classifyDiffCoverOutcome(dcOut);
+      fail(
+        "changed-line coverage",
+        undefined,
+        outcome.detail,
+        "add tests for the uncovered lines diff-cover named above",
+      );
+    }
   }
 } else {
   skip(

@@ -244,6 +244,16 @@ wired as blocking:
   only in a "run it by hand" table is not wired into anything a pull request
   can fail.
 
+**A report with zero instrumented statements is unavailable, not a pass.**
+`diff-cover` finds no changed line to check against a Cobertura report that
+measured nothing — a test run that crashed before it began, say — and prints
+`Total: 0 lines` / `Coverage: 100%`, exiting 0: a percentage from an empty
+denominator ([cross-gate rules: never claim more than was
+checked](cross-gate-rules.md#never-claim-more-than-was-checked)). Read the
+`Total:` line, not only the exit code — `diffCoverTotalLines` in
+`scripts/lib.mjs` is the mechanical form, and a zero total is reported as an
+unavailable check, never as a clean 100%.
+
 ### Coverage legible without a download
 
 Evidence and a merge policy are inert if nobody can read the result without
@@ -440,6 +450,11 @@ pipeline refuses the merge.
 - [ ] A component untouched by the change is still built and tested here.
 - [ ] Changed-line coverage below the floor fails the merge even when the
       repository total is comfortably above its own.
+- [ ] A Cobertura report with zero instrumented statements is reported
+      unavailable, not a 100% changed-line coverage pass — proved with a
+      negative fixture: `diffCoverTotalLines` (`scripts/lib.mjs`) reads
+      `Total: 0 lines` and reports it, even when `diff-cover`'s own exit code
+      is 0.
 - [ ] A run triggered from a fork receives no deployment or publishing
       credentials, and the checks still run.
 - [ ] A dependency whose licence does not pass the decision rule is refused

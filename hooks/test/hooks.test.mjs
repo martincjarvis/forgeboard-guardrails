@@ -48,6 +48,7 @@ import {
   classifyTestCoverageOutcome,
   extractCoverageAndTestSummary,
   classifyDiffCoverOutcome,
+  diffCoverTotalLines,
   classifyOsvScannerOutcome,
   extractOsvJsonFindings,
   extractOsvSarifFindings,
@@ -2257,6 +2258,37 @@ test("classifyDiffCoverOutcome: a command that never produced a coverage line is
     outcome.detail,
     /shortfall|below the .* threshold|%/,
     "must not claim a changed-line shortfall when the command never ran to completion",
+  );
+});
+
+// diffCoverTotalLines — fix 51. Audit 13: a test suite that crashed before
+// executing anything left a Cobertura report with zero instrumented
+// statements; diff-cover found no changed line to check against it and
+// printed `Total: 0 lines` / `Coverage: 100%`, exiting 0. Nothing escaped
+// that particular run (the unit-test failure blocked separately), but the
+// same shape passes silently on a suite that exits 0 having exercised
+// nothing — the exit-0 class the changed-line coverage check exists to
+// close, reproduced inside the check itself.
+
+test("diffCoverTotalLines: the audit's own zero-statement report is read as zero, not ignored", () => {
+  const output = "Total:   0 lines\nMissing: 0 lines\nCoverage: 100%\n";
+  assert.equal(diffCoverTotalLines(output), 0);
+});
+
+test("diffCoverTotalLines: a genuine report with measured lines is read as its real total", () => {
+  const output =
+    "-------------\nDiff Coverage\n-------------\n" +
+    "scripts/gate-6-pull-request.mjs (16.1%): Missing lines 75-83\n" +
+    "-------------\nTotal:   40 lines\nMissing: 8 lines\nCoverage: 80%\n-------------\n";
+  assert.equal(diffCoverTotalLines(output), 40);
+});
+
+test("diffCoverTotalLines: output with no Total: line at all (the command never got that far) is null, distinct from a genuine zero", () => {
+  assert.equal(
+    diffCoverTotalLines(
+      "Error: no such file 'coverage/cobertura-coverage.xml'\n",
+    ),
+    null,
   );
 });
 

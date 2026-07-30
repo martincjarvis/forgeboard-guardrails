@@ -420,6 +420,24 @@ export function classifyDiffCoverOutcome(output) {
   };
 }
 
+/** Fix 51 — a percentage computed from zero measured items is unavailable,
+ *  not a pass: on a run whose test suite crashed before executing anything,
+ *  the Cobertura report it wrote has zero instrumented statements, diff-cover
+ *  finds no changed line to check against it, and prints `Total: 0 lines` /
+ *  `Coverage: 100%` — then exits 0, because zero missing out of zero met is
+ *  a 100% ratio by the arithmetic alone. That is the exit-0 class inside the
+ *  check gate 6's changed-line coverage exists to close, not a clean run:
+ *  cross-gate-rules.md already says a check that could not run says so
+ *  rather than asserting a cause, and a report covering nothing did not run
+ *  in the sense that matters. Reads diff-cover's own `Total:` line — present
+ *  whether the run passed or failed — rather than treating any zero-missing
+ *  result as clean. `null` when the line never printed at all (the command
+ *  did not get that far), distinct from a genuine `0`. */
+export function diffCoverTotalLines(output) {
+  const m = output.match(/^Total:\s*(\d+)\s*lines?/m);
+  return m ? Number(m[1]) : null;
+}
+
 /** osv-scanner (fix 44 — cross-gate-rules.md, "never claim more than was
  *  checked"): a non-zero exit means either "vulnerabilities found" or "the
  *  scan itself did not complete" (a missing lockfile, an unsupported

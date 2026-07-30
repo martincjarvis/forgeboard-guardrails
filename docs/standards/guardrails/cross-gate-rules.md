@@ -247,6 +247,20 @@ full" while the document still carried undisclosed stack references and dead
 checked, and the two documents the same report finished properly were the
 ones it named a real check for.
 
+**A percentage computed from zero measured items is unavailable, not a
+pass.** A ratio of nothing over nothing is not evidence anything was checked
+— it is arithmetic performed on an empty set, and reporting it as a clean
+100% claims a measurement that never happened. Changed-line coverage hit this
+live: a test run crashed before executing anything, the Cobertura report it
+wrote had zero instrumented statements, and `diff-cover` — finding no changed
+line to check against an empty report — printed `Total: 0 lines` and
+`Coverage: 100%`, exiting 0. The unit-test failure blocked separately, so
+nothing escaped that run, but the same shape would pass silently on a suite
+that exits 0 having exercised nothing: the exit-0 class the changed-line
+coverage check exists to close, reproduced inside the check itself. Read the
+tool's own count of what it measured — not only whether it exited 0 — and
+treat zero as unavailable, the same as a check that could not run.
+
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
 The same principle, one level more specific: a suppression's own verification
@@ -383,6 +397,12 @@ choice is reported, not guessed.
       non-zero exit code alone. A refusal whose problem text carries no
       identifier is reported unavailable, never as a finding.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
+- [ ] A percentage a check reports is read alongside the count it was computed
+      from — zero measured items is reported unavailable, never as a 100%
+      pass. `scripts/gate-6-pull-request.mjs`'s changed-line coverage check
+      (`diffCoverTotalLines`, `scripts/lib.mjs`) is the mechanical form: a
+      Cobertura report with zero instrumented statements produces an
+      unavailable result, not `Coverage: 100%`.
 - [ ] Every completion claim in a bootstrap or session report names the check
       that supports it, and a claim of completeness for a document names that
       document's own check reporting zero findings — not that the document was
