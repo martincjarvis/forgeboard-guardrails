@@ -214,7 +214,8 @@ export function evaluateRegisterRow(
     path: REGISTER,
     problem:
       `${depLabel} carries licence '${row.licence}' (scope ${row.scope || "(none recorded)"}) — ` +
-      `not OSI-approved and compatible with this repository's own licence on its own (${blockedBy})`,
+      `${blockedBy} is not both OSI-approved and compatible with this repository's own licence, ` +
+      `so accepting it is a human decision`,
     remedy:
       "record a human decision accepting it — name the record in this row's Decision record column and the person in Approver — or replace the dependency",
   });
