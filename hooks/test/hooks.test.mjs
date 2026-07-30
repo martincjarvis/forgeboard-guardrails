@@ -1877,15 +1877,60 @@ test("checkBranchProtection is a visible skip, naming gh, when gh is not authent
   assert.match(skips[0], /not authenticated/);
 });
 
-test("checkBranchProtection is a visible skip when origin/HEAD cannot be resolved", async () => {
+test("checkBranchProtection is a visible skip when origin/HEAD cannot be resolved locally and gh's own default-branch field is also unavailable", async () => {
   const { findings, skips } = await checkBranchProtection({
     have: () => true,
-    run: () => ({ status: 0 }), // gh api user succeeds
+    run: () => ({ status: 0 }), // gh api user, repo view and the default-branch
+    // probe all "succeed" with no stdout — the default-branch field genuinely
+    // cannot be read, distinct from the recovery case below.
     resolveBase: () => null,
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
   assert.match(skips[0], /origin\/HEAD could not be resolved/);
+  assert.match(
+    skips[0],
+    /git remote set-head origin -a/,
+    "an unset local symref is a fixable local-metadata gap — the skip must name the remedy, not just report an unknown",
+  );
+});
+
+// Fix 32 — audit 9 verified that on a bootstrapped repository
+// `git symbolic-ref refs/remotes/origin/HEAD` exits 128 (the local symref was
+// never set) while `gh api .../branches/main/protection` -> 404 sat right
+// behind it, unreached: resolveBase() failing masked a real finding as a
+// skip. An unset local symref is fixable in one command
+// (`git remote set-head origin -a`), unlike a 403 or a missing remote, which
+// this host genuinely cannot resolve — so it must not read the same as
+// those. gh's own `default_branch` field (`gh api repos/:owner/:repo`) is
+// authoritative and does not depend on any local ref, so it is tried before
+// giving up.
+test("checkBranchProtection recovers via gh's own default-branch field when origin/HEAD cannot be resolved locally, rather than masking the real finding behind a skip", async () => {
+  const { findings, skips } = await checkBranchProtection({
+    have: () => true,
+    resolveBase: () => null,
+    readFile: () =>
+      "jobs:\n  gate-6:\n    name: gate 6\n    runs-on: ubuntu-latest\n",
+    run: (cmd, args) => {
+      if (args[0] === "api" && args[1] === "user") return { status: 0 };
+      if (args[0] === "repo") return { status: 0 };
+      if (args[0] === "api" && args[1] === "repos/:owner/:repo") {
+        return { status: 0, stdout: "main\n" };
+      }
+      if (args[0] === "api" && /protection$/.test(args[1])) {
+        return { status: 1, stderr: "gh: Branch not protected (HTTP 404)" };
+      }
+      throw new Error(`unexpected gh call: ${args.join(" ")}`);
+    },
+  });
+  assert.deepEqual(
+    skips,
+    [],
+    "recovery must not fall back to a skip once gh's default-branch field resolved the branch",
+  );
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].path, "main");
+  assert.match(findings[0].problem, /no branch protection configured/);
 });
 
 test("checkBranchProtection is a visible skip when gh cannot resolve a GitHub repository (no GitHub remote)", async () => {

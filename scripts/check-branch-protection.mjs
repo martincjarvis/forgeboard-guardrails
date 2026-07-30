@@ -1,3 +1,4 @@
+// cspell:ignore symref
 // Fix 24 — branch protection is never configured, and its absence is not a
 // blocking finding. gate-6-pull-request.md states the merge policy (16-24)
 // and cross-gate-rules.md requires "every blocking local check has a named
@@ -19,6 +20,14 @@
 // unauthenticated is a visible SKIP (not a finding — there is nothing this
 // host can tell us), and full agreement between what is configured and what
 // gate 6 actually runs is a pass.
+//
+// Fix 32 — an unset local `origin/HEAD` symref is not the same "cannot tell"
+// as a missing `gh` session or a 403: it is a fixable local-metadata gap
+// (`git remote set-head origin -a`), and audit 9 verified skipping on it
+// silently swallowed a real finding (a 404 sitting right behind it). See
+// resolveBranch() below: it recovers via gh's own authoritative
+// `default_branch` field before giving up, and the skip it does still emit
+// names the one-command remedy rather than reading as an unknown.
 import { readFileSync } from "node:fs";
 import { have, run, resolveBase, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
@@ -211,6 +220,41 @@ function ghAuthenticated(runFn) {
   return runFn("gh", ["api", "user"], { stdio: "ignore" }).status === 0;
 }
 
+/** Fix 32 — an unset local `origin/HEAD` symref (a shallow clone, a fresh
+ *  checkout that never ran `git remote set-head origin -a`) is a fixable
+ *  local-metadata gap, not a genuine unknown — audit 9 verified it on a
+ *  bootstrapped repository: `git symbolic-ref refs/remotes/origin/HEAD`
+ *  exits 128 there while `gh api .../branches/main/protection` -> 404 was
+ *  sitting right behind it, unreached. Skipping on the symref alone masked
+ *  that finding. resolveBaseFn() (the cheap, no-network derivation) is
+ *  tried first; only when it cannot name a branch does this fall back to
+ *  the platform's own default-branch field — `gh api repos/:owner/:repo`'s
+ *  `default_branch` — which is authoritative and does not depend on any
+ *  local ref at all. Returns `{ ok:false, reason }`, naming the one-command
+ *  remedy (`git remote set-head origin -a`), only when neither source can
+ *  name the branch — a 403 or a missing remote is a genuine "cannot tell"
+ *  and is handled by the callers of this function, not folded in here. */
+function resolveBranch(resolveBaseFn, runFn) {
+  const base = resolveBaseFn();
+  if (base) return { ok: true, name: base.replace(/^origin\//, "") };
+
+  const defaultBranch = runFn("gh", [
+    "api",
+    "repos/:owner/:repo",
+    "--jq",
+    ".default_branch",
+  ]);
+  const name =
+    defaultBranch.status === 0 ? (defaultBranch.stdout || "").trim() : "";
+  if (name) return { ok: true, name };
+
+  return {
+    ok: false,
+    reason:
+      "origin/HEAD could not be resolved locally, and gh could not resolve the repository's default branch either; run `git remote set-head origin -a` to fix the local symref",
+  };
+}
+
 /** Reads live branch protection via `gh api`, classified into exactly the
  *  three shapes the caller needs: `{ ok: true, protection }` (200, parsed —
  *  `protection` is null only when genuinely unconfigured, the 404 case),
@@ -286,15 +330,6 @@ export async function checkBranchProtection({
     );
     return { findings: [], skips };
   }
-  const base = resolveBaseFn();
-  if (!base) {
-    skips.push(
-      "branch protection audit — origin/HEAD could not be resolved, check skipped",
-    );
-    return { findings: [], skips };
-  }
-  const branch = base.replace(/^origin\//, "");
-
   const repoView = runFn("gh", ["repo", "view", "--json", "nameWithOwner"]);
   if (repoView.status !== 0) {
     skips.push(
@@ -302,6 +337,13 @@ export async function checkBranchProtection({
     );
     return { findings: [], skips };
   }
+
+  const resolved = resolveBranch(resolveBaseFn, runFn);
+  if (!resolved.ok) {
+    skips.push(`branch protection audit — ${resolved.reason}`);
+    return { findings: [], skips };
+  }
+  const branch = resolved.name;
 
   let workflowText;
   try {
