@@ -222,6 +222,64 @@ the number moving enough to notice, and the floor is defended while the practice
 rots. Measuring the lines this change touched is the only version of the
 question that stays honest as the repository grows.
 
+**Name the mechanism, not just the outcome.** A repository at 96% overall can
+add an entirely uncovered function and stay above an 80% floor — the delta is
+what catches that, and a checklist that only names "coverage reports a delta"
+gives an implementer nothing to build. The overall floor and the changed-line
+floor are two different numbers, computed two different ways, and both must be
+wired as blocking:
+
+- The overall floor reads the coverage tool's own summary against a fixed
+  threshold (this toolkit's own `c8 --check-coverage --lines=80`).
+- The changed-line floor reads the same coverage report **and** the diff
+  against the base branch, and fails independently of the overall number.
+  `diff-cover` (verified directly: `npx diff-cover --help` lists
+  `--compare-branch <branch>` and `--fail-under <score>`, and reads a Cobertura
+  or lcov report — the same report evidence row 11 already asks for) is the
+  Node-ecosystem answer named in "running it by hand" below; a stack with its
+  own diff-coverage tool uses that instead, on the same tooling ladder as
+  everywhere else in this standard ([cross-gate rules](cross-gate-rules.md#prefer-established-tooling-to-bespoke-checks)).
+  Either way, its non-zero exit on a shortfall has to reach the same place
+  every other blocking check in this gate reports a finding — a command named
+  only in a "run it by hand" table is not wired into anything a pull request
+  can fail.
+
+### Coverage legible without a download
+
+Evidence and a merge policy are inert if nobody can read the result without
+extra steps. A build artefact a reviewer has to download, unzip and open in a
+separate viewer does not satisfy "published evidence" for coverage any more
+than it does for the test report evidence row 10 already asks the host to
+render natively — an uploaded Cobertura file sitting next to a green check is
+exactly what ten audits of this toolkit read as "rendered by the host" and
+were wrong: nothing on the run's own page showed a number, only a file
+somebody could fetch.
+
+**For GitHub, the native mechanism is [Code
+Quality](https://docs.github.com/en/code-security/how-tos/maintain-quality-code/set-up-code-coverage).**
+Read directly from GitHub's own documentation, not inferred: it consumes a
+**Cobertura XML** report — the same format evidence row 11 already names as
+this standard's default, so a stack already producing Cobertura needs no new
+report format, only the upload step. Once a workflow step uploads it, a
+`github-code-quality[bot]` comment appears on the pull request itself, giving
+the aggregate coverage percentage **and** a per-file breakdown compared
+against the default branch, with no separate report to open.
+
+**That mechanism is not available on every plan, and the gap is not
+visibility alone.** GitHub's own pricing page states Code Quality is
+"Available on GitHub Enterprise Cloud and GitHub Team" — a repository whose
+account is on GitHub Free cannot enable it, **public or private**, which is a
+different and stricter gate than the visibility-only restrictions item 2
+below discusses. A repository on GitHub Free states that plainly rather than
+carrying a permanent, unfixable finding, and names its alternative: this
+toolkit's own reference (`scripts/gate-6-pull-request.mjs`) writes the
+coverage percentage, the changed-line result and the test pass/fail counts to
+the run's own **step summary** (`$GITHUB_STEP_SUMMARY`) on every run, pass or
+fail — a native GitHub Actions surface with no plan or visibility
+restriction, rendered on the run's own page with nothing to fetch. Either
+mechanism satisfies the requirement; silence about which one is in force, or
+an uploaded artefact standing in for both, does not.
+
 Check 9 is the one check that protects the pipeline rather than the code. A run
 triggered from a fork, or by anyone who can open a pull request, executes
 configuration the pull request itself supplies — so any credential that run can
@@ -288,7 +346,11 @@ Rules that make the evidence worth publishing:
   swallows a failure, and writes a stand-in file on the same path a genuine
   report would occupy fails this even though something was written every run:
   the artefact reads as evidence and nobody notices the tool was never there.
-- **Coverage carries its delta against the base**, which check 8 enforces.
+- **Coverage carries its delta against the base**, which check 8 enforces —
+  see [coverage and untrusted runs](#coverage-and-untrusted-runs) above for
+  the mechanism that computes it and
+  [coverage legible without a download](#coverage-legible-without-a-download)
+  for how it is rendered.
 - **Findings are line-annotated where the platform supports it.** A finding
   nobody sees during review is a finding that ships.
 - **Evidence outlives the run.** A retention period shorter than the time to
@@ -347,13 +409,13 @@ Most of this gate is platform configuration rather than a command, but the
 checks themselves are the local ones re-run — see each gate's own page. What is
 specific here:
 
-| Purpose                        | Command                                                              |
-| ------------------------------ | -------------------------------------------------------------------- |
-| Build the merge result locally | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main` |
-| Reproduce a clean checkout     | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`              |
-| Changed-line coverage          | `npx diff-cover coverage.xml --compare-branch origin/main`           |
-| Inspect required status checks | `gh api repos/:owner/:repo/branches/main/protection`                 |
-| Inspect branch protection, ADO | `az repos policy list --branch main`                                 |
+| Purpose                        | Command                                                                                       |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| Build the merge result locally | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main`                          |
+| Reproduce a clean checkout     | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`                                       |
+| Changed-line coverage          | `npx diff-cover coverage/cobertura-coverage.xml --compare-branch origin/main --fail-under 80` |
+| Inspect required status checks | `gh api repos/:owner/:repo/branches/main/protection`                                          |
+| Inspect branch protection, ADO | `az repos policy list --branch main`                                                          |
 
 The falsifiable test for check 3 is worth running once at adoption: remove the
 local hooks entirely, break one check deliberately, push, and confirm the
@@ -419,13 +481,35 @@ pipeline refuses the merge.
 - [ ] A check that fails but is not in the required list is identified — that is
       the silent-pass hole.
 - [ ] The pipeline builds the merge result, not only the branch tip.
-- [ ] Test, coverage and static-analysis reports appear on a **failing** run.
-- [ ] A run that produces no test report, or an unreadable one, fails the merge
-      rather than passing on the exit code alone.
-- [ ] The test and coverage reports are rendered by the host itself, not merely
-      uploaded as files — if a reviewer has to download an artefact to see which
-      test failed, the format is wrong for this host.
-- [ ] Coverage reports a delta against the base, enforced as check 8.
+- [ ] A reader who is not a developer can open the run's own page — the pull
+      request conversation or the run's summary, never a downloaded file — and
+      see the coverage percentage and the test pass/fail counts with no
+      further step. Check what is rendered **on** the page, not whether an
+      artefact can be fetched from it — an uploaded report satisfies neither
+      this row nor evidence row 10, however easy the platform makes the
+      download.
+- [ ] The same is true of a **failing** run, not only a passing one — confirm
+      it by breaking a test or a coverage floor deliberately and reading the
+      run's own page, not by inspecting the pipeline's upload step and
+      assuming it behaves the same both ways.
+- [ ] A test report deliberately corrupted (truncated XML, the wrong schema)
+      fails the merge the same as a run producing no report at all — proven by
+      breaking one on a real run, not inferred from the pipeline reading a
+      well-formed report successfully on every other run.
+- [ ] Coverage of the lines this change added or modified is computed and
+      reported **separately from the overall figure**, and a shortfall there
+      fails the merge even when the repository's overall coverage sits well
+      above its own floor. The mechanism that computes it is named
+      (`diff-cover` or the stack's own equivalent — see
+      [coverage and untrusted runs](#coverage-and-untrusted-runs)) and its
+      failing exit code is wired into this gate, not left as a line in a
+      "running it by hand" table nobody's pipeline calls.
+- [ ] The repository states which coverage-rendering mechanism it uses — the
+      platform's own native feature (for GitHub, [Code
+      Quality](https://docs.github.com/en/code-security/how-tos/maintain-quality-code/set-up-code-coverage))
+      or a stated alternative — and, where the native feature needs a plan or
+      visibility this repository does not have, names that rather than
+      leaving the row a permanent finding nobody can clear.
 - [ ] Static-analysis findings appear as annotations on the changed lines.
 - [ ] A skipped check is visibly skipped, with a reason, in the published evidence.
 - [ ] A check whose tool is missing or unreachable publishes an unavailable

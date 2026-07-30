@@ -35,6 +35,7 @@ import {
   resolveBase,
   deriveComponent,
   classifyTestCoverageOutcome,
+  extractCoverageAndTestSummary,
   report,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
@@ -56,6 +57,12 @@ const skips = [];
 const fail = (check, path, problem, remedy) =>
   findings.push({ check, path, problem, remedy });
 const skip = (s) => skips.push(s);
+
+// Populated once the test/coverage command below has run, pass or fail —
+// gate-6-pull-request.md "coverage legible without a download": the reader
+// has to see the number on this run's own page, not only on a passing one.
+/** @type {{tests: number|null, pass: number|null, fail: number|null, linesCoveragePercent: number|null} | null} */
+let coverageTestSummary = null;
 
 // --- Resolve the base and the range ---------------------------------------
 // `GITHUB_BASE_REF` is the pull request's base branch name in a `pull_request`
@@ -390,6 +397,10 @@ for (const f of checkAdrApprover()) findings.push(f);
   ]);
   const testOut = (test.stdout || "") + (test.stderr || "");
   process.stderr.write(testOut);
+  // Read regardless of pass/fail — a reader on a failing run needs the same
+  // figures a passing one shows, not a placeholder that only appears when
+  // everything already went right.
+  coverageTestSummary = extractCoverageAndTestSummary(testOut);
   if (test.status !== 0) {
     // Fix 11: name which of the two this actually was, rather than a
     // compound "either...or" finding that cannot name its own cause
@@ -531,12 +542,44 @@ function annotate(f) {
 
 for (const f of findings) annotate(f);
 
+// gate-6-pull-request.md "coverage legible without a download": these
+// figures have to be on this run's own page whether the run passed or
+// failed — never left to an uploaded Cobertura/JUnit file nobody opens.
+// `null` (the command crashed before either reporter printed) is shown as
+// its own line rather than silently omitted, which would read the same as
+// zero.
+function coverageTestLines() {
+  if (!coverageTestSummary) {
+    return [
+      "**Coverage and tests:** the test/coverage command did not produce a " +
+        "readable summary — see the job log for why it did not run to completion.",
+    ];
+  }
+  const {
+    tests,
+    pass,
+    fail: failCount,
+    linesCoveragePercent,
+  } = coverageTestSummary;
+  const testPart =
+    tests === null || tests === undefined
+      ? "test counts unavailable"
+      : `${pass ?? "?"}/${tests} test(s) passed${failCount ? ` (${failCount} failed)` : ""}`;
+  const coveragePart =
+    linesCoveragePercent === null || linesCoveragePercent === undefined
+      ? "line coverage unavailable"
+      : `${linesCoveragePercent}% line coverage (overall floor)`;
+  return [`**Coverage and tests:** ${testPart} · ${coveragePart}`];
+}
+
 const summaryFile = process.env.GITHUB_STEP_SUMMARY;
 if (summaryFile) {
   const lines = [
     "## Gate 6 — pull request checks",
     "",
     `Range: \`${range}\` — ${changed.length} file(s) changed.`,
+    "",
+    ...coverageTestLines(),
     "",
     findings.length ? `**${findings.length} finding(s):**` : "**No findings.**",
     ...findings.map(

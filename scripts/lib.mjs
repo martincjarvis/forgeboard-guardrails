@@ -392,3 +392,29 @@ export function classifyTestCoverageOutcome(output) {
       "the command exited non-zero without a test-runner summary or a coverage report — it did not run to completion",
   };
 }
+
+/** The figures a reader who is not a developer needs to see on the run's own
+ *  page without downloading anything: the test pass/fail/total counts, and
+ *  the overall lines-coverage percentage — read from the same c8 + node:test
+ *  output classifyTestCoverageOutcome above already parses, so both read the
+ *  one command actually ran rather than a second, divergent source. Returns
+ *  `null` for a figure this output does not contain (a crashed run before
+ *  either reporter printed) rather than a false zero — gate-6-pull-request.md
+ *  "coverage legible without a download": a reader must see the number, not
+ *  a plausible-looking placeholder standing in for a command that never
+ *  finished. */
+export function extractCoverageAndTestSummary(output) {
+  const testsMatch = output.match(/# tests (\d+)|ℹ tests (\d+)/);
+  const passMatch = output.match(/# pass (\d+)|ℹ pass (\d+)/);
+  const failMatch = output.match(/# fail (\d+)|ℹ fail (\d+)/);
+  const coverageMatch = output.match(
+    /^All files\s*\|\s*[\d.]+\s*\|\s*[\d.]+\s*\|\s*[\d.]+\s*\|\s*([\d.]+)/m,
+  );
+  const num = (m) => (m ? Number(m[1] || m[2]) : null);
+  return {
+    tests: num(testsMatch),
+    pass: num(passMatch),
+    fail: num(failMatch),
+    linesCoveragePercent: coverageMatch ? Number(coverageMatch[1]) : null,
+  };
+}

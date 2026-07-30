@@ -46,6 +46,7 @@ import {
   normalizeSarifPaths,
   filterSuppressedSarif,
   classifyTestCoverageOutcome,
+  extractCoverageAndTestSummary,
 } from "../../scripts/lib.mjs";
 import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
 import {
@@ -2143,6 +2144,54 @@ test("classifyTestCoverageOutcome: a command that never ran (neither summary pre
     /shortfall|below the .* floor|%/,
     "must not claim a coverage shortfall when the command never ran to completion",
   );
+});
+
+// extractCoverageAndTestSummary — fix brief 8, item 1: "coverage legible
+// without a download" needs the test counts and the coverage percentage on
+// the run's own page whether the run passed or failed, so
+// scripts/gate-6-pull-request.mjs reads them from the same command output
+// classifyTestCoverageOutcome above already parses, rather than a second,
+// divergent source.
+
+test("extractCoverageAndTestSummary reads the test counts and lines-coverage percentage from a passing run's real output shape", () => {
+  const output =
+    "✔ a passing test (0.6ms)\nℹ tests 132\nℹ suites 0\nℹ pass 132\nℹ fail 0\n" +
+    "ℹ cancelled 0\nℹ skipped 0\nℹ todo 0\n" +
+    "----------|---------|----------|---------|---------|-------------------\n" +
+    "All files |   80.44 |    73.54 |   85.81 |   80.44 |                   \n";
+  const summary = extractCoverageAndTestSummary(output);
+  assert.deepEqual(summary, {
+    tests: 132,
+    pass: 132,
+    fail: 0,
+    linesCoveragePercent: 80.44,
+  });
+});
+
+test("extractCoverageAndTestSummary reads the same figures on a failing run — coverage legible without a download applies there too", () => {
+  const output =
+    "✖ a failing test (1.2ms)\nℹ tests 132\nℹ suites 0\nℹ pass 131\nℹ fail 1\n" +
+    "ℹ cancelled 0\nℹ skipped 0\nℹ todo 0\n" +
+    "----------|---------|----------|---------|---------|-------------------\n" +
+    "All files |   79.84 |    73.54 |   85.81 |   79.84 |                   \n";
+  const summary = extractCoverageAndTestSummary(output);
+  assert.deepEqual(summary, {
+    tests: 132,
+    pass: 131,
+    fail: 1,
+    linesCoveragePercent: 79.84,
+  });
+});
+
+test("extractCoverageAndTestSummary returns null figures, never a false zero, when the command never reached either reporter", () => {
+  const output = "Could not find 'hooks/test/nonexistent.mjs'\n";
+  const summary = extractCoverageAndTestSummary(output);
+  assert.deepEqual(summary, {
+    tests: null,
+    pass: null,
+    fail: null,
+    linesCoveragePercent: null,
+  });
 });
 
 // --- scripts/check-osv-scanner.mjs — fix 9b. osv-scanner is external,
