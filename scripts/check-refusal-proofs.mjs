@@ -23,7 +23,7 @@
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { have, run, cleanGitEnv } from "./lib.mjs";
+import { have, run, cleanGitEnv, classifyDiffCoverOutcome } from "./lib.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
@@ -159,6 +159,18 @@ const CHECKS_WITH_FIXTURES = [
     check: "dependency licence policy (gate 6 check 7)",
     fixture: () =>
       !licenceExpressionAcceptable("GPL-3.0-only", "Runtime").acceptable,
+  },
+  {
+    check: "changed-line coverage (gate 6 check 8)",
+    // classifyDiffCoverOutcome is the pure classifier diff-cover's own
+    // output feeds — the same layer that turns "a tool whose findings live
+    // only in its own text" into an actual finding, tested here the same
+    // way as the dependency advisory scan and licence policy fixtures above:
+    // a synthetic negative report, not a live diff-cover run.
+    fixture: () =>
+      classifyDiffCoverOutcome(
+        "Failure: Coverage (40%) is below the threshold (80%)\n",
+      ).kind === "shortfall",
   },
   {
     check: "spelling (gate 2 check 7)",

@@ -1,4 +1,4 @@
-// cspell:ignore blueoakcouncil opensource
+// cspell:ignore blueoakcouncil jschardet opensource
 // The licence table (fix brief 6) — recorded facts about each licence this
 // repository's own dependencies carry, not an enumerated allow list.
 //
@@ -340,6 +340,39 @@ export const LICENCE_TABLE = {
       stateChanges: false,
       sourceDisclosure: false,
       sameLicence: true, // share-alike (Section 3(b)): adaptations need a BY-SA-compatible licence
+      networkUseDisclosure: false,
+    },
+    limitations: { noTrademark: true, noWarranty: true, noLiability: true },
+  },
+  // Fix 42 — jschardet (a transitive dependency of the new diff-cover
+  // devDependency) carries this in its own package.json `license` field
+  // verbatim, "+" and all — kept as the register's own mechanical-production
+  // rule states (licenceTableEntry's own comment: "correct the register cell
+  // rather than adding an alias"), so the table key matches what actually
+  // resolves rather than the SPDX "-or-later" spelling.
+  "LGPL-2.1+": {
+    name: "GNU Lesser General Public License v2.1 or later",
+    reference: "https://opensource.org/license/lgpl-2-1",
+    osiApproved: true,
+    checked: "2026-07-30",
+    permissions: {
+      commercialUse: true,
+      distribution: true,
+      modification: true,
+      privateUse: true,
+      patentGrant: false,
+      sublicensing: false,
+    },
+    conditions: {
+      notice: true,
+      stateChanges: true,
+      // Weak copyleft: modifications to the library itself must be
+      // disclosed and stay under LGPL — irrelevant to whether this table
+      // entry blocks, since compatible() (check-licence-policy.mjs) treats
+      // Development scope as always compatible regardless of these two —
+      // nothing downstream ever ships it.
+      sourceDisclosure: true,
+      sameLicence: true,
       networkUseDisclosure: false,
     },
     limitations: { noTrademark: true, noWarranty: true, noLiability: true },

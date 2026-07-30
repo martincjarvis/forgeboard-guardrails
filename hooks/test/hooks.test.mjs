@@ -47,6 +47,7 @@ import {
   filterSuppressedSarif,
   classifyTestCoverageOutcome,
   extractCoverageAndTestSummary,
+  classifyDiffCoverOutcome,
 } from "../../scripts/lib.mjs";
 import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
 import {
@@ -2205,6 +2206,37 @@ test("extractCoverageAndTestSummary returns null figures, never a false zero, wh
     fail: null,
     linesCoveragePercent: null,
   });
+});
+
+// classifyDiffCoverOutcome — gate 6 check 8, "changed-line coverage" (fix
+// 42; gate-6-pull-request.md "coverage and untrusted runs": the overall
+// floor and the changed-line floor are two different numbers, computed two
+// different ways, and both must be wired as blocking). Same disambiguation
+// problem as classifyTestCoverageOutcome above, on diff-cover's own output
+// instead of c8's: a genuine shortfall against `--fail-under` and a command
+// that did not run to completion (report missing, tool crashed) both exit
+// non-zero, and only the output text tells them apart.
+
+test("classifyDiffCoverOutcome: a genuine changed-line shortfall is named as shortfall, with the actual percentages", () => {
+  const output =
+    "-------------\nDiff Coverage\n-------------\n" +
+    "scripts/gate-6-pull-request.mjs (16.1%): Missing lines 75-83\n" +
+    "-------------\nTotal:   40 lines\nMissing: 8 lines\nCoverage: 80%\n-------------\n\n" +
+    "Failure: Coverage (80%) is below the threshold (95%)\n";
+  const outcome = classifyDiffCoverOutcome(output);
+  assert.equal(outcome.kind, "shortfall");
+  assert.match(outcome.detail, /80%.*95%/s);
+});
+
+test("classifyDiffCoverOutcome: a command that never produced a coverage line is its own outcome, not a guessed shortfall", () => {
+  const output = "Error: no such file 'coverage/cobertura-coverage.xml'\n";
+  const outcome = classifyDiffCoverOutcome(output);
+  assert.equal(outcome.kind, "broken-command");
+  assert.doesNotMatch(
+    outcome.detail,
+    /shortfall|below the .* threshold|%/,
+    "must not claim a changed-line shortfall when the command never ran to completion",
+  );
 });
 
 // --- scripts/check-osv-scanner.mjs — fix 9b. osv-scanner is external,

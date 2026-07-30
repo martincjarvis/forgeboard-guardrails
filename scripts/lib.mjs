@@ -393,6 +393,33 @@ export function classifyTestCoverageOutcome(output) {
   };
 }
 
+/** Classify `diff-cover`'s own output for gate 6 check 8, "changed-line
+ *  coverage" (gate-6-pull-request.md, "coverage and untrusted runs": the
+ *  overall floor and the changed-line floor are two different numbers,
+ *  computed two different ways, and both must be wired as blocking). The
+ *  same three-outcome problem classifyTestCoverageOutcome above solves for
+ *  c8: a genuine shortfall against `--fail-under` and a command that did
+ *  not run to completion (the Cobertura report missing, the tool crashing)
+ *  both exit non-zero, and the exit code alone cannot tell them apart —
+ *  only diff-cover's own "Failure: Coverage (X%) is below the threshold
+ *  (Y%)" line distinguishes a real shortfall from a broken run. */
+export function classifyDiffCoverOutcome(output) {
+  const shortfall = output.match(
+    /Failure: Coverage \(([\d.]+)%\) is below the threshold \(([\d.]+)%\)/,
+  );
+  if (shortfall) {
+    return {
+      kind: "shortfall",
+      detail: `changed-line coverage is ${shortfall[1]}%, below the ${shortfall[2]}% floor`,
+    };
+  }
+  return {
+    kind: "broken-command",
+    detail:
+      "diff-cover exited non-zero without a threshold-failure line — it did not run to completion (see the log above for why)",
+  };
+}
+
 /** The figures a reader who is not a developer needs to see on the run's own
  *  page without downloading anything: the test pass/fail/total counts, and
  *  the overall lines-coverage percentage — read from the same c8 + node:test

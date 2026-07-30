@@ -36,6 +36,7 @@ import {
   deriveComponent,
   classifyTestCoverageOutcome,
   extractCoverageAndTestSummary,
+  classifyDiffCoverOutcome,
   report,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
@@ -63,6 +64,12 @@ const skip = (s) => skips.push(s);
 // has to see the number on this run's own page, not only on a passing one.
 /** @type {{tests: number|null, pass: number|null, fail: number|null, linesCoveragePercent: number|null} | null} */
 let coverageTestSummary = null;
+
+// Same reason as coverageTestSummary above, for check 8's own number —
+// diff-cover's percentage of the lines this range actually touched, distinct
+// from the flat floor coverageTestSummary carries.
+/** @type {number | null} */
+let changedLineCoveragePercent = null;
 
 // --- Resolve the base and the range ---------------------------------------
 // `GITHUB_BASE_REF` is the pull request's base branch name in a `pull_request`
@@ -437,6 +444,54 @@ for (const f of checkAdrApprover()) findings.push(f);
   );
 }
 
+// --- Check 8 (gate 6) — changed-line coverage (fix 42; gate-6-pull-request.md
+// "coverage and untrusted runs") ---------------------------------------------
+// A different number from the flat floor above, computed a different way: a
+// repository comfortably over its overall floor can add an entirely
+// uncovered function and stay there, so this reads the Cobertura report the
+// block above just wrote **and** the diff against the range's base, and
+// fails independently of the overall figure. `diff-cover` is the
+// Node-ecosystem tool the standard names — a new dependency, and ADR-0002's
+// own line ("analysis tools are dev dependencies of whoever runs them")
+// permits that; it is pinned in package.json like every other analysis tool
+// here, not fetched from the network at run time.
+const COBERTURA_REPORT = "coverage/cobertura-coverage.xml";
+if (!existsSync(COBERTURA_REPORT)) {
+  // The build/lint/test block above already reported why — a broken command
+  // never reached either reporter — so this is a skip, not a second finding
+  // for the same root cause.
+  skip(
+    "changed-line coverage — no coverage report produced by the run above; see the coverage/unit-tests finding for why",
+  );
+} else if (have("npx", ["--no-install", "diff-cover", "--version"])) {
+  const dc = run("npx", [
+    "--no-install",
+    "diff-cover",
+    COBERTURA_REPORT,
+    "--compare-branch",
+    base,
+    "--fail-under",
+    "80",
+  ]);
+  const dcOut = (dc.stdout || "") + (dc.stderr || "");
+  process.stderr.write(dcOut);
+  const dcPercent = /^Coverage: ([\d.]+)%/m.exec(dcOut);
+  changedLineCoveragePercent = dcPercent ? Number(dcPercent[1]) : null;
+  if (dc.status !== 0) {
+    const outcome = classifyDiffCoverOutcome(dcOut);
+    fail(
+      "changed-line coverage",
+      undefined,
+      outcome.detail,
+      "add tests for the uncovered lines diff-cover named above",
+    );
+  }
+} else {
+  skip(
+    "changed-line coverage — diff-cover not installed; run `npm install` to pull the dev dependency",
+  );
+}
+
 // --- Gate 4 — task completion, over the same range --------------------------
 // Change size and file length are already implemented range-scoped — hooks/
 // gate-4-task-completion.mjs is the distributed hook, invoked unmodified
@@ -569,7 +624,17 @@ function coverageTestLines() {
     linesCoveragePercent === null || linesCoveragePercent === undefined
       ? "line coverage unavailable"
       : `${linesCoveragePercent}% line coverage (overall floor)`;
-  return [`**Coverage and tests:** ${testPart} · ${coveragePart}`];
+  // Check 8's own figure, distinct from the overall floor above — evidence
+  // row 11's "delta against the base" (gate-6-pull-request.md "coverage
+  // legible without a download").
+  const changedLinePart =
+    changedLineCoveragePercent === null ||
+    changedLineCoveragePercent === undefined
+      ? "changed-line coverage unavailable"
+      : `${changedLineCoveragePercent}% changed-line coverage`;
+  return [
+    `**Coverage and tests:** ${testPart} · ${coveragePart} · ${changedLinePart}`,
+  ];
 }
 
 const summaryFile = process.env.GITHUB_STEP_SUMMARY;
