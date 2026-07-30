@@ -19,6 +19,7 @@ import { checkMachineId } from "./check-machine-id.mjs";
 import { checkRefusalProofs } from "./check-refusal-proofs.mjs";
 import { checkScriptWiring } from "./check-script-wiring.mjs";
 import { checkBranchProtection } from "./check-branch-protection.mjs";
+import { checkRepositoryFeatures } from "./check-repository-features.mjs";
 
 const findings = [];
 const skips = [];
@@ -259,7 +260,10 @@ function npmBin(name) {
 // branch protection is no longer one: fix 24 (cross-gate-rules.md, "every
 // blocking local check has a named required status check server-side")
 // closes it below, using the same local `gh` session a human or agent
-// running gate 7 by hand already has.
+// running gate 7 by hand already has. Fix brief 8, item 2 adds the sibling
+// check: which free GitHub repository features (Dependabot, secret
+// scanning, code scanning, ...) are actually enabled — see
+// docs/standards/guardrails/gate-7-on-demand.md#platform-features-enabled-by-default.
 skips.push(
   "platform capability audit — non-GitHub hosts still need `az repos policy list` by hand; not a local check here",
 );
@@ -267,6 +271,11 @@ skips.push(
   const { findings: bp, skips: bpSkips } = await checkBranchProtection();
   for (const f of bp) findings.push(f);
   skips.push(...bpSkips);
+}
+{
+  const { findings: rf, skips: rfSkips } = await checkRepositoryFeatures();
+  for (const f of rf) findings.push(f);
+  skips.push(...rfSkips);
 }
 
 // --- Policy: refusal-proof audit (fix 9a; cross-gate-rules.md, "Every

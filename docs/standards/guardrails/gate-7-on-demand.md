@@ -16,7 +16,7 @@ because the caller decides the consequence.
 | --------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                                                                                                                                                                                                                                                                                                                 |
 | History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                                                                                                                                                                                                                                                                                                    |
-| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                                                                                                                                                                                                                                                                                                           |
+| Platform capability audit   | Policy        | Every platform feature free at this repository's visibility and plan is enabled, or a decision record names why not — see [platform features enabled by default](#platform-features-enabled-by-default) below and `scripts/check-repository-features.mjs`                                                                                                                           |
 | Branch protection audit     | Policy        | Whether the protected branch's configuration actually blocks a merge on every check gate 6 runs — a finding when unconfigured, a visible skip when `gh` cannot tell ([branch protection](branch-protection.md))                                                                                                                                                                     |
 | Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                                                                                                                                                                                                                                                                                                               |
 | Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                                                                                                                                                                                                                                                                                                       |
@@ -63,23 +63,85 @@ not fixed by a commit: the credential is revoked first, and rewriting the
 history is a separate decision with its own record, because it invalidates every
 clone.
 
+## Platform features enabled by default
+
+[Cross-gate rules](cross-gate-rules.md#prefer-established-tooling-to-bespoke-checks)
+states the rule — "every check the platform already provides is enabled
+rather than rebuilt" — and it has been unactionable: audit 5 found Dependabot
+and vulnerability alerts disabled at the platform level with no decision
+record, and no cycle since has fixed it, because an implementer reading that
+sentence has no way to tell whether the repository in front of them complies.
+A rule with nothing enumerated is not a rule anyone can satisfy.
+
+**Features the platform provides free at this repository's visibility and
+plan are enabled by default. Leaving one off is a decision with a record, not
+an omission.** For GitHub, verified directly against this account's own repositories
+rather than assumed — the same discipline
+[branch protection](branch-protection.md#a-private-repository-without-github-pro-cannot-be-protected)
+already applies to its own plan restriction:
+
+| Feature                      | Free at                                                                                                                                                                     | Mechanism this toolkit reads                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Dependency graph             | Every plan, every visibility                                                                                                                                                | Always on for a supported manifest; the platform exposes no toggle to audit                                    |
+| Dependabot alerts            | Every plan, every visibility                                                                                                                                                | `GET /repos/:owner/:repo/vulnerability-alerts` (`204` enabled, `404` disabled)                                 |
+| Dependabot security updates  | Every plan, every visibility                                                                                                                                                | `GET /repos/:owner/:repo/automated-security-fixes`                                                             |
+| Secret scanning              | Public repositories, every plan. Private repositories need **GitHub Secret Protection**, purchasable only on GitHub Team or Enterprise Cloud                                | `security_and_analysis.secret_scanning.status` on the repository resource                                      |
+| Push protection              | Same gate as secret scanning — it has nothing to protect until secret scanning itself is enabled                                                                            | `security_and_analysis.secret_scanning_push_protection.status`                                                 |
+| Code scanning (CodeQL)       | Public repositories, every plan. Private repositories need **GitHub Code Security**, purchasable only on GitHub Team or Enterprise Cloud                                    | `GET /repos/:owner/:repo/code-scanning/default-setup`                                                          |
+| Code coverage (Code Quality) | GitHub Team or Enterprise Cloud only — **not visibility-gated**: a public repository on GitHub Free does not get it free the way secret scanning and code scanning above do | No documented API; see [gate 6's coverage section](gate-6-pull-request.md#coverage-legible-without-a-download) |
+
+Two rows are worth reading twice because the gate is different in kind, not
+degree. Secret scanning and code scanning are free the moment a repository is
+public — the restriction is visibility. Code coverage's native rendering is
+gated on the **account's plan**, confirmed against GitHub's own pricing page
+("Available on GitHub Enterprise Cloud and GitHub Team"): a public repository
+on GitHub Free is still locked out, which a visibility-only mental model
+would miss.
+
+**Unavailable-for-this-plan-or-visibility is not a finding; available and
+disabled is.** Probed directly against a private repository on GitHub Free,
+attempting to enable secret scanning returns `422` with `"Secret scanning is
+not available for this repository."`; attempting to read code scanning's
+default setup returns `403` with `"Code scanning is not enabled for this
+repository. Please enable code scanning in the repository settings."` — both
+name the restriction in the response body, and `scripts/check-repository-features.mjs`
+reports both as a visible skip rather than a finding. A `403`/`401` whose body
+names something else — a missing token scope, an unauthenticated session — is
+reported as an **unknown naming the missing scope**, never silently folded
+into "disabled": Fix 32
+([branch protection](branch-protection.md)) already learned this lesson once
+for `origin/HEAD` — a check that cannot tell "off" from "cannot see" produces
+noise, and noise is indistinguishable from a false pass once people stop
+reading it.
+
+**Enabling these is a step in the bootstrap procedure**
+(`skills/repository-bootstrap/SKILL.md`, run with the adopting session's own
+authenticated `gh`), not a closing-checklist line an implementer reads and
+never executes — the same gap branch protection had before
+`scripts/configure-branch-protection.mjs` existed to close it.
+`scripts/configure-repository-features.mjs` is that mechanism here: it
+enables what the probes above found available, and reports what it could not
+tell rather than guessing.
+
 ## Running it by hand
 
-| Check                       | Command                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Repository-wide secret scan | `npx secretlint '**/*'`                                                                                            |
-| History secret scan         | `npx secretlint --secretlintignore .gitignore` over `git rev-list --all` checkouts, or a dedicated history scanner |
-| Repository-wide analysis    | `semgrep --config auto .`                                                                                          |
-| Repository-wide size scan   | `lizard -C 15 -L 100 -a 7 .`                                                                                       |
-| Link and anchor integrity   | The repository's own docs command                                                                                  |
-| Long-path support           | `git config --get core.longpaths`                                                                                  |
-| Large-file storage          | `git lfs env` · `git lfs track`                                                                                    |
-| Installed hooks             | `git config --get core.hooksPath` and list that directory                                                          |
-| Platform capabilities       | `gh api repos/:owner/:repo` · `az repos policy list`                                                               |
-| Branch protection audit     | `node scripts/check-branch-protection.mjs`                                                                         |
-| Refusal-proof audit         | `node scripts/check-refusal-proofs.mjs`                                                                            |
-| Quality-script wiring audit | `node scripts/check-script-wiring.mjs`                                                                             |
-| Licence table re-validation | `node scripts/check-licence-table.mjs`                                                                             |
+| Check                         | Command                                                                                                            |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Repository-wide secret scan   | `npx secretlint '**/*'`                                                                                            |
+| History secret scan           | `npx secretlint --secretlintignore .gitignore` over `git rev-list --all` checkouts, or a dedicated history scanner |
+| Repository-wide analysis      | `semgrep --config auto .`                                                                                          |
+| Repository-wide size scan     | `lizard -C 15 -L 100 -a 7 .`                                                                                       |
+| Link and anchor integrity     | The repository's own docs command                                                                                  |
+| Long-path support             | `git config --get core.longpaths`                                                                                  |
+| Large-file storage            | `git lfs env` · `git lfs track`                                                                                    |
+| Installed hooks               | `git config --get core.hooksPath` and list that directory                                                          |
+| Platform capabilities         | `gh api repos/:owner/:repo` · `az repos policy list`                                                               |
+| Branch protection audit       | `node scripts/check-branch-protection.mjs`                                                                         |
+| Repository features audit     | `node scripts/check-repository-features.mjs`                                                                       |
+| Configure repository features | `node scripts/configure-repository-features.mjs`                                                                   |
+| Refusal-proof audit           | `node scripts/check-refusal-proofs.mjs`                                                                            |
+| Quality-script wiring audit   | `node scripts/check-script-wiring.mjs`                                                                             |
+| Licence table re-validation   | `node scripts/check-licence-table.mjs`                                                                             |
 
 The history scan is the one to reach for a purpose-built tool for: walking every
 reachable commit is not something a file-oriented scanner does well, and the
@@ -99,9 +161,27 @@ caught it before the cycle called itself done simply was not run.
 ## Verification
 
 - [ ] A fresh clone reports which required external tools are missing, by name.
-- [ ] Every check the hosting platform already provides is enabled, rather than
-      reimplemented in the pipeline — and the audit lists the ones deliberately
-      left off, with their records.
+- [ ] Every platform feature free at this repository's visibility and plan —
+      dependency graph, Dependabot alerts, Dependabot security updates, secret
+      scanning, push protection, code scanning, code coverage — is enabled, or
+      a decision record names why not
+      ([platform features enabled by default](#platform-features-enabled-by-default)).
+- [ ] `scripts/check-repository-features.mjs` distinguishes **unavailable for
+      this visibility or plan** (a `422`/`403` naming the plan or product
+      restriction in its own body) from **available and disabled** — the
+      first is reported as a skip, never a finding; the second is a finding.
+      Prove it against a real private repository on a plan without GitHub
+      Secret Protection or Code Security: the audit skips secret scanning and
+      code scanning by name rather than reporting them as findings a private
+      repository on that plan can never clear.
+- [ ] A `403`/`401` whose body names a missing token scope or an
+      unauthenticated session — not a plan or product restriction — is
+      reported as an **unknown naming the scope**, never silently read as
+      "disabled."
+- [ ] `scripts/configure-repository-features.mjs` is a named step in
+      `skills/repository-bootstrap/SKILL.md`, run with the bootstrap
+      session's own authenticated `gh` — not a line left for a closing
+      checklist nobody executes.
 - [ ] Dependency update proposals are raised on a schedule, and pass through the
       same gates as any other change.
 - [ ] A repository-wide scan runs without staged content and without a branch.

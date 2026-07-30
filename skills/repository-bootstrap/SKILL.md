@@ -78,7 +78,15 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    a private repository, `gh` unauthenticated) that make it a visible skip
    rather than silently done. A pipeline that runs and publishes evidence
    with nothing configured to refuse the merge on it is exactly the gap
-   audit 8 found, repeated at adoption. **A finding this order surfaces gets
+   audit 8 found, repeated at adoption. **Enabling the platform's own free
+   security and quality features is the same kind of step, not a closing-
+   checklist line:** with the same session, run
+   `node scripts/configure-repository-features.mjs` then
+   `node scripts/check-repository-features.mjs` to confirm it took —
+   `docs/standards/guardrails/gate-7-on-demand.md#platform-features-enabled-by-default`
+   names each feature, which are free at which visibility and plan, and the
+   two skip conditions (unavailable for this visibility or plan; `gh` cannot
+   tell) that must not read as findings. **A finding this order surfaces gets
    fixed first, restructured second, and only suppressed with a justification
    once both are unavailable** — load
    `docs/standards/guardrails/bypass-and-exceptions.md#fix-it-restructure-it-or-suppress-it-in-that-order`

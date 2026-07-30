@@ -348,9 +348,12 @@ choice is reported, not guessed.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
 - [ ] A suppression's verification claim ("N findings before, 0 after") cites a
       repository-scope run — gate 7's own sweep, or an equivalent `semgrep
-    --config auto --error .` at the repository root — never a check scoped
+--config auto --error .` at the repository root — never a check scoped
       to only the file just edited.
-- [ ] Every check the platform already provides is enabled rather than rebuilt.
+- [ ] Every check the platform already provides is enabled rather than
+      rebuilt — the per-feature checklist, and the visibility-or-plan-versus-
+      disabled distinction that makes it falsifiable, is
+      [gate 7's own](gate-7-on-demand.md#platform-features-enabled-by-default).
 - [ ] Within each gate, checks run cheapest first, except where one changes what
       a later one reads.
 - [ ] A fast, stack-specialised check runs at a gate that fires on every edit or
