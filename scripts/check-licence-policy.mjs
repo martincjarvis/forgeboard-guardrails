@@ -26,8 +26,10 @@ import { readStaged, report } from "./lib.mjs";
 import { REGISTER } from "./check-licence.mjs";
 import { pathToFileURL } from "node:url";
 
-// thresholds.md
-const RUNTIME_ALLOW = new Set([
+// thresholds.md — the standard's own defaults. No decision record names
+// these: they are the allow list's starting position, not something a
+// repository chose to accept.
+const RUNTIME_ALLOW_BASE = new Set([
   "MIT",
   "ISC",
   "BSD-2-Clause",
@@ -37,11 +39,55 @@ const RUNTIME_ALLOW = new Set([
   "Unlicense",
   "CC0-1.0",
 ]);
-const DEV_ADDITIONS = new Set([
+const DEV_ADDITIONS_BASE = new Set([
   "MPL-2.0",
   "LGPL-2.1-or-later",
   "LGPL-3.0-or-later",
 ]);
+
+// Fix 26 — licences a consuming repository's own accepted decision record
+// added to the allow list, beyond the standard's own defaults above.
+// gate-6-pull-request.md: "the gate reads the allow list... updating the
+// list is how the decision takes effect" — so extending the allow list and
+// naming the record that justified it happen in the same place, one entry
+// each. Empty here: this toolkit's own reference implementation has not
+// extended either list. A consuming repository adds a `"LICENCE-ID":
+// "docs/ADR/00NN-....md"` entry alongside the ADR that accepted it, and
+// every register row citing that licence must then name that record in its
+// own "Decision record" column (registers.md: "a row whose licence reached
+// the allow list by extension names the record that extended it") — see
+// requiredExtensionRecord below, which is what actually enforces that.
+// Exported (not just internal) so a test can inject a fixture entry without
+// a second copy of this mechanism — the same reason REGISTER (check-licence.mjs)
+// is exported rather than repeated as a string literal in its own tests.
+export const RUNTIME_ALLOW_EXTENSIONS = new Map([
+  // ["BSD-4-Clause", "docs/ADR/0007-example-licence-allowance.md"],
+]);
+export const DEV_ADDITIONS_EXTENSIONS = new Map([
+  // ["EPL-2.0", "docs/ADR/0007-example-licence-allowance.md"],
+]);
+
+// Not frozen at module load: computed fresh from the base sets plus
+// whatever the extension maps hold right now, so a test injecting a
+// fixture entry into the exported maps above is reflected immediately —
+// and so is a consuming repository's own edit to the maps.
+function runtimeAllow() {
+  return new Set([...RUNTIME_ALLOW_BASE, ...RUNTIME_ALLOW_EXTENSIONS.keys()]);
+}
+function devAdditions() {
+  return new Set([...DEV_ADDITIONS_BASE, ...DEV_ADDITIONS_EXTENSIONS.keys()]);
+}
+
+/** The decision record a licence identifier's presence on an allow list
+ *  traces to, or null when it is one of the standard's own base entries (or
+ *  not on either list at all) and so needs none. Exported so the rule is
+ *  directly testable without a register file on disk. */
+export function requiredExtensionRecord(licence) {
+  const l = (licence ?? "").trim();
+  return (
+    RUNTIME_ALLOW_EXTENSIONS.get(l) ?? DEV_ADDITIONS_EXTENSIONS.get(l) ?? null
+  );
+}
 
 function cellsOf(row) {
   return row
@@ -51,9 +97,10 @@ function cellsOf(row) {
     .map((c) => c.trim());
 }
 
-/** Rows as { dep, version, licence, scope }, from the same register
- *  check-licence.mjs parses — column order per registers.md: Dependency,
- *  Version, Licence, Direct or transitive, Scope, ... */
+/** Rows as { dep, version, licence, scope, decisionRecord }, from the same
+ *  register check-licence.mjs parses — column order per registers.md:
+ *  Dependency, Version, Licence, Direct or transitive, Scope, Used by, Why,
+ *  Decision record, ... (index 7). */
 function parseRegisterRows(md) {
   const rows = [];
   for (const line of md.split("\n")) {
@@ -68,6 +115,7 @@ function parseRegisterRows(md) {
       version,
       licence: (licence ?? "").trim(),
       scope: (scope ?? "").trim(),
+      decisionRecord: (cells[7] ?? "").trim(),
     });
   }
   return rows;
@@ -80,8 +128,8 @@ function parseRegisterRows(md) {
 export function classifyLicence(licence) {
   const l = (licence ?? "").trim();
   if (!l || /^unknown$/i.test(l)) return "unknown";
-  if (RUNTIME_ALLOW.has(l)) return "permissive";
-  if (DEV_ADDITIONS.has(l)) return "weak-copyleft";
+  if (runtimeAllow().has(l)) return "permissive";
+  if (devAdditions().has(l)) return "weak-copyleft";
   return "other";
 }
 
@@ -187,6 +235,7 @@ export function evaluateLicenceExpression(node, scope) {
     return {
       acceptable: false,
       blockers: [{ id: node.raw, category: "unparseable" }],
+      acceptedIds: [],
     };
   }
   if (typeof node === "string") {
@@ -196,6 +245,10 @@ export function evaluateLicenceExpression(node, scope) {
       blockers: acceptable
         ? []
         : [{ id: node, category: classifyLicence(node) }],
+      // Fix 26 — the leaf identifier(s) actually responsible for
+      // acceptance, so the caller can trace each back to an allow-list
+      // extension and require its decision record be named.
+      acceptedIds: acceptable ? [node] : [],
     };
   }
   const left = evaluateLicenceExpression(node.left, scope);
@@ -204,9 +257,18 @@ export function evaluateLicenceExpression(node, scope) {
     node.op === "AND"
       ? left.acceptable && right.acceptable
       : left.acceptable || right.acceptable;
+  const acceptedIds = !acceptable
+    ? []
+    : node.op === "AND"
+      ? [...left.acceptedIds, ...right.acceptedIds]
+      : [
+          ...(left.acceptable ? left.acceptedIds : []),
+          ...(right.acceptable ? right.acceptedIds : []),
+        ];
   return {
     acceptable,
     blockers: acceptable ? [] : [...left.blockers, ...right.blockers],
+    acceptedIds,
   };
 }
 
@@ -214,6 +276,76 @@ export function evaluateLicenceExpression(node, scope) {
  *  per register row. */
 export function licenceExpressionAcceptable(licence, scope) {
   return evaluateLicenceExpression(parseLicenceExpression(licence), scope);
+}
+
+/** Pure per-row verdict: every finding one already-parsed register row
+ *  raises (an unresolved version, an unacceptable licence, or fix 26's
+ *  missing extension-record citation). Extracted from the loop below so it
+ *  is directly testable against a constructed row, without a staged
+ *  register file on disk — the same reason classifyAdvisories
+ *  (check-dependency-advisories.mjs) is kept separate from its own
+ *  git/npm-audit orchestration. */
+export function evaluateRegisterRow(row) {
+  const findings = [];
+  const versionResolved =
+    Boolean(row.version) && !/^undefined$/i.test(row.version);
+  if (!versionResolved) {
+    findings.push({
+      check: "dependency licence policy",
+      path: REGISTER,
+      problem:
+        `${row.dep}'s version could not be resolved — the register row records ` +
+        `${row.version ? `the literal '${row.version}'` : "no version"} rather than one`,
+      remedy:
+        `resolve ${row.dep}'s installed version (for example, \`npm ls ${row.dep}\`) ` +
+        `and correct the register row; a row that is not pinned to a version cannot be judged`,
+    });
+  }
+  const depLabel = versionResolved ? `${row.dep}@${row.version}` : row.dep;
+
+  const verdict = licenceExpressionAcceptable(row.licence, row.scope);
+  if (verdict.acceptable) {
+    // Fix 26 — a licence is on the allow list either as one of the
+    // standard's own defaults or because a decision record extended the
+    // list to add it (registers.md: "a row whose licence reached the allow
+    // list by extension names the record that extended it"). The prose
+    // above the register table naming the ADR is not enough — a reviewer
+    // reading one row in isolation must see it too.
+    const neededRecords = [
+      ...new Set(
+        verdict.acceptedIds.map(requiredExtensionRecord).filter(Boolean),
+      ),
+    ];
+    if (neededRecords.length && !row.decisionRecord) {
+      findings.push({
+        check: "dependency licence policy",
+        path: REGISTER,
+        problem:
+          `${depLabel} carries licence '${row.licence}', accepted only because ` +
+          `${neededRecords.join(", ")} extended the allow list — this row's Decision record column is blank`,
+        remedy: `name ${neededRecords.join(" / ")} in ${REGISTER}'s Decision record column for this row`,
+      });
+    }
+    return findings;
+  }
+  const list = /^runtime$/i.test(row.scope) ? "runtime" : "development";
+  const blockedBy = verdict.blockers
+    .map((b) => `'${b.id || "(none recorded)"}' (${b.category})`)
+    .join(", ");
+  findings.push({
+    check: "dependency licence policy",
+    path: REGISTER,
+    problem:
+      `${depLabel} carries licence '${row.licence || "(none recorded)"}', ` +
+      `scope ${row.scope || "(none recorded)"} — not acceptable on the ${list} allow list ` +
+      `(blocked by ${blockedBy})`,
+    remedy: verdict.blockers.some((b) => b.category === "unknown")
+      ? "determine the actual licence and record it, or remove the dependency"
+      : verdict.blockers.some((b) => b.category === "unparseable")
+        ? "correct the licence cell to a valid SPDX expression (the exact identifier, hyphenated, joined only by AND / OR / WITH), then re-run the check"
+        : "record a decision accepting it and add the licence to the allow list, or replace the dependency",
+  });
+  return findings;
 }
 
 /** { findings, skips }. `scanTriggered` is the caller's own scope decision —
@@ -248,51 +380,7 @@ export function checkLicencePolicy(scanTriggered) {
 
   const findings = [];
   for (const row of parseRegisterRows(md)) {
-    // A version cell can itself be a failed read rendered as data — "" or
-    // the literal string "undefined" from a template that never checked
-    // whether the metadata it was interpolating actually resolved
-    // (fix 19). That is a finding in its own right — registers.md requires
-    // a row per dependency AT a version, and a row that cannot be pinned to
-    // one cannot be verified — never something folded silently into the
-    // licence verdict below, and never a value this check echoes back into
-    // another diagnostic. `depLabel` is what the licence finding (if any)
-    // is allowed to call this row; it omits the version rather than repeat
-    // the same unresolved literal.
-    const versionResolved =
-      Boolean(row.version) && !/^undefined$/i.test(row.version);
-    if (!versionResolved) {
-      findings.push({
-        check: "dependency licence policy",
-        path: REGISTER,
-        problem:
-          `${row.dep}'s version could not be resolved — the register row records ` +
-          `${row.version ? `the literal '${row.version}'` : "no version"} rather than one`,
-        remedy:
-          `resolve ${row.dep}'s installed version (for example, \`npm ls ${row.dep}\`) ` +
-          `and correct the register row; a row that is not pinned to a version cannot be judged`,
-      });
-    }
-    const depLabel = versionResolved ? `${row.dep}@${row.version}` : row.dep;
-
-    const verdict = licenceExpressionAcceptable(row.licence, row.scope);
-    if (verdict.acceptable) continue;
-    const list = /^runtime$/i.test(row.scope) ? "runtime" : "development";
-    const blockedBy = verdict.blockers
-      .map((b) => `'${b.id || "(none recorded)"}' (${b.category})`)
-      .join(", ");
-    findings.push({
-      check: "dependency licence policy",
-      path: REGISTER,
-      problem:
-        `${depLabel} carries licence '${row.licence || "(none recorded)"}', ` +
-        `scope ${row.scope || "(none recorded)"} — not acceptable on the ${list} allow list ` +
-        `(blocked by ${blockedBy})`,
-      remedy: verdict.blockers.some((b) => b.category === "unknown")
-        ? "determine the actual licence and record it, or remove the dependency"
-        : verdict.blockers.some((b) => b.category === "unparseable")
-          ? "correct the licence cell to a valid SPDX expression (the exact identifier, hyphenated, joined only by AND / OR / WITH), then re-run the check"
-          : "record a decision accepting it and add the licence to the allow list, or replace the dependency",
-    });
+    findings.push(...evaluateRegisterRow(row));
   }
   return { findings, skips };
 }

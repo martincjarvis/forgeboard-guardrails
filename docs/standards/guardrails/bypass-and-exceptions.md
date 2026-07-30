@@ -45,6 +45,15 @@ re-raise what they cover.** An auditor, a reviewer or an agent that flags an
 already-excluded check every pass trains everyone to skim its output, and the
 finding that mattered goes past with the rest.
 
+**Moving the decision from a register row to a decision record does not move
+who may accept it.** A decision record has no approver column on its face —
+an ADR's own frontmatter is `status`, `decided`, `owner`, `supersedes` — and
+that gap is exactly the route this section exists to close: an opt-out (or a
+risk, or a licence outside the allow list) accepted through an ADR needs the
+same human a register row's Approver column would have required, named in the
+record's own `approver` field ([ADR frontmatter](../../ADR/README.md)). The
+requirement is on the decision, not on which of the two artefacts holds it.
+
 ## A suppressed check still reports
 
 It is never silently absent from the run. Every gate run states, for each check
@@ -68,7 +77,9 @@ silences, plus a complete row in the [suppression register](registers.md). A
 broadened annotation, a rule disabled in configuration, and a gate switched off
 are all failures of this rule.
 
-**No worker approves its own exception.** The approver column is a human's.
+**No worker approves its own exception.** The approver column is a human's —
+and where the exception is accepted by decision record rather than register
+row, so is the record's own `approver` field.
 
 ## Running it by hand
 
@@ -92,6 +103,10 @@ configuration that has never been exercised is a claim.
 - [ ] A suppressed check reports as suppressed, never as a pass and never as absent.
 - [ ] A previously excluded check is not re-raised on the next review.
 - [ ] No automated worker appears in an approver column.
+- [ ] A decision record accepting a risk, a licence, a suppression or an
+      opt-out names a human in its own `approver` field, whatever its `owner`
+      is — `status: Accepted` with that field empty or naming a team is
+      refused, not merely reviewed on trust.
 
 ## References
 

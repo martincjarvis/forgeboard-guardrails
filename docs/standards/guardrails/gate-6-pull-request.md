@@ -239,6 +239,19 @@ Rules that make the evidence worth publishing:
   nobody sees during review is a finding that ships.
 - **Evidence outlives the run.** A retention period shorter than the time to
   review makes the artefact decorative.
+- **A result this repository already accepted is filtered out before
+  upload, not merely tolerated in the SARIF.** A static analyser's SARIF
+  output can include a finding suppressed in source (semgrep marks it
+  `suppressions: [{ kind: "inSource" }]` rather than omitting it) so the
+  analyser's own exit code stays honest about what it found. The platform's
+  code-scanning surface has no such awareness: built from the identical
+  file, it treats every result as a candidate new alert and fails the check
+  on a finding the [suppression register](registers.md) already accepted.
+  Filtering the suppressed result out before upload is not less honest than
+  uploading it — the register is the audit trail a reviewer reads; the
+  SARIF file's job on the platform is to surface what is not already
+  accounted for. `scripts/lib.mjs`'s `filterSuppressedSarif` is this
+  toolkit's own instance, called for every SARIF this gate uploads.
 
 ## 6.3 Merge policy
 

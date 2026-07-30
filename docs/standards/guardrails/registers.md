@@ -46,6 +46,20 @@ check from the repository, accepting a licence outside the allow list, or
 answering a push back is a [decision record](bypass-and-exceptions.md), because
 it outlives the change that raised it.
 
+**The human-approver requirement follows the decision, not the artefact it is
+recorded in.** Every register in this file names its own Approver column and
+requires a human there. A decision record accepting the same class of thing —
+a risk, a licence outside the allow list, a suppression, an opt-out — needs
+exactly the same human, in an `approver` field of its own
+([ADR frontmatter](../../ADR/README.md)), even though an ADR's ordinary
+frontmatter (`status`, `decided`, `owner`, `supersedes`) has no column that
+says so on its face. Routing a decision to a record instead of a row does not
+change who the standard requires to accept it — it changes where the decision
+lives, nothing about who may make it. An ADR whose `owner` is a team is fine
+for an ordinary design choice; the moment that same record accepts a risk,
+licence, suppression or opt-out, it needs a human `approver` the same as a
+register row would.
+
 ## The suppression register
 
 | Column            | Holds                                         |
@@ -73,19 +87,35 @@ retries, quarantined tests still run, expiry blocks — are in
 
 ## The dependency licence register
 
-| Column               | Holds                                                                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dependency           | Name, as resolved                                                                                                                                             |
-| Version              | The pinned version or range the register was assessed against                                                                                                 |
-| Licence              | The licence as resolved, not as advertised in documentation                                                                                                   |
-| Direct or transitive | Which, and for a transitive dependency, what pulls it in                                                                                                      |
-| Scope                | Runtime or development — which allow list the row is judged against                                                                                           |
-| Used by              | The components that depend on it                                                                                                                              |
-| Why                  | What it is for — the row a reviewer reads when asking whether it is still needed                                                                              |
-| Decision record      | Required when the licence is outside the allow list; empty otherwise                                                                                          |
-| Obligations          | What acceptance commits the organisation to — seat or usage limits, redistribution restrictions, attribution, audit rights. Empty for an allow-listed licence |
-| Expires              | Required for a commercial or purchased licence; the date the acceptance stops being valid                                                                     |
-| Approver             | Required when the licence is outside the allow list                                                                                                           |
+| Column               | Holds                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dependency           | Name, as resolved                                                                                                                                                       |
+| Version              | The pinned version or range the register was assessed against                                                                                                           |
+| Licence              | The licence as resolved, not as advertised in documentation                                                                                                             |
+| Direct or transitive | Which, and for a transitive dependency, what pulls it in                                                                                                                |
+| Scope                | Runtime or development — which allow list the row is judged against                                                                                                     |
+| Used by              | The components that depend on it                                                                                                                                        |
+| Why                  | What it is for — the row a reviewer reads when asking whether it is still needed                                                                                        |
+| Decision record      | Required when the licence is outside the allow list, **or when it is on the allow list only because a decision record extended it to add it** — a base entry needs none |
+| Obligations          | What acceptance commits the organisation to — seat or usage limits, redistribution restrictions, attribution, audit rights. Empty for an allow-listed licence           |
+| Expires              | Required for a commercial or purchased licence; the date the acceptance stops being valid                                                                               |
+| Approver             | Required when the licence is outside the allow list                                                                                                                     |
+
+**A row whose licence reached the allow list by extension names the record
+that extended it.** [Gate 6 check 7](gate-6-pull-request.md#61-revalidation)
+extends the allow list by a code change made alongside the accepting decision
+record, per gate-6-pull-request.md: "the gate reads the allow list, not the
+records... updating the list is how the decision takes effect." That change
+moves a licence from "outside the allow list" to "on it" — the register's own
+literal rule ("Decision record: required when outside the allow list") then
+reads as satisfied for every row citing that licence, even though nothing
+points a reviewer at the record that put it there. It is not: the column is
+also required for a row whose licence is on the allow list **only because of**
+an extension, and it names that same record. A row whose licence was always a
+base entry — the standard's own defaults — still needs none. The check reads
+each allow-list entry's own provenance (base or extension) to tell the two
+apart, not the row alone; the prose above the table naming the ADR is not
+a substitute, because a reviewer reading one row in isolation does not see it.
 
 **Completeness and policy are two different checks, not one job under two
 names.** [Gate 2 check 16](gate-2-commit.md#23-repository-rules) asks whether
@@ -166,6 +196,10 @@ table.
       they differ, the register is the one that is wrong.
 - [ ] A dependency whose licence cannot be determined appears as blocked, not as
       an empty licence cell.
+- [ ] A dependency licence register row whose licence is on the allow list only
+      by extension names the decision record that extended it — a blank
+      Decision record column is refused, even though the row is otherwise
+      complete and the licence itself passes.
 - [ ] The register has a row for a transitive dependency, not only for the ones
       named in the manifest — completeness (gate 2) and policy (gate 6) both
       read the full resolved set, not the direct one.

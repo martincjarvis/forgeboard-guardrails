@@ -22,6 +22,7 @@ import { checkSuppressions } from "./check-suppressions.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkProtectedBranch } from "./check-protected-branch.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
+import { checkAdrApprover } from "./check-adr-approver.mjs";
 
 const findings = [];
 const skips = [];
@@ -166,6 +167,16 @@ note("cross-language analysis (semgrep) — runs at gate 7, not per-commit");
 // Check 15 — suppression register completeness.
 {
   const found = checkSuppressions();
+  if (found.length) report("gate 2", found, skips);
+}
+
+// Fix 22 — an Accepted ADR that reads as accepting a risk, a licence, a
+// suppression or an opt-out names a human approver, the same requirement a
+// register row's Approver column already carries. Repository-wide, like the
+// two checks just above — an ADR's own file may not be staged on the
+// commit that references it.
+{
+  const found = checkAdrApprover();
   if (found.length) report("gate 2", found, skips);
 }
 

@@ -297,6 +297,37 @@ export function normalizeSarifPaths(path) {
   writeFileSync(path, JSON.stringify(sarif));
 }
 
+/** Fix 25 — semgrep's SARIF output includes a finding suppressed in source
+ *  (an inline marker comment) rather than omitting it, marking it
+ *  `suppressions: [{ kind: "inSource" }]` so a consumer can choose to hide
+ *  it. gate-6-pull-request.mjs's own check honours the suppression and
+ *  exits 0 — the register row is what accepted it. GitHub's code-scanning
+ *  check is built from the identical uploaded SARIF and has no such
+ *  awareness: it treats every result in the file as a candidate new alert
+ *  and fails the pull request on a finding this repository already
+ *  accepted. Dropping these results before upload is not less honest than
+ *  uploading them — the suppression is already recorded in
+ *  docs/registers/suppression-register.md, which is the audit trail a
+ *  reviewer actually reads; the SARIF file's job on the platform is to
+ *  surface what is NOT already accounted for. A missing or unreadable file
+ *  is left alone, the same as normalizeSarifPaths above — the caller's own
+ *  status check reports that separately. */
+export function filterSuppressedSarif(path) {
+  let sarif;
+  try {
+    sarif = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return;
+  }
+  for (const run_ of sarif.runs ?? []) {
+    run_.results = (run_.results ?? []).filter(
+      (result) =>
+        !(result.suppressions ?? []).some((s) => s.kind === "inSource"),
+    );
+  }
+  writeFileSync(path, JSON.stringify(sarif));
+}
+
 /** Fix 11 (gate-5-push.md: "A broken coverage command blocks the push
  *  without claiming a shortfall") — splits the test verdict from the
  *  coverage verdict for a single combined `c8 --check-coverage ... node

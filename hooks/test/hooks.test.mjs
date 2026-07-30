@@ -1,4 +1,4 @@
-// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother
+// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF
 // The hooks are the only code in this repository, and they run on every edit on
 // somebody's machine. Their logic — thresholds, the override marker, which files
 // count — is exactly the kind that fails quietly, so it leaves a runnable check
@@ -32,15 +32,24 @@ import {
   licenceAcceptable,
   checkLicencePolicy,
   licenceExpressionAcceptable,
+  requiredExtensionRecord,
+  RUNTIME_ALLOW_EXTENSIONS,
+  evaluateRegisterRow,
 } from "../../scripts/check-licence-policy.mjs";
 import { checkSuppressions } from "../../scripts/check-suppressions.mjs";
 import {
   normalizeSarifPaths,
+  filterSuppressedSarif,
   classifyTestCoverageOutcome,
 } from "../../scripts/lib.mjs";
 import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
+import {
+  checkAdrApprover,
+  acceptsRiskLicenceSuppressionOrOptOut,
+  looksLikeTeamLabel,
+} from "../../scripts/check-adr-approver.mjs";
 import { checkScriptWiring } from "../../scripts/check-script-wiring.mjs";
-import { run } from "../lib/run.mjs";
+import { run, have } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -1019,6 +1028,73 @@ test("licence policy (full pipeline): a compound SPDX expression on the runtime 
   rmSync(dir, { recursive: true, force: true });
 });
 
+// --- fix 26 — a register row whose licence reached the allow list only
+// because a decision record extended it must name that record in its own
+// Decision record column; the prose above the table naming the ADR is not
+// enough for a reviewer reading one row in isolation (registers.md). Tests
+// inject a fixture entry into the exported RUNTIME_ALLOW_EXTENSIONS map
+// (empty in this toolkit's own reference register) rather than spawning
+// scripts/check-licence-policy.mjs as a subprocess — a subprocess reads the
+// committed, unmodified source and would never see the injected extension.
+test("licence policy: a row citing an extension licence with a blank Decision record column is refused", () => {
+  RUNTIME_ALLOW_EXTENSIONS.set("BSD-4-Clause", "docs/ADR/0099-test-fixture.md");
+  try {
+    const findings = evaluateRegisterRow({
+      dep: "extended-thing",
+      version: "1.0.0",
+      licence: "BSD-4-Clause",
+      scope: "Runtime",
+      decisionRecord: "",
+    });
+    assert.equal(findings.length, 1);
+    assert.match(findings[0].problem, /extended-thing@1\.0\.0/);
+    assert.match(findings[0].problem, /docs\/ADR\/0099-test-fixture\.md/);
+    assert.match(findings[0].problem, /Decision record column is blank/);
+  } finally {
+    RUNTIME_ALLOW_EXTENSIONS.delete("BSD-4-Clause");
+  }
+});
+
+test("licence policy: a row citing an extension licence WITH its Decision record named passes", () => {
+  RUNTIME_ALLOW_EXTENSIONS.set("BSD-4-Clause", "docs/ADR/0099-test-fixture.md");
+  try {
+    const findings = evaluateRegisterRow({
+      dep: "extended-thing",
+      version: "1.0.0",
+      licence: "BSD-4-Clause",
+      scope: "Runtime",
+      decisionRecord: "docs/ADR/0099-test-fixture.md",
+    });
+    assert.deepEqual(
+      findings,
+      [],
+      "the row names the record that extended the allow list — nothing left to flag",
+    );
+  } finally {
+    RUNTIME_ALLOW_EXTENSIONS.delete("BSD-4-Clause");
+  }
+});
+
+test("licence policy: a row on the standard's own base allow list needs no Decision record", () => {
+  const findings = evaluateRegisterRow({
+    dep: "ordinary-thing",
+    version: "1.0.0",
+    licence: "MIT",
+    scope: "Runtime",
+    decisionRecord: "",
+  });
+  assert.deepEqual(
+    findings,
+    [],
+    "MIT is a base entry, not an extension — no record to cite",
+  );
+});
+
+test("requiredExtensionRecord: null for a base allow-list licence and for one on neither list", () => {
+  assert.equal(requiredExtensionRecord("MIT"), null);
+  assert.equal(requiredExtensionRecord("GPL-3.0-only"), null);
+});
+
 test("acceptedAdvisoryIds reads GHSA ids only from Accepted ADRs, not Proposed ones", () => {
   const dir = mkdtempSync(join(tmpdir(), "adr-"));
   writeFileSync(
@@ -1039,6 +1115,100 @@ test("acceptedAdvisoryIds reads GHSA ids only from Accepted ADRs, not Proposed o
     "a Proposed ADR does not yet accept anything",
   );
   rmSync(dir, { recursive: true, force: true });
+});
+
+// --- scripts/check-adr-approver.mjs — fix 22. Audit 8's exact mechanism:
+// an agent accepts a licence outside the allow list through an ADR rather
+// than a register row, because the ADR schema (docs/ADR/README.md) has no
+// approver column at all — `status: Accepted`, `owner: greet maintainers`
+// (a team label, not a person), ten previously-blocking licence findings
+// cleared, and no gate in the corpus refused it.
+
+test("checkAdrApprover refuses an Accepted ADR that reads as a licence exception with no approver field", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-approver-"));
+  writeFileSync(
+    join(dir, "0007-development-licence-allowances.md"),
+    "---\nstatus: Accepted\ndecided: 2026-07-29\nowner: greet maintainers\n---\n\n" +
+      "Extends the development licence allow list to accept BSD-4-Clause.\n",
+  );
+  const findings = checkAdrApprover(dir);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /no approver field/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("checkAdrApprover refuses an Accepted ADR whose approver is a team label, not a person", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-approver-"));
+  writeFileSync(
+    join(dir, "0007-development-licence-allowances.md"),
+    "---\nstatus: Accepted\napprover: greet maintainers\n---\n\n" +
+      "Extends the runtime licence allow list.\n",
+  );
+  const findings = checkAdrApprover(dir);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /team label, not a person/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("checkAdrApprover passes an Accepted licence-exception ADR once a human approver is named", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-approver-"));
+  writeFileSync(
+    join(dir, "0007-development-licence-allowances.md"),
+    "---\nstatus: Accepted\napprover: Jane Rivera\n---\n\n" +
+      "Extends the runtime licence allow list.\n",
+  );
+  assert.deepEqual(checkAdrApprover(dir), []);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("checkAdrApprover leaves an ordinary design ADR alone — no risk, licence, suppression or opt-out language, no approver required", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-approver-"));
+  writeFileSync(
+    join(dir, "0001-design-choice.md"),
+    "---\nstatus: Accepted\nowner: Toolkit maintainers\n---\n\n" +
+      "Versions are derived per component from Conventional Commits.\n",
+  );
+  assert.deepEqual(checkAdrApprover(dir), []);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("checkAdrApprover leaves a Proposed ADR alone — status: Proposed is the honest, freely editable route", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-approver-"));
+  writeFileSync(
+    join(dir, "0007-development-licence-allowances.md"),
+    "---\nstatus: Proposed\n---\n\nWould extend the runtime licence allow list.\n",
+  );
+  assert.deepEqual(checkAdrApprover(dir), []);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("checkAdrApprover: an advisory acceptance (GHSA id) and a suppression opt-out are both detected as needing a human approver", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-approver-"));
+  writeFileSync(
+    join(dir, "0008-accept-advisory.md"),
+    "---\nstatus: Accepted\n---\n\nAccepts GHSA-aaaa-bbbb-cccc for now.\n",
+  );
+  writeFileSync(
+    join(dir, "0009-opt-out.md"),
+    "---\nstatus: Accepted\n---\n\nThis repository opts out of the check entirely.\n",
+  );
+  const findings = checkAdrApprover(dir);
+  assert.equal(findings.length, 2);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("acceptsRiskLicenceSuppressionOrOptOut: an ordinary design decision is not mistaken for one of the four reserved classes", () => {
+  assert.ok(
+    !acceptsRiskLicenceSuppressionOrOptOut(
+      "This toolkit bundles no analysis tools; a consuming repository installs them.",
+    ),
+  );
+});
+
+test("looksLikeTeamLabel: a plausible individual name is not flagged as a team label", () => {
+  assert.ok(!looksLikeTeamLabel("Jane Rivera"));
+  assert.ok(looksLikeTeamLabel(""));
+  assert.ok(looksLikeTeamLabel("Platform team"));
 });
 
 // --- scripts/check-links.mjs — resolveTarget's branches (link/anchor
@@ -1266,6 +1436,126 @@ test("normalizeSarifPaths does not throw when the SARIF file is missing", () => 
   const dir = mkdtempSync(join(tmpdir(), "sarif-"));
   assert.doesNotThrow(() =>
     normalizeSarifPaths(join(dir, "does-not-exist.sarif")),
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// --- scripts/lib.mjs — filterSuppressedSarif (fix 25). semgrep's SARIF
+// includes a finding suppressed in source rather than omitting it, marked
+// `suppressions: [{ kind: "inSource" }]`; GitHub's code-scanning check
+// treats every result in the uploaded file as a candidate new alert, so an
+// already-registered suppression turns the pull request red on the
+// platform even though gate 6's own check honours it and exits 0.
+
+function sarifWithResults(results) {
+  return { runs: [{ results }] };
+}
+
+test("filterSuppressedSarif drops a result marked suppressed inSource", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sarif-"));
+  const file = join(dir, "results.sarif");
+  writeFileSync(
+    file,
+    JSON.stringify(
+      sarifWithResults([
+        { ruleId: "no-eval", suppressions: [{ kind: "inSource" }] },
+      ]),
+    ),
+  );
+  filterSuppressedSarif(file);
+  const filtered = JSON.parse(readFileSync(file, "utf8"));
+  assert.deepEqual(
+    filtered.runs[0].results,
+    [],
+    "a result suppressed inSource must not reach the uploaded SARIF",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("filterSuppressedSarif keeps an unsuppressed result alongside a suppressed one", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sarif-"));
+  const file = join(dir, "results.sarif");
+  writeFileSync(
+    file,
+    JSON.stringify(
+      sarifWithResults([
+        { ruleId: "no-eval", suppressions: [{ kind: "inSource" }] },
+        { ruleId: "no-eval-2" },
+      ]),
+    ),
+  );
+  filterSuppressedSarif(file);
+  const filtered = JSON.parse(readFileSync(file, "utf8"));
+  assert.equal(filtered.runs[0].results.length, 1);
+  assert.equal(filtered.runs[0].results[0].ruleId, "no-eval-2");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("filterSuppressedSarif does not throw when the SARIF file is missing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sarif-"));
+  assert.doesNotThrow(() =>
+    filterSuppressedSarif(join(dir, "does-not-exist.sarif")),
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// End-to-end reproduction of the actual audit-8 mechanism: a real semgrep
+// run against a local rule file (no `--config auto` — no network needed,
+// same reasoning refuseSemgrepFixture avoids it for a scratch repository),
+// one finding carrying a same-line in-source suppression marker and one
+// without. Proves the suppressed finding is present in semgrep's own SARIF
+// (what GitHub's code-scanning check would otherwise alert on) and absent
+// after filterSuppressedSarif runs — the exact fix, not a re-implementation
+// of it. The marker itself is assembled from NOSEMGREP (declared below),
+// not typed as a contiguous literal here — this file's own gate 2 suppression
+// check would otherwise read this fixture string as an unregistered
+// directive of its own.
+test("fix 25: a finding suppressed in source is present in raw semgrep SARIF and absent after filtering", () => {
+  if (!have("semgrep", ["--version"])) return; // no fixture — semgrep unavailable here
+  const dir = mkdtempSync(join(tmpdir(), "semgrep-suppress-"));
+  writeFileSync(
+    join(dir, "rule.yaml"),
+    "rules:\n" +
+      "  - id: no-eval\n" +
+      "    languages: [python]\n" +
+      "    severity: ERROR\n" +
+      "    message: eval() is dangerous\n" +
+      "    pattern: eval(...)\n",
+  );
+  writeFileSync(
+    join(dir, "bad.py"),
+    `x = eval(user_input)  # ${NOSEMGREP}: no-eval\n` +
+      "y = eval(other_input)\n",
+  );
+  const sarif = join(dir, "results.sarif");
+  run(
+    "semgrep",
+    ["--config", "rule.yaml", "--sarif", "--output", "results.sarif", "bad.py"],
+    { cwd: dir, env: { ...process.env, PYTHONUTF8: "1" } },
+  );
+  const raw = JSON.parse(readFileSync(sarif, "utf8"));
+  assert.equal(
+    raw.runs[0].results.length,
+    2,
+    "semgrep's own SARIF must still carry both findings, suppressed and not",
+  );
+  assert.ok(
+    raw.runs[0].results.some((r) =>
+      (r.suppressions ?? []).some((s) => s.kind === "inSource"),
+    ),
+    "the marked line must be present, marked suppressed inSource",
+  );
+  filterSuppressedSarif(sarif);
+  const filtered = JSON.parse(readFileSync(sarif, "utf8"));
+  assert.equal(
+    filtered.runs[0].results.length,
+    1,
+    "only the unsuppressed finding survives filtering",
+  );
+  assert.ok(
+    !(filtered.runs[0].results[0].suppressions ?? []).some(
+      (s) => s.kind === "inSource",
+    ),
   );
   rmSync(dir, { recursive: true, force: true });
 });

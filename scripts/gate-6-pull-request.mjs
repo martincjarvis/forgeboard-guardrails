@@ -44,7 +44,8 @@ import { checkLicenceCompleteness } from "./check-licence.mjs";
 import { checkLicencePolicy } from "./check-licence-policy.mjs";
 import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
-import { normalizeSarifPaths } from "./lib.mjs";
+import { checkAdrApprover } from "./check-adr-approver.mjs";
+import { normalizeSarifPaths, filterSuppressedSarif } from "./lib.mjs";
 
 /** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
 const findings = [];
@@ -243,6 +244,10 @@ if (changedText.length) {
     const sgOut = (sg.stdout || "") + (sg.stderr || "");
     process.stderr.write(sgOut);
     normalizeSarifPaths(sarif);
+    // Fix 25 — drop results suppressed in source before upload; see
+    // filterSuppressedSarif (lib.mjs) for why the register, not the SARIF
+    // file, is the audit trail for an accepted finding.
+    filterSuppressedSarif(sarif);
     if (sg.status !== 0) {
       // Path is empty for the same reason as the secret scan above: the
       // per-finding location lives in the SARIF file, not in a joined list
@@ -288,6 +293,7 @@ if (have("osv-scanner", ["--version"])) {
   const osvOut = (osv.stdout || "") + (osv.stderr || "");
   process.stderr.write(osvOut);
   normalizeSarifPaths(sarif);
+  filterSuppressedSarif(sarif); // fix 25 — same in-source-suppression rule as semgrep's SARIF above
   if (osv.status !== 0) {
     fail(
       "cross-stack dependency scan (osv-scanner)",
@@ -312,6 +318,12 @@ for (const f of checkLinks()) findings.push(f);
 // Also whole-repository already (pre-commit.mjs calls it with no argument);
 // same call here.
 for (const f of checkSuppressions()) findings.push(f);
+
+// --- Fix 22 — ADR approver, over the whole ADR corpus ------------------------
+// Same repository-wide call as pre-commit.mjs; an ADR accepting a risk,
+// licence, suppression or opt-out is a standing decision, not scoped to
+// this pull request's own range.
+for (const f of checkAdrApprover()) findings.push(f);
 
 // --- Gate 3 — commit message, once per commit in the range ------------------
 // gate-6-pull-request.md: "commit-message structure and scope agreement run

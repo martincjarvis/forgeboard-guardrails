@@ -19,6 +19,7 @@ decided: YYYY-MM-DD
 owner: <who owns the consequences>
 supersedes: <record id, when applicable>
 superseded_by: <record id, when applicable>
+approver: <a human, for a record that accepts a risk, licence, suppression or opt-out>
 ---
 ```
 
@@ -35,6 +36,18 @@ wins when the two disagree.
   scratch.
 - **One decision per record.** Two decisions in one record cannot be superseded
   independently.
+- **`approver` is required, and must name a human, on a record that accepts a
+  risk, a licence outside the allow list, a suppression, or an opt-out from a
+  check** — the classes [registers.md](../standards/guardrails/registers.md)
+  and [bypass-and-exceptions.md](../standards/guardrails/bypass-and-exceptions.md)
+  already reserve for a human, regardless of which artefact records the
+  decision. `owner` may still be a team, because it names who lives with the
+  consequences day to day; `approver` may not, because it names who accepted
+  the risk on the record. An ordinary design ADR — most of the index below —
+  needs neither. `scripts/check-adr-approver.mjs` is the gate: it refuses
+  `status: Accepted` on a record it reads as accepting one of the four classes
+  above when `approver` is empty or reads as a team label rather than a
+  person, at commit time and again at the pull request pipeline.
 
 ## Numbering
 
