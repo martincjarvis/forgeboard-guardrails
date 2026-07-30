@@ -153,6 +153,16 @@ whatever its verdict says, because nothing stops a change that never ran it. A
 check that runs only server-side is correct but slow, and slow checks are where
 people learn to push and hope.
 
+**"Named required status check" is a platform setting, not a sentence in this
+corpus.** A check can be wired into gate 6, run on every pull request and
+still block nothing if branch protection was never configured to require it —
+audit 8 found exactly that: a red gate 6 and a red platform scanner check,
+neither one refusing a merge. [Branch protection](branch-protection.md) is
+where this is verified rather than assumed: `scripts/check-branch-protection.mjs`
+reads the protected branch's actual configuration and reports every check
+this toolkit runs that is not in the required list — as a finding, not a
+silent skip.
+
 ## Decisions live in decision records; documents state the current position
 
 Every artefact this standard asks for falls into one of three kinds, and mixing
@@ -301,7 +311,10 @@ choice is reported, not guessed.
 
 ## Verification
 
-- [ ] Every blocking local check has a named required status check server-side.
+- [ ] Every blocking local check has a named required status check
+      server-side — verified by `scripts/check-branch-protection.mjs`
+      ([branch protection](branch-protection.md)), not merely listed in a
+      workflow file.
 - [ ] No gate emits a warning it does not treat as a failure.
 - [ ] A rule configured at a linter's or compiler's own `warn` severity still
       fails the run — the tool is invoked with `--max-warnings 0` or the
@@ -340,3 +353,5 @@ choice is reported, not guessed.
 - [Bypass and exceptions](bypass-and-exceptions.md) — the three reporting states
   in full.
 - [Components](components.md) — the changed-component rule.
+- [Branch protection](branch-protection.md) — what makes "a named required
+  status check" actually block a merge, not merely run.

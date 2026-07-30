@@ -4,7 +4,7 @@ summary: The authoritative gate — every local check re-run server-side on the 
 read_when: Building or auditing a pull request pipeline, or configuring branch protection.
 ---
 
-<!-- cspell:ignore govulncheck -->
+<!-- cspell:ignore govulncheck idempotently -->
 
 # Gate 6 — Pull request pipeline
 
@@ -256,7 +256,13 @@ Rules that make the evidence worth publishing:
 ## 6.3 Merge policy
 
 Evidence and verdicts are inert unless the platform refuses the merge. Configure
-these on the protected branch, not as convention.
+these on the protected branch, not as convention. **This is a mechanism, not
+only a principle** — `scripts/configure-branch-protection.mjs` applies every
+row below, idempotently, and `scripts/check-branch-protection.mjs` makes its
+absence a finding rather than a silent pass, wired into gate 7 and CI; see
+[branch protection](branch-protection.md) for both. Audit 8 found the
+mechanism missing four times running: a red required check and a red gate 6
+blocked nothing, because nothing had ever configured the platform to refuse.
 
 | #   | Policy                                | Type   | Prevents                                                      |
 | --- | ------------------------------------- | ------ | ------------------------------------------------------------- |
@@ -377,6 +383,9 @@ pipeline refuses the merge.
       by convention.
 - [ ] An administrator cannot merge a pull request with a failing required check.
 - [ ] A direct push to the protected branch is refused.
+- [ ] `scripts/check-branch-protection.mjs` reports a pass, not a finding or a
+      skip standing in for one — see [branch protection](branch-protection.md)
+      for the three states and what each one means.
 
 ## References
 
@@ -386,4 +395,6 @@ pipeline refuses the merge.
 - [Change-triggered checks](change-triggered-checks.md) — when they run at all.
 - [Bypass and exceptions](bypass-and-exceptions.md) — the flags this gate exists
   to put out of reach.
+- [Branch protection](branch-protection.md) — the mechanism behind 6.3, and the
+  check that makes its absence a finding.
 - [Gate 8 — Release](gate-8-release.md) — what happens downstream of the merge.

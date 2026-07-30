@@ -1,0 +1,57 @@
+# Fix 24 — makes "branch protection is configured and agrees with what gate
+# 6 actually runs" a scheduled, reported fact rather than an assumption
+# (docs/standards/guardrails/branch-protection.md, cross-gate-rules.md:
+# "every blocking local check has a named required status check
+# server-side"). Scheduled, not per-PR, the same reasoning
+# dependency-advisory-schedule.yml and refusal-proof-audit.yml already use:
+# this guards a configuration property that changes only when someone
+# changes it, and a PAT with repository-admin scope has no reason to be
+# handed to every fork pull request the way gate 6's own GITHUB_TOKEN does.
+#
+# The default GITHUB_TOKEN cannot read branch protection at all — GitHub
+# restricts that endpoint to a token with repository admin read, verified
+# directly against this toolkit's own repository (see check-branch-
+# protection.mjs's own comment). BRANCH_PROTECTION_AUDIT_TOKEN is a
+# repository secret carrying a personal access token with that scope; its
+# absence is a visible skip in the job summary, never a silently green run.
+name: Branch protection audit
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # weekly: configuration changes far less often than code does
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  branch-protection-audit:
+    name: branch protection audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Authenticate gh with the audit token, or record a visible skip
+        env:
+          BRANCH_PROTECTION_AUDIT_TOKEN: ${{ secrets.BRANCH_PROTECTION_AUDIT_TOKEN }}
+        run: |
+          if [ -z "$BRANCH_PROTECTION_AUDIT_TOKEN" ]; then
+            echo "## Branch protection audit" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Skipped** — the \`BRANCH_PROTECTION_AUDIT_TOKEN\` repository secret is not set. The default \`GITHUB_TOKEN\` cannot read branch protection (GitHub restricts that endpoint to a token with repository admin read). Provide a personal access token with that scope as this secret to enable the audit — see \`docs/standards/guardrails/branch-protection.md\`." >> "$GITHUB_STEP_SUMMARY"
+            echo "HAVE_TOKEN=false" >> "$GITHUB_ENV"
+          else
+            echo "$BRANCH_PROTECTION_AUDIT_TOKEN" | gh auth login --with-token
+            echo "HAVE_TOKEN=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Audit branch protection against what gate 6 actually runs
+        if: env.HAVE_TOKEN == 'true'
+        run: node scripts/check-branch-protection.mjs

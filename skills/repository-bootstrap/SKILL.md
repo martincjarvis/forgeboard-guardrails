@@ -69,7 +69,16 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    `.github/workflows/pull-request.yml` and `scripts/gate-6-pull-request.mjs`
    from this repository rather than reinventing the pipeline from
    `gate-6-pull-request.md`'s prose — they are this toolkit's own working
-   reference for that gate.
+   reference for that gate. **Configuring gate 6's merge policy is a step of
+   its own, not a line in a closing checklist:** once the workflow is ported
+   and its first run is green, run `node scripts/configure-branch-protection.mjs`
+   with an authenticated `gh` session, then `node scripts/check-branch-protection.mjs`
+   to confirm it took — `docs/standards/guardrails/branch-protection.md` is
+   the reference for what each does and the two conditions (no GitHub Pro on
+   a private repository, `gh` unauthenticated) that make it a visible skip
+   rather than silently done. A pipeline that runs and publishes evidence
+   with nothing configured to refuse the merge on it is exactly the gap
+   audit 8 found, repeated at adoption.
 
 8. **Docs style**, once the repository starts writing its own `/docs`. Load
    `docs/standards/docs-style.md` and `skills/docs-review/SKILL.md` when the

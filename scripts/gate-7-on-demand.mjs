@@ -18,6 +18,7 @@ import { checkLinks } from "./check-links.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkRefusalProofs } from "./check-refusal-proofs.mjs";
 import { checkScriptWiring } from "./check-script-wiring.mjs";
+import { checkBranchProtection } from "./check-branch-protection.mjs";
 
 const findings = [];
 const skips = [];
@@ -253,9 +254,20 @@ function npmBin(name) {
 }
 
 // --- Policy: platform capability audit ---
+// Azure DevOps and any host besides GitHub still has no local check —
+// `az repos policy list` stays a by-hand step (platforms.md). GitHub's own
+// branch protection is no longer one: fix 24 (cross-gate-rules.md, "every
+// blocking local check has a named required status check server-side")
+// closes it below, using the same local `gh` session a human or agent
+// running gate 7 by hand already has.
 skips.push(
-  "platform capability audit — run on the host (gh api / az repos policy); not a local check",
+  "platform capability audit — non-GitHub hosts still need `az repos policy list` by hand; not a local check here",
 );
+{
+  const { findings: bp, skips: bpSkips } = await checkBranchProtection();
+  for (const f of bp) findings.push(f);
+  skips.push(...bpSkips);
+}
 
 // --- Policy: refusal-proof audit (fix 9a; cross-gate-rules.md, "Every
 // blocking check proves it refuses"). REFUSAL_PROOF_FIXTURE guards against

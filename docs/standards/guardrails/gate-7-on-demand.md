@@ -12,18 +12,19 @@ The same checks, invoked without a trigger: before opening a review, or when
 adopting the toolkit in an existing repository. Reports rather than blocks,
 because the caller decides the consequence.
 
-| Check                       | Type          | Note                                                                                                                                                            |
-| --------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                                                                                             |
-| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                                                                                |
-| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                                                                                       |
-| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                                                                                           |
-| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                                                                                   |
-| Link and anchor integrity   | Documentation | With or without repair                                                                                                                                          |
-| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid                                                                                                 |
-| Workspace capability check  | Policy        | Long-path support on, text normalisation declared, large-file storage configured where supported                                                                |
-| Refusal-proof audit         | Policy        | A blocking check's negative fixture passed instead of being refused ([cross-gate rules](cross-gate-rules.md#every-blocking-check-proves-it-refuses))            |
-| Quality-script wiring audit | Policy        | A `package.json` script no gate invokes and no on-demand declaration covers ([cross-gate rules](cross-gate-rules.md#every-quality-script-is-wired-or-declared)) |
+| Check                       | Type          | Note                                                                                                                                                                                                            |
+| --------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository-wide secret scan | Security      | Every tracked file, not only the ones being touched                                                                                                                                                             |
+| History secret scan         | Security      | Every commit reachable from the default branch, not only its tip                                                                                                                                                |
+| Platform capability audit   | Policy        | Which checks the host offers, and whether each is enabled                                                                                                                                                       |
+| Branch protection audit     | Policy        | Whether the protected branch's configuration actually blocks a merge on every check gate 6 runs — a finding when unconfigured, a visible skip when `gh` cannot tell ([branch protection](branch-protection.md)) |
+| Repository-wide analysis    | Security      | Static analysis and machine-identifying content across the whole tree                                                                                                                                           |
+| Repository-wide scan        | Size          | Length and complexity across all files, not just changed ones                                                                                                                                                   |
+| Link and anchor integrity   | Documentation | With or without repair                                                                                                                                                                                          |
+| Installation check          | Policy        | Hooks installed, external tools resolvable, configuration valid                                                                                                                                                 |
+| Workspace capability check  | Policy        | Long-path support on, text normalisation declared, large-file storage configured where supported                                                                                                                |
+| Refusal-proof audit         | Policy        | A blocking check's negative fixture passed instead of being refused ([cross-gate rules](cross-gate-rules.md#every-blocking-check-proves-it-refuses))                                                            |
+| Quality-script wiring audit | Policy        | A `package.json` script no gate invokes and no on-demand declaration covers ([cross-gate rules](cross-gate-rules.md#every-quality-script-is-wired-or-declared))                                                 |
 
 **Line endings are normalised in the repository, not left to each machine.**
 `.gitattributes` declares `* text=auto eol=lf` and marks binary files as binary,
@@ -74,6 +75,7 @@ clone.
 | Large-file storage          | `git lfs env` · `git lfs track`                                                                                    |
 | Installed hooks             | `git config --get core.hooksPath` and list that directory                                                          |
 | Platform capabilities       | `gh api repos/:owner/:repo` · `az repos policy list`                                                               |
+| Branch protection audit     | `node scripts/check-branch-protection.mjs`                                                                         |
 | Refusal-proof audit         | `node scripts/check-refusal-proofs.mjs`                                                                            |
 | Quality-script wiring audit | `node scripts/check-script-wiring.mjs`                                                                             |
 
@@ -123,6 +125,10 @@ caught it before the cycle called itself done simply was not run.
 - [ ] The refusal-proof audit runs, and a `does not refuse` verdict is treated
       as a finding — never silently read as green because the check it is
       about still exited 0 on real input.
+- [ ] The branch protection audit runs, and unconfigured protection is
+      reported as a finding — never silently read as green because `gh` was
+      not on `PATH`, was unauthenticated, or could not read it (a private
+      repository without GitHub Pro), each of which is a skip instead.
 
 ## References
 
@@ -130,4 +136,6 @@ caught it before the cycle called itself done simply was not run.
   can report, which this gate audits.
 - [Cross-gate rules](cross-gate-rules.md) — the tooling ladder the platform
   capability audit applies.
+- [Branch protection](branch-protection.md) — what the branch protection audit
+  checks, and the script that configures it in the first place.
 - [Gate 2 — Commit](gate-2-commit.md) — the incremental counterpart to these sweeps.
