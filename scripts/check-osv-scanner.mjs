@@ -31,7 +31,13 @@
 // genuinely being absent from the host it happened to run on, which broke
 // the moment a workflow step installed it first. A test whose result depends
 // on what happens to be installed is not a test of this function.
-import { have, run, report } from "./lib.mjs";
+import {
+  have,
+  run,
+  report,
+  classifyOsvScannerOutcome,
+  extractOsvJsonFindings,
+} from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
 /** { findings, skips }. No scanTriggered gate — gate 5 runs once per push
@@ -56,14 +62,23 @@ export function checkOsvScanner({
     return { findings, skips };
   }
   const scan = runFn("osv-scanner", ["--format", "json", "-r", "."]);
-  if (scan.status !== 0) {
+  // Fix 44 — the exit code alone cannot distinguish "vulnerabilities found"
+  // from "the scan itself did not complete"; only osv-scanner's own
+  // structured JSON output can (classifyOsvScannerOutcome, lib.mjs).
+  const outcome = classifyOsvScannerOutcome(
+    scan.status,
+    extractOsvJsonFindings(scan.stdout || ""),
+  );
+  if (outcome.kind === "vulnerabilities") {
     findings.push({
       check: "cross-stack dependency scan (osv-scanner)",
       path: "",
-      problem: (scan.stdout || "") + (scan.stderr || ""),
+      problem: outcome.findings.join(", "),
       remedy:
         "upgrade the flagged dependency, or record why the advisory does not apply",
     });
+  } else if (outcome.kind === "unavailable") {
+    skips.push(`cross-stack dependency scan (osv-scanner) — ${outcome.detail}`);
   }
   return { findings, skips };
 }

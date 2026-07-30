@@ -37,6 +37,8 @@ import {
   classifyTestCoverageOutcome,
   extractCoverageAndTestSummary,
   classifyDiffCoverOutcome,
+  classifyOsvScannerOutcome,
+  extractOsvSarifFindings,
   report,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
@@ -311,13 +313,26 @@ if (have("osv-scanner", ["--version"])) {
   process.stderr.write(osvOut);
   normalizeSarifPaths(sarif);
   filterSuppressedSarif(sarif); // fix 25 — same in-source-suppression rule as semgrep's SARIF above
-  if (osv.status !== 0) {
+  // Fix 44 — the exit code alone cannot distinguish "vulnerabilities found"
+  // from "the scan itself did not complete" (audit 12: a live CI run failed
+  // this exact check with osv-scanner's own startup banner as the problem
+  // text and no vulnerability id in it, while the standalone osv-scanner
+  // check on the same commit passed clean). Read the SARIF file just written
+  // — already the structured, suppression-filtered output — rather than the
+  // exit code plus a raw text dump.
+  const outcome = classifyOsvScannerOutcome(
+    osv.status,
+    extractOsvSarifFindings(sarif),
+  );
+  if (outcome.kind === "vulnerabilities") {
     fail(
       "cross-stack dependency scan (osv-scanner)",
       "",
-      osvOut || "osv-scanner exited non-zero; see the uploaded SARIF report",
+      outcome.findings.join(", "),
       "upgrade the flagged dependency, or record why the advisory does not apply",
     );
+  } else if (outcome.kind === "unavailable") {
+    skip(`cross-stack dependency scan (osv-scanner) — ${outcome.detail}`);
   }
 } else {
   skip(

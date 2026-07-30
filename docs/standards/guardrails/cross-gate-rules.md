@@ -209,6 +209,26 @@ Name the check, the path, the offending content and the action that clears it. A
 gate that reports only "failed" forces the author to re-run the command by hand
 to learn what broke.
 
+**A refusal names the specific thing being refused.** A vulnerability scan
+names the advisory; a lint failure names the rule; a coverage shortfall names
+the percentage. A refusal whose problem text contains no identifier is itself
+a finding — not evidence of one. This is the inverse of [never claim more than
+was checked](#never-claim-more-than-was-checked) below: that rule forbids
+asserting a cause the evidence does not support; this one forbids asserting a
+finding the evidence does not name. A tool that exits non-zero for a reason
+unrelated to what it was checking — a missing lockfile, an unsupported
+ecosystem, a network failure, a version mismatch — has not found anything, and
+treating its exit code alone as a finding blocks a merge on a defect nobody
+can point to. Distinguish the two by parsing the tool's own structured output
+(a JSON or SARIF report, not stdout+stderr concatenated and dumped): a
+non-zero exit with a named entry in that output is a finding; a non-zero exit
+with nothing parseable in it is unavailable, reported the same way a missing
+tool is — visibly, naming what went wrong, and never as a finding it cannot
+back up. Audit 12 found this live: a CI run failed a dependency scan with the
+scanner's own startup banner as the problem text — no vulnerability id
+anywhere in it — while the same scan on the same commit, run standalone,
+passed clean.
+
 ## Never claim more than was checked
 
 A check that could not run reports unknown. Stating a cause the evidence does
@@ -345,6 +365,10 @@ choice is reported, not guessed.
       fails the run — the tool is invoked with `--max-warnings 0` or the
       stack's equivalent, not left to print and pass.
 - [ ] Every refusal names the check, the path and the remedy.
+- [ ] Every refusal names the specific thing being refused — the tool's own
+      structured output (JSON, SARIF, or an equivalent parsed report), not a
+      non-zero exit code alone. A refusal whose problem text carries no
+      identifier is reported unavailable, never as a finding.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
 - [ ] A suppression's verification claim ("N findings before, 0 after") cites a
       repository-scope run — gate 7's own sweep, or an equivalent `semgrep

@@ -48,6 +48,9 @@ import {
   classifyTestCoverageOutcome,
   extractCoverageAndTestSummary,
   classifyDiffCoverOutcome,
+  classifyOsvScannerOutcome,
+  extractOsvJsonFindings,
+  extractOsvSarifFindings,
 } from "../../scripts/lib.mjs";
 import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
 import {
@@ -2266,6 +2269,146 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
   assert.equal(skips.length, 1);
   assert.match(skips[0], /osv-scanner/);
   assert.match(skips[0], /not on PATH/);
+});
+
+// --- lib.mjs:classifyOsvScannerOutcome / extractOsvJsonFindings /
+// extractOsvSarifFindings — fix 44. Audit 12, on a live CI run: gate 6 failed
+// "cross-stack dependency scan (osv-scanner)" with the tool's own startup
+// banner ("Scanning dir .\nScanning ... at commit d43f2a3\nScanned
+// .../package-lock.json file and found 476 packages") as the problem text —
+// no vulnerability id anywhere in it — while the standalone osv-scanner check
+// on the same commit passed with zero findings. check-osv-scanner.mjs and
+// gate-6-pull-request.mjs both used to treat any non-zero exit as a finding
+// and dump raw stdout+stderr; this proves the refusal-proof rule
+// (cross-gate-rules.md: "a refusal names the specific thing being refused; a
+// refusal whose problem text contains no identifier is itself a finding")
+// both directions: a real advisory names a finding, a scanner failure names
+// an unavailable result instead.
+test("extractOsvJsonFindings: a real advisory in osv-scanner's own --format json shape is named", () => {
+  const stdout = JSON.stringify({
+    results: [
+      {
+        source: { path: "package-lock.json", type: "lockfile" },
+        packages: [
+          {
+            package: { name: "left-pad", version: "1.0.0", ecosystem: "npm" },
+            vulnerabilities: [{ id: "GHSA-aaaa-bbbb-cccc" }],
+          },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(extractOsvJsonFindings(stdout), ["GHSA-aaaa-bbbb-cccc"]);
+});
+
+test("extractOsvJsonFindings: osv-scanner's own startup banner — the audit-12 problem text — names no vulnerability", () => {
+  const banner =
+    "Scanning dir .\n" +
+    "Scanning ... at commit d43f2a3\n" +
+    "Scanned .../package-lock.json file and found 476 packages\n";
+  assert.deepEqual(extractOsvJsonFindings(banner), []);
+});
+
+test("extractOsvSarifFindings: a real advisory in the SARIF gate 6 uploads is named by its ruleId", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "osv-sarif-"));
+  const sarif = join(tmp, "osv-results.sarif");
+  writeFileSync(
+    sarif,
+    JSON.stringify({
+      runs: [{ results: [{ ruleId: "GHSA-aaaa-bbbb-cccc" }] }],
+    }),
+  );
+  try {
+    assert.deepEqual(extractOsvSarifFindings(sarif), ["GHSA-aaaa-bbbb-cccc"]);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("extractOsvSarifFindings: a SARIF file with no results — every finding suppressed, or none found — names nothing", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "osv-sarif-"));
+  const sarif = join(tmp, "osv-results.sarif");
+  writeFileSync(sarif, JSON.stringify({ runs: [{ results: [] }] }));
+  try {
+    assert.deepEqual(extractOsvSarifFindings(sarif), []);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("extractOsvSarifFindings: an unreadable file names nothing rather than throwing", () => {
+  assert.deepEqual(
+    extractOsvSarifFindings(join(tmpdir(), "does-not-exist.sarif")),
+    [],
+  );
+});
+
+test("classifyOsvScannerOutcome: exit 0 is clean, whatever findings were somehow extracted", () => {
+  const outcome = classifyOsvScannerOutcome(0, ["GHSA-aaaa-bbbb-cccc"]);
+  assert.equal(outcome.kind, "clean");
+});
+
+test("classifyOsvScannerOutcome: a non-zero exit with a named vulnerability is the finding, by id", () => {
+  const outcome = classifyOsvScannerOutcome(1, ["GHSA-aaaa-bbbb-cccc"]);
+  assert.equal(outcome.kind, "vulnerabilities");
+  assert.deepEqual(outcome.findings, ["GHSA-aaaa-bbbb-cccc"]);
+});
+
+test("classifyOsvScannerOutcome: a non-zero exit with no named vulnerability is unavailable, not a finding — the audit-12 case", () => {
+  const outcome = classifyOsvScannerOutcome(127, []);
+  assert.equal(outcome.kind, "unavailable");
+  assert.doesNotMatch(
+    outcome.detail,
+    /GHSA|CVE|OSV-/,
+    "must not assert a vulnerability the evidence does not name",
+  );
+  assert.match(outcome.detail, /127/, "names the exit status it saw");
+});
+
+// checkOsvScanner end to end, through its injected run() — proves the fix
+// where it actually ships (gate 5's local check), not only in the pure
+// classifier: the audit-12 banner must be a skip, and a real advisory must
+// still be a finding.
+test("checkOsvScanner: a scanner failure with no parseable finding (the audit-12 banner) is an unavailable skip, never a finding", () => {
+  const banner =
+    "Scanning dir .\n" +
+    "Scanning ... at commit d43f2a3\n" +
+    "Scanned .../package-lock.json file and found 476 packages\n";
+  const { findings, skips } = checkOsvScanner({
+    have: () => true,
+    run: () => ({ status: 127, stdout: "", stderr: banner }),
+  });
+  assert.deepEqual(
+    findings,
+    [],
+    "a refusal with no named vulnerability must never block as a finding",
+  );
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /osv-scanner/);
+  assert.doesNotMatch(skips[0], /GHSA|CVE|OSV-/);
+});
+
+test("checkOsvScanner: a real advisory in osv-scanner's JSON output is a finding, named by id", () => {
+  const stdout = JSON.stringify({
+    results: [
+      {
+        source: { path: "package-lock.json", type: "lockfile" },
+        packages: [
+          {
+            package: { name: "left-pad", version: "1.0.0", ecosystem: "npm" },
+            vulnerabilities: [{ id: "GHSA-aaaa-bbbb-cccc" }],
+          },
+        ],
+      },
+    ],
+  });
+  const { findings, skips } = checkOsvScanner({
+    have: () => true,
+    run: () => ({ status: 1, stdout, stderr: "" }),
+  });
+  assert.equal(skips.length, 0);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /GHSA-aaaa-bbbb-cccc/);
 });
 
 // --- scripts/check-branch-protection.mjs — fix 24. Branch protection is

@@ -1,4 +1,4 @@
-// cspell:ignore PYTHONUTF fixtured fixturing xkcdblorptrousers
+// cspell:ignore PYTHONUTF fixtured fixturing xkcdblorptrousers GHSA
 // Fix 9a — the refusal-proof contract (docs/standards/guardrails/
 // cross-gate-rules.md, "Every blocking check proves it refuses").
 //
@@ -23,7 +23,14 @@
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { have, run, cleanGitEnv, classifyDiffCoverOutcome } from "./lib.mjs";
+import {
+  have,
+  run,
+  cleanGitEnv,
+  classifyDiffCoverOutcome,
+  classifyOsvScannerOutcome,
+  extractOsvJsonFindings,
+} from "./lib.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
@@ -32,6 +39,24 @@ import { licenceExpressionAcceptable } from "./check-licence-policy.mjs";
 
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const TMP = ".refusal-proof-tmp";
+
+// A synthetic osv-scanner `--format json` report shaped exactly like the
+// documented output (google.github.io/osv-scanner/output/): one package, one
+// named advisory — the fixture below proves classifyOsvScannerOutcome turns
+// a real finding into `kind: "vulnerabilities"`, without osv-scanner itself.
+const SAMPLE_OSV_JSON = JSON.stringify({
+  results: [
+    {
+      source: { path: "package-lock.json", type: "lockfile" },
+      packages: [
+        {
+          package: { name: "left-pad", version: "1.0.0", ecosystem: "npm" },
+          vulnerabilities: [{ id: "GHSA-aaaa-bbbb-cccc" }],
+        },
+      ],
+    },
+  ],
+});
 
 /** Writes one fixture file under a scratch, untracked directory, hands its
  *  path to fn(), and always cleans up — even the file-content checks below
@@ -210,6 +235,18 @@ const CHECKS_WITH_FIXTURES = [
     check: "cross-language static analysis (semgrep) (gate 2 check 8 / gate 7)",
     fixture: refuseSemgrepFixture,
   },
+  {
+    check:
+      "cross-stack dependency scan (osv-scanner, gate 5 check 3 / gate 6 check 10)",
+    // Fix 44 — classifyOsvScannerOutcome is the pure classifier osv-scanner's
+    // own structured output feeds (extractOsvJsonFindings / extractOsvSarifFindings,
+    // lib.mjs), the same layer classifyDiffCoverOutcome and classifyAdvisories
+    // above are fixtured through: a synthetic advisory, not a live osv-scanner
+    // run, so this is provable whether or not the tool itself is on PATH.
+    fixture: () =>
+      classifyOsvScannerOutcome(1, extractOsvJsonFindings(SAMPLE_OSV_JSON))
+        .kind === "vulnerabilities",
+  },
 ];
 
 /** Blocking checks this repository ships with no fixture yet — named
@@ -231,7 +268,6 @@ const NO_FIXTURE = [
   "repository-wide tests (gate 2 check 14) — self-referential; not yet fixtured here",
   "dependency licence register completeness (gate 2 check 16) — needs a resolved npm dependency tree from a scratch install; not yet fixtured here",
   "repository-wide complexity scan (lizard, gate 7) — needs a scratch repository the same shape as the semgrep fixture above; not yet fixtured here",
-  "cross-stack dependency scan (osv-scanner, gate 5 check 3 / gate 6 check 10) — osv-scanner is not installed on this host at all (fix 9b's own point); its skip path is covered by a dedicated test (hooks/test/hooks.test.mjs), but a refusal fixture needs the tool itself and cannot be verified here",
 ];
 
 /** The three-state contract itself, as a pure function: a fixture returns

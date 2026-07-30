@@ -94,6 +94,11 @@ reaching outside the repository's own boundary and is not an integration test.
       osv-scanner is not on `PATH` — never a silent pass.
 - [ ] The cross-stack dependency scan still runs for a stack that already has
       its own specialised advisory scanner, rather than being excluded from it.
+- [ ] osv-scanner's own exit code is never the finding by itself: the check
+      parses its structured `--format json` output for a named advisory id.
+      A non-zero exit with none reports unavailable — the same visible,
+      named skip as the tool being absent — never a finding with no
+      identifier in it ([cross-gate-rules.md](cross-gate-rules.md#a-refusal-is-a-diagnosis)).
 
 ## References
 

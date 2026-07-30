@@ -518,6 +518,10 @@ pipeline refuses the merge.
 - [ ] The cross-stack dependency scan (osv-scanner) runs here as well as at
       gate 5, and its SARIF is published — the local-versus-server rule
       applies to it the same as any other blocking check.
+- [ ] The published SARIF is what decides the block, not osv-scanner's exit
+      code alone: a non-zero exit with no result in that SARIF reports
+      unavailable, never a finding with no advisory id in it
+      ([cross-gate-rules.md](cross-gate-rules.md#a-refusal-is-a-diagnosis)).
 - [ ] End-to-end tests run here or at gate 8, and the checklist states which.
 - [ ] Health checks pass before any end-to-end test runs against the provisioned
       environment.

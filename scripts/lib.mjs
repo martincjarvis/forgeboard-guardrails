@@ -420,6 +420,81 @@ export function classifyDiffCoverOutcome(output) {
   };
 }
 
+/** osv-scanner (fix 44 — cross-gate-rules.md, "never claim more than was
+ *  checked"): a non-zero exit means either "vulnerabilities found" or "the
+ *  scan itself did not complete" (a missing lockfile, an unsupported
+ *  ecosystem, a network failure, a version mismatch) — the same shape
+ *  classifyTestCoverageOutcome and classifyDiffCoverOutcome above already
+ *  solve for their own tools, generalised to cross-gate-rules.md's own
+ *  wording: "a refusal names the specific thing being refused; a refusal
+ *  whose problem text contains no identifier is itself a finding." Audit 12
+ *  found exactly that live: a CI run failed gate 6 with osv-scanner's own
+ *  startup banner as the problem text and no vulnerability id anywhere in
+ *  it, while the standalone osv-scanner check on the same commit passed
+ *  clean — the exit code alone cannot tell "found something" from "could not
+ *  finish", only the tool's own structured output can (osv-scanner's
+ *  `--format json`, or the SARIF this repository already produces for gate
+ *  6's upload — extractOsvJsonFindings / extractOsvSarifFindings below turn
+ *  either into the same flat id list this classifies).
+ *  Zero findings on a non-zero exit is `unavailable`, not a pass and not a
+ *  finding: the caller reports it as a skip naming what went wrong, the same
+ *  as osv-scanner not being on PATH at all. */
+export function classifyOsvScannerOutcome(status, findings) {
+  if (status === 0) return { kind: "clean", findings: [] };
+  if (findings.length > 0) return { kind: "vulnerabilities", findings };
+  return {
+    kind: "unavailable",
+    detail:
+      `osv-scanner exited with status ${status} but named no vulnerability — ` +
+      "the scan itself did not complete (a missing lockfile, an unsupported " +
+      "ecosystem, a network failure, a version mismatch); rerun locally to see why",
+  };
+}
+
+/** Vulnerability ids out of osv-scanner's own `--format json` shape
+ *  (`results[].packages[].vulnerabilities[].id`, per its documented output).
+ *  Unparseable or empty stdout yields no findings — the caller's non-zero
+ *  exit plus an empty list is what classifyOsvScannerOutcome reads as
+ *  `unavailable` rather than `clean`. */
+export function extractOsvJsonFindings(stdout) {
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    return [];
+  }
+  const findings = [];
+  for (const result of parsed?.results ?? []) {
+    for (const pkg of result?.packages ?? []) {
+      for (const vuln of pkg?.vulnerabilities ?? []) {
+        if (vuln?.id) findings.push(vuln.id);
+      }
+    }
+  }
+  return findings;
+}
+
+/** The same extraction as extractOsvJsonFindings, from the SARIF file gate 6
+ *  already writes and uploads (`runs[].results[].ruleId`) — read after
+ *  normalizeSarifPaths/filterSuppressedSarif so a finding already accepted
+ *  by an in-source suppression is not read back as blocking here either. A
+ *  missing or unreadable file yields no findings, same as unparseable JSON. */
+export function extractOsvSarifFindings(sarifPath) {
+  let sarif;
+  try {
+    sarif = JSON.parse(readFileSync(sarifPath, "utf8"));
+  } catch {
+    return [];
+  }
+  const findings = [];
+  for (const run_ of sarif?.runs ?? []) {
+    for (const result of run_?.results ?? []) {
+      if (result?.ruleId) findings.push(result.ruleId);
+    }
+  }
+  return findings;
+}
+
 /** The figures a reader who is not a developer needs to see on the run's own
  *  page without downloading anything: the test pass/fail/total counts, and
  *  the overall lines-coverage percentage — read from the same c8 + node:test
