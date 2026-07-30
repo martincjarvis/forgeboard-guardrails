@@ -272,11 +272,19 @@ Two of the seven instantiation checks are the exception: a stack name outside
 the derived list is a text search, and a multi-component section present at
 one component is a heading search gated on a count. Neither requires reading
 prose for tone or completeness, which is why `scripts/check-standards-instantiation.mjs`
-exists — port it into the consuming repository's own tooling directory and
-run it there, against that repository's **own** instantiated `docs/standards/`.
+exists. Porting it is two steps, not one:
+
+1. Copy it into the consuming repository's own tooling directory.
+2. **Wire it into that repository's own gate 7**, the same commit as the copy —
+   a script that sits in the tooling directory unimported by anything checks
+   nothing, which is exactly the gap a mechanical checker existing and never
+   running left open once already; `scripts/check-script-wiring.mjs` reports a
+   check script no gate invokes as a finding for this reason.
+
+Run it there, against that repository's **own** instantiated `docs/standards/`.
 It is not run against this corpus's own `docs/standards/`: this repository is
 the canonical source, not an instantiated copy, and correctly documents every
-stack it supports.
+stack it supports — do not copy that exemption along with the file.
 
 Everything else stays judgement, including the other five instantiation
 checks: no gate can tell whether a removal was recorded for the right reason,

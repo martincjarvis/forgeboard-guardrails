@@ -15,6 +15,17 @@
 // against this toolkit's own `docs/standards/` — this repository is the
 // canonical corpus, not an instantiated copy, and legitimately documents
 // every stack it supports.
+//
+// PORTING THIS FILE IS NOT ENOUGH. Wire it into the consuming repository's
+// own gate 7 (call `deriveStackList`/`findStackReferencesOutsideList`/
+// `findMultiComponentContent`, or invoke this file directly, from that
+// repository's `gate-7-on-demand.mjs`) — a copy that only sits in the
+// tooling directory checks nothing (fix 40; this toolkit's own
+// `scripts/check-script-wiring.mjs` reports exactly that unwired state).
+// This toolkit does not wire it into its OWN gate 7, and that is
+// deliberate, not an oversight to imitate: this repository is the
+// canonical corpus, not an instantiated copy (see above) — do not copy the
+// absence of wiring along with the file.
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { trackedFiles } from "./lib.mjs";

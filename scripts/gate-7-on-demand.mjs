@@ -11,13 +11,19 @@ import {
   unlinkSync,
   existsSync,
   readFileSync,
+  readdirSync,
 } from "node:fs";
 import { join } from "node:path";
 import { trackedFiles, isText, have, run, git } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkRefusalProofs } from "./check-refusal-proofs.mjs";
-import { checkScriptWiring } from "./check-script-wiring.mjs";
+import {
+  checkScriptWiring,
+  checkScriptFileWiring,
+  checkIndexGateClaims,
+  GATE_FILES,
+} from "./check-script-wiring.mjs";
 import { checkBranchProtection } from "./check-branch-protection.mjs";
 import { checkRepositoryFeatures } from "./check-repository-features.mjs";
 
@@ -344,6 +350,80 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
   if (onDemand.length) {
     skips.push(
       `quality-script wiring — ${onDemand.length} script(s) declared on-demand: ${onDemand.join(", ")}`,
+    );
+  }
+}
+
+// --- Policy: script-file wiring audit (fix 40, "close the class, not just
+// the instance"). checkScriptWiring above only sees what package.json's
+// `scripts` object names; check-standards-instantiation.mjs was never
+// listed there at all, so it sat ported, unit-tested and never imported by
+// anything that runs without ever tripping that audit. This scans scripts/
+// itself for every check-*.mjs file, independent of the manifest.
+{
+  let scriptFiles = [];
+  try {
+    scriptFiles = readdirSync("scripts").filter((f) => f.endsWith(".mjs"));
+  } catch {
+    skips.push("script-file wiring — scripts/ directory not found, skipped");
+  }
+  const readScript = (f) => readFileSync(join("scripts", f), "utf8");
+  const { wired, onDemand, unwired } = scriptFiles.length
+    ? checkScriptFileWiring(scriptFiles, readScript)
+    : { wired: [], onDemand: [], unwired: [] };
+  for (const s of unwired) {
+    add(
+      "script-file wiring",
+      "scripts/",
+      s,
+      "import it from the gate that owns its concern, or declare it on-demand in SCRIPT_FILE_ON_DEMAND (check-script-wiring.mjs) naming why",
+    );
+  }
+  if (wired.length) {
+    skips.push(
+      `script-file wiring — ${wired.length} check script(s) confirmed imported somewhere in scripts/: ${wired.join(", ")}`,
+    );
+  }
+  if (onDemand.length) {
+    skips.push(
+      `script-file wiring — ${onDemand.length} check script(s) declared on-demand: ${onDemand.join(", ")}`,
+    );
+  }
+
+  // --- Fix 43 — the same defect one level up, in a tooling index's own
+  // prose rather than the manifest: scripts/README.md (if this repository
+  // carries one) can claim a script "runs at gate N" without anything ever
+  // re-checking that claim against the gate's actual imports.
+  const indexPath = join("scripts", "README.md");
+  if (existsSync(indexPath)) {
+    const gateSources = {};
+    for (const f of Object.values(GATE_FILES)) {
+      try {
+        gateSources[f] = readFileSync(join("scripts", f), "utf8");
+      } catch {
+        gateSources[f] = "";
+      }
+    }
+    const mismatches = checkIndexGateClaims(
+      readFileSync(indexPath, "utf8"),
+      gateSources,
+    );
+    for (const m of mismatches) {
+      add(
+        "script-index wiring",
+        indexPath,
+        m,
+        "fix the gate the index names, or the wiring — the index and the code must agree",
+      );
+    }
+    if (!mismatches.length) {
+      skips.push(
+        "script-index wiring — scripts/README.md's gate claims match actual wiring",
+      );
+    }
+  } else {
+    skips.push(
+      "script-index wiring — no scripts/README.md in this repository, nothing to check",
     );
   }
 }

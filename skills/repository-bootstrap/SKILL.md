@@ -3,6 +3,8 @@ name: repository-bootstrap
 description: Use when setting up a new repository to comply with the guardrail standards, or bringing an existing repository into compliance for the first time. States the order to declare vocabulary, wire the root instruction file, and adopt each content standard and the gates — naming which reference to open at each step, so an agent does not read the whole corpus before starting.
 ---
 
+<!-- cspell:ignore pyproject -->
+
 # Repository bootstrap
 
 Sequences the other five skills into one first-time setup. Each step below
@@ -116,19 +118,51 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    first document is drafted — not before, and not as a reason to write
    documents nobody asked for. This is also where the standards themselves
    move into the repository: **instantiate each standard steps 2–7 actually
-   used into the repository's own `docs/standards/`, customised to what
-   applies** (`docs/standards/docs-style.md#standards-in-a-consuming-repository`) —
+   used into the repository's own `docs/standards/`, tuned in the same pass
+   that copies it**
+   (`docs/standards/docs-style.md#standards-in-a-consuming-repository`) —
    never a link back to this corpus's canonical home, which fails offline and
-   drifts the moment `main` moves here. Name the upstream commit each
-   instantiated standard was copied from, so drift becomes a diff someone can
-   run rather than a worry nobody can act on. Skip what does not apply (no
-   deployment strategy for a repository with nothing to release) and record
-   the omission, the same as any other skipped step. Then write the
-   enforcement map: one row per standard the repository carries, naming the
-   configuration file or gate that actually enforces it — the part no
-   upstream text can supply, because it names files only this repository has.
-   This repository's own [`docs/standards-enforcement.md`](../../docs/standards-enforcement.md)
-   is the worked example.
+   drifts the moment `main` moves here.
+
+   **Tune while copying, not in a pass that comes after.** A corpus copied
+   whole and left for a later tuning pass is the observed failure: audited,
+   it read as 27 files carried over with 26 of them at zero content change.
+   Derive what to drop from a fact the repository already states, not
+   judgement, one file at a time: drop a stack's tooling rows when step 2
+   found no manifest for that stack (`*.csproj`/`*.sln`, `pyproject.toml`,
+   `go.mod`, `Cargo.toml`, and their siblings); drop multi-component content
+   when [the component map](../../docs/standards/guardrails/components.md)
+   declares one component; drop gate 8's environment procedure when no
+   deployment target from step 6 is an environment rather than a registry;
+   drop a file class's documentation when `.gitattributes` does not declare
+   that class. Record every removal — the property of the repository that
+   made it inapplicable, not merely that something is gone — and name the
+   upstream commit each instantiated standard was copied from, so drift
+   becomes a diff someone can run rather than a worry nobody can act on.
+
+   **Wire what you copy, in the same commit as the copy.** A reference
+   checker is not adopted by sitting in the tooling directory:
+   `scripts/check-standards-instantiation.mjs` must be copied into this
+   repository's own tooling directory **and** wired into this repository's
+   own gate 7 — the file's own header states this, and
+   `scripts/check-script-wiring.mjs` reports it as a finding if the wiring
+   is skipped. Run it once by hand against the freshly instantiated
+   `docs/standards/` before moving on, to confirm the wiring took.
+
+   Skip what does not apply (no deployment strategy for a repository with
+   nothing to release) and record the omission, the same as any other
+   skipped step. Then write the enforcement map: one row per standard the
+   repository carries, naming the configuration file or gate that actually
+   enforces it — the part no upstream text can supply, because it names
+   files only this repository has. This repository's own
+   [`docs/standards-enforcement.md`](../../docs/standards-enforcement.md) is
+   the worked example.
+
+   **Checkpoint, answerable by looking:** the instantiated corpus carries at
+   least one recorded removal (or a stated reason none applied) in the same
+   commit that created `docs/standards/`, or names the follow-up commit
+   tuning is deferred to. A corpus with no removal recorded and no named
+   follow-up is the failure above, recurring.
 
 ## What done looks like
 
