@@ -74,6 +74,15 @@ jobs:
         # on its own, rather than the check silently reporting the tool
         # unavailable and passing. osv-scanner (fix 9b) is a Go binary, hence
         # `go install` rather than pip.
+        #
+        # This step deliberately runs before "Gate 6" below, which both runs
+        # this repository's own unit suite (hooks/test/hooks.test.mjs) and
+        # invokes osv-scanner for a real scan (scripts/gate-6-pull-request.mjs
+        # check 10) — the real scan needs the tool on PATH first. Fix 31: the
+        # unit suite's osv-scanner test no longer depends on the tool's
+        # absence from whatever host runs it (checkOsvScanner takes injectable
+        # collaborators, the same shape checkBranchProtection's do), so
+        # installing the tool here no longer changes what that test proves.
         run: |
           pip install semgrep lizard
           go install github.com/google/osv-scanner/cmd/osv-scanner@latest

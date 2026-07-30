@@ -1711,11 +1711,23 @@ test("classifyTestCoverageOutcome: a command that never ran (neither summary pre
 
 // --- scripts/check-osv-scanner.mjs — fix 9b. osv-scanner is external,
 // PATH-resolved and never bundled (ADR-0002), exactly like semgrep and
-// lizard, and it is not installed on this host — which is the point: most
-// consumers hit the skip path before they ever install the tool, so that is
-// what this test exercises for real, not a mocked absence.
+// lizard.
+//
+// Fix 31 — this used to call checkOsvScanner() with no injected collaborator
+// and rely on osv-scanner genuinely being absent from the host running the
+// test. Audit 9 traced a bootstrapped repo's CI failure (`1 unit test(s)
+// failed` in CI, green locally) to exactly that coupling:
+// .github/workflows/pull-request.yml installs osv-scanner (`go install
+// .../osv-scanner@latest`) before running this suite, so the tool this test
+// required to be absent was already on PATH by the time it ran — the
+// workflow installed the precondition its own test depended on not holding.
+// The sibling checkBranchProtection tests inject `have`/`run` for exactly
+// this reason (check-branch-protection.mjs); checkOsvScanner now takes the
+// same injectable shape, and this asserts the skip path through an injected
+// absence — deterministic regardless of what happens to be on the PATH of
+// whatever host or CI runner executes it.
 test("osv-scanner check is a visible skip, naming the tool, when it is not on PATH", () => {
-  const { findings, skips } = checkOsvScanner();
+  const { findings, skips } = checkOsvScanner({ have: () => false });
   assert.deepEqual(
     findings,
     [],

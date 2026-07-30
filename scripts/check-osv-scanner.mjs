@@ -21,26 +21,41 @@
 // The invocation below follows osv-scanner's own documented CLI
 // (`osv-scanner --format <json|sarif> -r <path>` recursively scans a
 // directory tree against the OSV database and exits non-zero when it finds
-// something); this host has no installation to verify it against, which is
-// exactly the state this check is written to handle visibly rather than
-// silently.
+// something).
+//
+// Fix 31 — `have`/`run` are injectable (the same shape checkBranchProtection
+// takes, check-branch-protection.mjs), defaulting to the real PATH-resolved
+// ones. The skip-path test asserts the skip through an injected absence
+// rather than this host's own PATH: audit 9 traced a bootstrapped repo's CI
+// failure to exactly the opposite — a test that depended on osv-scanner
+// genuinely being absent from the host it happened to run on, which broke
+// the moment a workflow step installed it first. A test whose result depends
+// on what happens to be installed is not a test of this function.
 import { have, run, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
 /** { findings, skips }. No scanTriggered gate — gate 5 runs once per push
  *  over the whole repository already (gate-5-push.md), the same
  *  unconditional shape as the coverage check beside it, not the
- *  change-triggered shape gates 2/6's lock-file-scoped checks use. */
-export function checkOsvScanner() {
+ *  change-triggered shape gates 2/6's lock-file-scoped checks use.
+ *  @param {{
+ *    have?: (command: string, args?: readonly string[]) => boolean,
+ *    run?: (command: string, args: readonly string[], options?: object) => {status: number|null, stdout?: string, stderr?: string},
+ *  }} [deps]
+ */
+export function checkOsvScanner({
+  have: haveFn = have,
+  run: runFn = run,
+} = {}) {
   const skips = [];
   const findings = [];
-  if (!have("osv-scanner", ["--version"])) {
+  if (!haveFn("osv-scanner", ["--version"])) {
     skips.push(
       "cross-stack dependency scan — osv-scanner not on PATH; install it to enable this check (docs/standards/guardrails/registers.md)",
     );
     return { findings, skips };
   }
-  const scan = run("osv-scanner", ["--format", "json", "-r", "."]);
+  const scan = runFn("osv-scanner", ["--format", "json", "-r", "."]);
   if (scan.status !== 0) {
     findings.push({
       check: "cross-stack dependency scan (osv-scanner)",
