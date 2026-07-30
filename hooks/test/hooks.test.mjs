@@ -1565,6 +1565,65 @@ test("fix 25: a finding suppressed in source is present in raw semgrep SARIF and
   rmSync(dir, { recursive: true, force: true });
 });
 
+// Fix 30 (cross-gate-rules.md, "A suppression is verified at repository
+// scope, never at the scope of the file just edited") — the exact mechanism
+// behind the defect: fix 21 verified its suppression with `semgrep --config
+// auto --error hooks/lib/run.mjs`, reported "3 findings before, 0 after",
+// and was silent about two live, unmarked findings of the same rule already
+// sitting in hooks/test/hooks.test.mjs (fix 29) — a repository-scope run
+// would have caught them there and then. This reproduces the shape
+// generically, independent of what today's tree happens to contain: one
+// file carries the pattern with an in-source suppression (what "the file
+// just edited" looks like clean), a sibling file carries the same pattern
+// with none (what a repository-scope run, and only a repository-scope run,
+// still catches).
+test("fix 30: a file-scoped semgrep check reads clean while a sibling file's unsuppressed occurrence of the same rule only surfaces at repository scope", () => {
+  if (!have("semgrep", ["--version"])) return; // no fixture — semgrep unavailable here
+  const dir = mkdtempSync(join(tmpdir(), "semgrep-scope-"));
+  writeFileSync(
+    join(dir, "rule.yaml"),
+    "rules:\n" +
+      "  - id: no-eval\n" +
+      "    languages: [python]\n" +
+      "    severity: ERROR\n" +
+      "    message: eval() is dangerous\n" +
+      "    pattern: eval(...)\n",
+  );
+  // The file actually touched by the fix: the pattern is present but
+  // suppressed — the same in-source marker fix 25's fixture above uses.
+  writeFileSync(
+    join(dir, "edited.py"),
+    `x = eval(user_input)  # ${NOSEMGREP}: no-eval\n`,
+  );
+  // A sibling nobody re-checked: the same rule, no marker — the exact shape
+  // of the two spawn-shell-true sites fix 21's file-scoped check never saw.
+  writeFileSync(join(dir, "sibling.py"), "y = eval(other_input)\n");
+
+  const fileScoped = run(
+    "semgrep",
+    ["--config", "rule.yaml", "--quiet", "--error", "edited.py"],
+    { cwd: dir, env: { ...process.env, PYTHONUTF8: "1" } },
+  );
+  assert.equal(
+    fileScoped.status,
+    0,
+    "a check scoped to only the edited file must read clean here — this is the false confidence the rule closes",
+  );
+
+  const repoScoped = run(
+    "semgrep",
+    ["--config", "rule.yaml", "--quiet", "--error", "."],
+    { cwd: dir, env: { ...process.env, PYTHONUTF8: "1" } },
+  );
+  assert.notEqual(
+    repoScoped.status,
+    0,
+    "a repository-scope check must refuse on the sibling's unsuppressed occurrence — the same scope gate 7's own semgrep sweep (scripts/gate-7-on-demand.mjs) already runs",
+  );
+
+  rmSync(dir, { recursive: true, force: true });
+});
+
 // --- scripts/check-refusal-proofs.mjs — fix 9a, the refusal-proof contract
 // (docs/standards/guardrails/cross-gate-rules.md, "Every blocking check
 // proves it refuses"). Only the pure classification rule and a fast,

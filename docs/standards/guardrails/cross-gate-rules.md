@@ -214,6 +214,31 @@ to learn what broke.
 A check that could not run reports unknown. Stating a cause the evidence does
 not support sends the author looking in the wrong place.
 
+## A suppression is verified at repository scope, never at the scope of the file just edited
+
+The same principle, one level more specific: a suppression's own verification
+claim — "N findings before, 0 after" — is only as true as the scope it was run
+at. Adding a `nosemgrep` marker to one file and re-running semgrep against
+that file alone can report 0 findings while an identical, unmarked occurrence
+of the same rule sits in a sibling file the fix never touched. This repository
+shipped that exact defect once: a suppression added to `hooks/lib/run.mjs`,
+verified with `semgrep --config auto --error hooks/lib/run.mjs`, reported "3
+findings before, 0 after" — true of that file, and silent about two live,
+unregistered findings of the same rule already sitting in
+`hooks/test/hooks.test.mjs`, which a repository-scope run would have caught
+there and then.
+
+**Verify a suppression the same way it will actually be enforced.**
+[Gate 7](gate-7-on-demand.md)'s own sweep (`npm run gate:7`,
+`scripts/gate-7-on-demand.mjs`) already runs `semgrep --config auto --error .`
+across every tracked file — the repository-scope check, already built and
+already proven to refuse (its own refusal-proof fixture,
+`scripts/check-refusal-proofs.mjs`). A verification claim that cites a
+file-scoped invocation instead is not wrong about that file; it is silent
+about everywhere else, which is exactly what
+[never claim more than was checked](#never-claim-more-than-was-checked) above
+forbids.
+
 ## A check that did not enforce says why
 
 Silence is indistinguishable from a pass. Every run distinguishes three states —
@@ -321,6 +346,10 @@ choice is reported, not guessed.
       stack's equivalent, not left to print and pass.
 - [ ] Every refusal names the check, the path and the remedy.
 - [ ] A check that could not run says so, rather than passing or asserting a cause.
+- [ ] A suppression's verification claim ("N findings before, 0 after") cites a
+      repository-scope run — gate 7's own sweep, or an equivalent `semgrep
+    --config auto --error .` at the repository root — never a check scoped
+      to only the file just edited.
 - [ ] Every check the platform already provides is enabled rather than rebuilt.
 - [ ] Within each gate, checks run cheapest first, except where one changes what
       a later one reads.
