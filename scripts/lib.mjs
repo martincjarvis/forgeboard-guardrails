@@ -266,6 +266,26 @@ export function resolvedDependencyTree({ omitDev = false } = {}) {
   return deps;
 }
 
+/** This repository's own declared licence, read from `package.json`'s native
+ *  `license` field — the standard, already-present place a Node project
+ *  states its SPDX identifier (`npm ls`, `license-checker` and this
+ *  repository's own dependency-licence register all read the same field for
+ *  every *dependency*; this reads it for the repository itself), rather than
+ *  inventing a new config file for the same fact. Null when the field is
+ *  absent or blank, which the licence-policy decision rule
+ *  (check-licence-policy.mjs) treats as "the repository declares no licence"
+ *  (gate-6-pull-request.md) — this toolkit's own case today. */
+export function repositoryLicenceId() {
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  } catch {
+    return null;
+  }
+  const license = pkg?.license;
+  return typeof license === "string" && license.trim() ? license.trim() : null;
+}
+
 /** GitHub's code-scanning ingestion treats a SARIF `artifactLocation.uri`
  *  with backslashes as naming a different file from the same path written
  *  with forward slashes. pull-request.yml runs the identical semgrep scan on

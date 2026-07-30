@@ -1,11 +1,13 @@
 # Dependency licence register
 
+<!-- cspell:ignore arrayish bcoe binaryextensions callsites eastasianwidth esrecurse esutils extglob fastq fdir fullwidth humanfs humanwhocodes isexe istextorbinary jridgewell jsonify jsonparse kebabcase levn mdurl mergewith minipass monkeyc nodelib parseargs pidtree pkgjs reusify scandir sindresorhus snakecase startcase textextensions textlint timsort tinyexec upperfirst yocto -->
+
 Every dependency this repository's own tooling resolves, direct and transitive,
 with the licence it carries and the scope it is judged against
 ([registers.md](../standards/guardrails/registers.md#the-dependency-licence-register)).
 Gate 2 check 16 refuses a commit that changes the lock file without a current row
-for every resolved dependency; gate 6 check 7 refuses a licence outside the
-allow list for its scope.
+for every resolved dependency; gate 6 check 7 refuses a licence whose table
+entry does not pass the decision rule, for its scope.
 
 This repository has no runtime dependencies of its own — every row below is
 `Development` scope, judged against the development allow list
@@ -68,7 +70,7 @@ policy exception must be — approving one is not this agent's decision to make.
 | @cspell/dict-dotnet                          | 5.0.13  | MIT                 | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |
 | @cspell/dict-elixir                          | 4.0.8   | MIT                 | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |
 | @cspell/dict-en_us                           | 4.4.36  | MIT                 | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |
-| @cspell/dict-en-common-misspellings          | 2.1.13  | CC BY-SA 4.0        | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |
+| @cspell/dict-en-common-misspellings          | 2.1.13  | CC-BY-SA-4.0        | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |
 | @cspell/dict-en-gb                           | 1.1.33  | MIT                 | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |
 | @cspell/dict-filetypes                       | 3.0.18  | MIT                 | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |
 | @cspell/dict-flutter                         | 1.1.1   | MIT                 | Transitive           | Development | forgeboard-guardrails tooling (transitive)           | resolved transitively by a declared devDependency                             |                 |             |         |          |

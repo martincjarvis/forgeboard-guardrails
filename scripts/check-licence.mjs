@@ -8,6 +8,11 @@
 //
 // cspell:ignore Unlicense
 import { readStaged, resolvedDependencyTree, report } from "./lib.mjs";
+import {
+  leafIdentifiers,
+  licenceTableEntry,
+  parseLicenceExpression,
+} from "./licence-table.mjs";
 import { pathToFileURL } from "node:url";
 
 export const REGISTER = "docs/registers/dependency-licence-register.md";
@@ -20,9 +25,12 @@ function cellsOf(row) {
     .map((c) => c.trim());
 }
 
-/** Rows already recorded, as a Set of "name@version". Null means the register
- *  itself does not exist — distinct from an empty register, which parses to an
- *  empty Set and still fails completeness for every resolved dependency. */
+/** Rows already recorded: a Set of "name@version" (completeness's own
+ *  lookup) plus the raw rows with their licence cell (fix brief 6 — the
+ *  table-entry completeness check below needs the licence, completeness
+ *  itself does not). Null means the register itself does not exist —
+ *  distinct from an empty register, which parses to empty and still fails
+ *  completeness for every resolved dependency. */
 function parseRegister() {
   let md;
   try {
@@ -30,18 +38,44 @@ function parseRegister() {
   } catch {
     return null;
   }
-  const rows = new Set();
+  const known = new Set();
+  const rows = [];
   for (const line of md.split("\n")) {
     if (!line.startsWith("|") || line.includes("---")) continue;
     const cells = cellsOf(line);
-    if (cells.length < 2) continue;
+    if (cells.length < 3) continue;
     const dep = cells[0]?.trim();
     const version = cells[1]?.trim();
     if (!dep || (/dependency/i.test(dep) && /version/i.test(version))) continue;
     if (dep.startsWith("_") || dep.startsWith("No rows")) continue;
-    rows.add(`${dep}@${version}`);
+    known.add(`${dep}@${version}`);
+    rows.push({ dep, version, licence: (cells[2] ?? "").trim() });
   }
-  return rows;
+  return { known, rows };
+}
+
+/** Fix brief 6 — a licence in the resolved set with no entry in
+ *  scripts/licence-table.mjs is a finding at gate 2 (here) as well as gate 6
+ *  (check-licence-policy.mjs): "you need an entry precisely when a
+ *  dependency introduces the licence, which is when the check already
+ *  runs." Exported so it is directly testable against constructed rows. */
+export function missingLicenceTableEntries(rows) {
+  const findings = [];
+  const reported = new Set();
+  for (const row of rows) {
+    if (!row.licence || /^unknown$/i.test(row.licence)) continue; // its own finding, not this one
+    for (const id of leafIdentifiers(parseLicenceExpression(row.licence))) {
+      if (licenceTableEntry(id) || reported.has(id)) continue;
+      reported.add(id);
+      findings.push({
+        check: "dependency licence register",
+        path: REGISTER,
+        problem: `'${id}' (${row.dep}@${row.version}) has no entry in scripts/licence-table.mjs`,
+        remedy: `add an entry for '${id}' to scripts/licence-table.mjs, citing an authoritative reference (an OSI approval page, or the licence steward's own text)`,
+      });
+    }
+  }
+  return findings;
 }
 
 /** { findings, skips }. `lockChanged` is the caller's own scope decision — the
@@ -71,8 +105,8 @@ export function checkLicenceCompleteness(lockChanged) {
     };
   }
 
-  const rows = parseRegister();
-  if (rows === null) {
+  const parsed = parseRegister();
+  if (parsed === null) {
     return {
       findings: [
         {
@@ -92,7 +126,7 @@ export function checkLicenceCompleteness(lockChanged) {
 
   const findings = [];
   for (const [name, version] of resolved) {
-    if (!rows.has(`${name}@${version}`)) {
+    if (!parsed.known.has(`${name}@${version}`)) {
       findings.push({
         check: "dependency licence register",
         path: REGISTER,
@@ -101,6 +135,7 @@ export function checkLicenceCompleteness(lockChanged) {
       });
     }
   }
+  findings.push(...missingLicenceTableEntries(parsed.rows));
   return { findings, skips };
 }
 

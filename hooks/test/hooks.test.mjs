@@ -1,4 +1,4 @@
-// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF
+// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled
 // The hooks are the only code in this repository, and they run on every edit on
 // somebody's machine. Their logic — thresholds, the override marker, which files
 // count — is exactly the kind that fails quietly, so it leaves a runnable check
@@ -28,14 +28,14 @@ import {
   checkDependencyAdvisories,
 } from "../../scripts/check-dependency-advisories.mjs";
 import {
-  classifyLicence,
-  licenceAcceptable,
   checkLicencePolicy,
   licenceExpressionAcceptable,
-  requiredExtensionRecord,
-  RUNTIME_ALLOW_EXTENSIONS,
+  leafVerdict,
+  compatible,
   evaluateRegisterRow,
 } from "../../scripts/check-licence-policy.mjs";
+import { missingLicenceTableEntries } from "../../scripts/check-licence.mjs";
+import { LICENCE_TABLE, isPermissive } from "../../scripts/licence-table.mjs";
 import {
   checkSuppressions,
   evaluateRegisterRows,
@@ -59,6 +59,7 @@ import {
   looksLikeTeamLabel,
 } from "../../scripts/check-adr-approver.mjs";
 import { checkScriptWiring } from "../../scripts/check-script-wiring.mjs";
+import { checkLicenceTableReferences } from "../../scripts/check-licence-table.mjs";
 import { run, have } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 
@@ -809,51 +810,102 @@ test("dependency advisory scan is a visible skip, naming the reason, when not tr
   assert.match(skips[0], /no dependency change and not a scheduled run/);
 });
 
-// --- scripts/check-licence-policy.mjs — gate 6 check 7 (docs/standards/
-// guardrails/gate-6-pull-request.md, "Four licence categories, not two").
+// --- scripts/licence-table.mjs and scripts/check-licence-policy.mjs — gate
+// 6 check 7 (fix brief 6: a per-licence table, not two enumerated allow
+// lists — docs/standards/guardrails/gate-6-pull-request.md's "Licence
+// policy: a table, not two allow lists").
 
-test("licence policy classifies the four categories", () => {
-  assert.equal(classifyLicence("MIT"), "permissive");
-  assert.equal(classifyLicence("MPL-2.0"), "weak-copyleft");
-  assert.equal(classifyLicence(""), "unknown");
-  assert.equal(classifyLicence("UNKNOWN"), "unknown");
-  assert.equal(classifyLicence("GPL-3.0-only"), "other");
-});
-
-test("licence policy: permissive passes at either scope; weak copyleft passes for development but blocks at runtime; unknown and other always block", () => {
-  assert.equal(licenceAcceptable("MIT", "Runtime"), true);
-  assert.equal(licenceAcceptable("MIT", "Development"), true);
-  assert.equal(licenceAcceptable("MPL-2.0", "Development"), true);
+test("isPermissive is derived from recorded conditions, not asserted — Artistic-2.0's source-disclosure condition makes it non-permissive despite being OSI-approved", () => {
+  assert.equal(isPermissive(LICENCE_TABLE["MIT"]), true);
   assert.equal(
-    licenceAcceptable("MPL-2.0", "Runtime"),
+    isPermissive(LICENCE_TABLE["Artistic-2.0"]),
     false,
-    "weak copyleft blocks the moment it ships",
+    "Artistic-2.0 requires a modified version's source to be made available — checked against the OSI text directly, not assumed from OSI-approval alone",
   );
   assert.equal(
-    licenceAcceptable("", "Development"),
+    isPermissive(LICENCE_TABLE["CC-BY-SA-4.0"]),
     false,
-    "no licence at all is refused, never passed as unclassified-yet",
+    "share-alike is one of the three disqualifying conditions",
   );
-  assert.equal(licenceAcceptable("GPL-3.0-only", "Development"), false);
 });
 
-test("SPDX expression evaluation: OR passes if any disjunct is acceptable at scope", () => {
-  // The exact false positive audit 6 found: `JSONStream (MIT OR Apache-2.0)`
-  // and type-fest's `(MIT OR CC0-1.0)`, both on the runtime allow list —
-  // blocked before fix 8 because the whole string was looked up as one
-  // identifier, which matches nothing.
+test("leafVerdict: OSI-approved and permissive passes regardless of scope or a declared repository licence", () => {
+  assert.equal(leafVerdict("MIT", "Runtime", null).acceptable, true);
   assert.equal(
-    licenceExpressionAcceptable("MIT OR Apache-2.0", "Runtime").acceptable,
+    leafVerdict("MIT", "Development", "GPL-3.0-only").acceptable,
     true,
   );
+});
+
+test("leafVerdict: a licence with no table entry blocks and names that as the reason, distinct from failing the decision rule", () => {
+  const v = leafVerdict("GPL-3.0-only", "Development", null);
+  assert.equal(v.acceptable, false);
   assert.equal(
-    licenceExpressionAcceptable("(MIT OR CC0-1.0)", "Runtime").acceptable,
+    v.reason,
+    "no-table-entry",
+    "GPL-3.0-only is not in scripts/licence-table.mjs — a coverage gap, not a policy failure",
+  );
+});
+
+test("leafVerdict: not OSI-approved blocks even when the licence's own conditions alone would read as permissive", () => {
+  // WTFPL imposes no conditions at all — permissive by conditions — but is
+  // absent from opensource.org's approved list (verified 2026-07-30, not
+  // assumed from its reputation as an extremely permissive licence).
+  assert.equal(isPermissive(LICENCE_TABLE["WTFPL"]), true);
+  assert.equal(LICENCE_TABLE["WTFPL"].osiApproved, false);
+  const v = leafVerdict("WTFPL", "Development", null);
+  assert.equal(v.acceptable, false);
+  assert.equal(v.reason, "not-compatible");
+});
+
+test("compatible(): the relation is evaluated against the repository's own licence, not a membership test — the same dependency passes with no declared repository licence and blocks against one that conflicts", () => {
+  // gate-6-pull-request.md's own verification checkpoint: "The same
+  // dependency passes in a repository with no declared licence and blocks
+  // in one whose licence conflicts — proving the relation is evaluated, not
+  // a membership test." Artistic-2.0 (OSI-approved, source-disclosure) at
+  // Runtime scope is the worked case: nothing to conflict with when no
+  // licence is declared, blocked against a repository that is MIT
+  // (permissive, carries no source-disclosure condition of its own to
+  // match), passing again against a repository that is itself Artistic-2.0.
+  const artistic = LICENCE_TABLE["Artistic-2.0"];
+  assert.equal(
+    compatible(artistic, "Runtime", null),
+    true,
+    "no repository licence declared — nothing recorded to conflict with",
+  );
+  assert.equal(
+    compatible(artistic, "Runtime", "MIT"),
+    false,
+    "MIT does not itself require source disclosure — the condition conflicts",
+  );
+  assert.equal(
+    compatible(artistic, "Runtime", "Artistic-2.0"),
+    true,
+    "the repository carries the same condition — same-family, not a conflict",
+  );
+});
+
+test("compatible(): a non-permissive licence that never ships has nothing downstream to conflict with, at any declared repository licence", () => {
+  const artistic = LICENCE_TABLE["Artistic-2.0"];
+  assert.equal(compatible(artistic, "Development", "MIT"), true);
+});
+
+test("SPDX expression evaluation: OR passes if any disjunct is acceptable — audit 6's JSONStream / type-fest regression, MIT OR Apache-2.0 and (MIT OR CC0-1.0)", () => {
+  assert.equal(
+    licenceExpressionAcceptable("MIT OR Apache-2.0", "Runtime", null)
+      .acceptable,
+    true,
+  );
+  // CC0-1.0 alone is not OSI-approved, but the OR passes via MIT.
+  assert.equal(
+    licenceExpressionAcceptable("(MIT OR CC0-1.0)", "Runtime", null).acceptable,
     true,
   );
   // Both disjuncts unacceptable: blocked, and the refusal names both.
   const blocked = licenceExpressionAcceptable(
     "GPL-3.0-only OR AGPL-3.0-only",
     "Runtime",
+    null,
   );
   assert.equal(blocked.acceptable, false);
   assert.equal(blocked.blockers.length, 2);
@@ -865,12 +917,14 @@ test("SPDX expression evaluation: OR passes if any disjunct is acceptable at sco
 
 test("SPDX expression evaluation: AND requires every conjunct to be acceptable", () => {
   assert.equal(
-    licenceExpressionAcceptable("MIT AND Apache-2.0", "Runtime").acceptable,
+    licenceExpressionAcceptable("MIT AND Apache-2.0", "Runtime", null)
+      .acceptable,
     true,
   );
   const verdict = licenceExpressionAcceptable(
     "MIT AND GPL-3.0-only",
     "Runtime",
+    null,
   );
   assert.equal(
     verdict.acceptable,
@@ -887,29 +941,30 @@ test("SPDX expression evaluation: AND requires every conjunct to be acceptable",
 test("SPDX expression evaluation: parentheses nest, mixing AND and OR correctly", () => {
   // (MIT OR Apache-2.0) AND CC0-1.0 — the brief's own nesting example.
   assert.equal(
-    licenceExpressionAcceptable("(MIT OR Apache-2.0) AND CC0-1.0", "Runtime")
-      .acceptable,
-    true,
-  );
-  // Same shape, but the AND term is unacceptable — nesting must not let the
-  // OR's pass leak past the AND.
-  assert.equal(
     licenceExpressionAcceptable(
-      "(MIT OR Apache-2.0) AND GPL-3.0-only",
+      "(MIT OR Apache-2.0) AND CC0-1.0",
       "Runtime",
+      null,
     ).acceptable,
     false,
+    "CC0-1.0 is not OSI-approved, so the AND's second conjunct fails even though the OR passes",
+  );
+  assert.equal(
+    licenceExpressionAcceptable("(MIT OR Apache-2.0) AND MIT", "Runtime", null)
+      .acceptable,
+    true,
   );
 });
 
 test("SPDX expression evaluation: WITH is one identifier, not silently split into a passing term", () => {
-  // GPL-2.0-only WITH Classpath-exception-2.0 is not on either allow list as
-  // a whole; splitting it would let the bare "GPL-2.0-only" half be judged
+  // GPL-2.0-only WITH Classpath-exception-2.0 is not in the table as a
+  // whole; splitting it would let the bare "GPL-2.0-only" half be judged
   // instead (still failing here, but for the wrong reason) or, worse, let an
   // exception clause on an otherwise-permissive base licence pass unchecked.
   const verdict = licenceExpressionAcceptable(
     "GPL-2.0-only WITH Classpath-exception-2.0",
     "Development",
+    null,
   );
   assert.equal(verdict.acceptable, false);
   assert.equal(verdict.blockers.length, 1);
@@ -920,37 +975,105 @@ test("SPDX expression evaluation: WITH is one identifier, not silently split int
   );
 });
 
-test("SPDX expression evaluation: an unknown identifier blocks, named in the refusal", () => {
-  const verdict = licenceExpressionAcceptable("Beerware", "Development");
+test("SPDX expression evaluation: an identifier with no table entry blocks, named in the refusal", () => {
+  const verdict = licenceExpressionAcceptable("Beerware", "Development", null);
   assert.equal(verdict.acceptable, false);
-  assert.deepEqual(verdict.blockers, [{ id: "Beerware", category: "other" }]);
+  assert.deepEqual(verdict.blockers, [
+    { id: "Beerware", reason: "no-table-entry" },
+  ]);
 });
 
 test("SPDX expression evaluation: a non-SPDX string is reported as unparseable, quoted whole — not tokenised into a wrong identifier", () => {
-  // Fix 18. 'CC BY-SA 4.0' is not valid SPDX (the identifier is
-  // CC-BY-SA-4.0); a parser that splits on whitespace and stops at the
-  // first token the grammar doesn't recognise would silently drop " BY-SA
-  // 4.0" and name 'CC' as the blocked identifier — a licence that does not
-  // exist, so a maintainer searching the allow list for it finds nothing to
-  // reason about.
-  const cc = licenceExpressionAcceptable("CC BY-SA 4.0", "Development");
-  assert.equal(cc.acceptable, false);
-  assert.deepEqual(cc.blockers, [
-    { id: "CC BY-SA 4.0", category: "unparseable" },
-  ]);
-
-  // Same failure mode: a space instead of the SPDX hyphen.
-  const apache = licenceExpressionAcceptable("Apache 2.0", "Development");
+  // Fix 18. A space instead of the SPDX hyphen ('Apache 2.0' rather than
+  // 'Apache-2.0') tokenises into two identifier-shaped words with no
+  // operator between them; a parser that stops at the first token the
+  // grammar doesn't recognise would silently drop the rest and name '2.0' or
+  // 'Apache' as the blocked identifier — a licence that does not exist, so a
+  // maintainer searching the table for it finds nothing to reason about.
+  // This repository's own register cell for this exact shape ('CC BY-SA
+  // 4.0') was corrected to the real SPDX identifier (CC-BY-SA-4.0) rather
+  // than worked around here — the fix is the register entry, not the parser.
+  const apache = licenceExpressionAcceptable("Apache 2.0", "Development", null);
   assert.equal(apache.acceptable, false);
   assert.deepEqual(apache.blockers, [
-    { id: "Apache 2.0", category: "unparseable" },
+    { id: "Apache 2.0", reason: "unparseable" },
   ]);
 
   // A genuinely valid compound expression must still parse and pass.
   assert.equal(
-    licenceExpressionAcceptable("(MIT OR Apache-2.0)", "Runtime").acceptable,
+    licenceExpressionAcceptable("(MIT OR Apache-2.0)", "Runtime", null)
+      .acceptable,
     true,
   );
+});
+
+// --- scripts/check-licence.mjs — gate 2 check 16 (completeness), extended
+// by fix brief 6 to also flag a licence with no scripts/licence-table.mjs
+// entry: "a licence in the resolved set with no table entry is a finding at
+// gates 2 and 6" (gate-6-pull-request.md), so a coverage gap is caught the
+// moment the dependency arrives, not only when gate 6 later judges it.
+
+test("missingLicenceTableEntries: a row citing a tabled licence raises nothing; one citing a licence with no table entry names it once, even if several rows share it", () => {
+  const rows = [
+    { dep: "a", version: "1.0.0", licence: "MIT" },
+    { dep: "b", version: "1.0.0", licence: "GPL-3.0-only" },
+    { dep: "c", version: "2.0.0", licence: "GPL-3.0-only" },
+  ];
+  const findings = missingLicenceTableEntries(rows);
+  assert.equal(
+    findings.length,
+    1,
+    "the same untabled licence is named once, not once per row",
+  );
+  assert.match(findings[0].problem, /'GPL-3\.0-only'/);
+});
+
+test("missingLicenceTableEntries: a compound expression's leaf with no table entry is named; the tabled leaf is not", () => {
+  const findings = missingLicenceTableEntries([
+    { dep: "a", version: "1.0.0", licence: "MIT OR GPL-3.0-only" },
+  ]);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /GPL-3\.0-only/);
+  assert.doesNotMatch(findings[0].problem, /'MIT'/);
+});
+
+test("missingLicenceTableEntries: a blank or unknown licence is left to the policy check's own finding, not duplicated here", () => {
+  assert.deepEqual(
+    missingLicenceTableEntries([
+      { dep: "a", version: "1.0.0", licence: "" },
+      { dep: "b", version: "1.0.0", licence: "unknown" },
+    ]),
+    [],
+  );
+});
+
+test("checkLicenceCompleteness (end to end): a resolved dependency with no register row AND a register row whose licence has no table entry are both reported when the lock file is in scope", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({ name: "scratch", private: true, type: "module" }) + "\n",
+  );
+  writeFileSync(
+    join(dir, "package-lock.json"),
+    JSON.stringify({ name: "scratch", lockfileVersion: 3 }) + "\n",
+  );
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
+      "| copyleft-thing | 1.0.0 | GPL-3.0-only | Direct | Development | tooling | example | | | | |\n",
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-licence.mjs", dir, ["package-lock.json"]);
+  assert.equal(r.status, 2);
+  assert.match(
+    r.stderr,
+    /'GPL-3\.0-only'.*has no entry in scripts\/licence-table\.mjs/,
+    "the table-entry gap is caught at gate 2, not only when gate 6 later judges the same row",
+  );
+  rmSync(dir, { recursive: true, force: true });
 });
 
 test("licence policy is a visible skip, naming the reason, when not triggered", () => {
@@ -960,7 +1083,7 @@ test("licence policy is a visible skip, naming the reason, when not triggered", 
   assert.match(skips[0], /dependency licence policy/);
 });
 
-test("licence policy refuses a missing register, and refuses a resolved dependency outside the allow list", () => {
+test("licence policy refuses a missing register, and refuses a resolved dependency whose licence has no table entry", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature"]);
 
@@ -971,8 +1094,9 @@ test("licence policy refuses a missing register, and refuses a resolved dependen
   assert.equal(missing.status, 2);
   assert.match(missing.stderr, /does not exist/);
 
-  // A register row naming a licence outside both allow lists (strong
-  // copyleft here) is refused even though the row itself is complete.
+  // A register row naming a licence with no table entry (strong copyleft,
+  // never added to scripts/licence-table.mjs) is refused even though the
+  // row itself is complete.
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
   writeFileSync(
     join(dir, "docs", "registers", "dependency-licence-register.md"),
@@ -985,6 +1109,7 @@ test("licence policy refuses a missing register, and refuses a resolved dependen
   assert.equal(refused.status, 2);
   assert.match(refused.stderr, /copyleft-thing@1\.0\.0/);
   assert.match(refused.stderr, /GPL-3\.0-only/);
+  assert.match(refused.stderr, /has no entry in scripts\/licence-table\.mjs/);
 
   rmSync(dir, { recursive: true, force: true });
 });
@@ -1017,7 +1142,7 @@ test("licence policy: an unresolved version is its own finding, and the literal 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("licence policy (full pipeline): a compound SPDX expression on the runtime allow list passes — audit 6's JSONStream / type-fest regression", () => {
+test("licence policy (full pipeline): a compound SPDX expression passes when at least one disjunct is OSI-approved and compatible — audit 6's JSONStream / type-fest regression", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature"]);
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
@@ -1033,76 +1158,99 @@ test("licence policy (full pipeline): a compound SPDX expression on the runtime 
   assert.equal(
     r.status,
     0,
-    "MIT is on the runtime allow list, so both compound expressions must pass",
+    "MIT passes on its own; CC0-1.0 does not need to (it is not OSI-approved), because the OR only needs one",
   );
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- fix 26 — a register row whose licence reached the allow list only
-// because a decision record extended it must name that record in its own
-// Decision record column; the prose above the table naming the ADR is not
-// enough for a reviewer reading one row in isolation (registers.md). Tests
-// inject a fixture entry into the exported RUNTIME_ALLOW_EXTENSIONS map
-// (empty in this toolkit's own reference register) rather than spawning
-// scripts/check-licence-policy.mjs as a subprocess — a subprocess reads the
-// committed, unmodified source and would never see the injected extension.
-test("licence policy: a row citing an extension licence with a blank Decision record column is refused", () => {
-  RUNTIME_ALLOW_EXTENSIONS.set("BSD-4-Clause", "docs/ADR/0099-test-fixture.md");
-  try {
-    const findings = evaluateRegisterRow({
-      dep: "extended-thing",
+// --- fix brief 6 — a register row whose licence does not pass the decision
+// rule on its own is not blocked forever: a human can accept THIS
+// dependency specifically, recorded on THIS row's own Decision record and
+// Approver columns (registers.md's existing columns; there is no separate
+// code-level allow list left to extend — see check-licence-policy.mjs's own
+// header comment for why fix 26's RUNTIME_ALLOW_EXTENSIONS mechanism this
+// replaces no longer applies once "permissive" is derived data instead of a
+// list membership).
+
+test("evaluateRegisterRow: a licence that fails the decision rule blocks when the row's Decision record and Approver are blank", () => {
+  const findings = evaluateRegisterRow(
+    {
+      dep: "gnarly-thing",
       version: "1.0.0",
-      licence: "BSD-4-Clause",
-      scope: "Runtime",
+      licence: "WTFPL", // has a table entry, but is not OSI-approved
+      scope: "Development",
       decisionRecord: "",
-    });
-    assert.equal(findings.length, 1);
-    assert.match(findings[0].problem, /extended-thing@1\.0\.0/);
-    assert.match(findings[0].problem, /docs\/ADR\/0099-test-fixture\.md/);
-    assert.match(findings[0].problem, /Decision record column is blank/);
-  } finally {
-    RUNTIME_ALLOW_EXTENSIONS.delete("BSD-4-Clause");
-  }
-});
-
-test("licence policy: a row citing an extension licence WITH its Decision record named passes", () => {
-  RUNTIME_ALLOW_EXTENSIONS.set("BSD-4-Clause", "docs/ADR/0099-test-fixture.md");
-  try {
-    const findings = evaluateRegisterRow({
-      dep: "extended-thing",
-      version: "1.0.0",
-      licence: "BSD-4-Clause",
-      scope: "Runtime",
-      decisionRecord: "docs/ADR/0099-test-fixture.md",
-    });
-    assert.deepEqual(
-      findings,
-      [],
-      "the row names the record that extended the allow list — nothing left to flag",
-    );
-  } finally {
-    RUNTIME_ALLOW_EXTENSIONS.delete("BSD-4-Clause");
-  }
-});
-
-test("licence policy: a row on the standard's own base allow list needs no Decision record", () => {
-  const findings = evaluateRegisterRow({
-    dep: "ordinary-thing",
-    version: "1.0.0",
-    licence: "MIT",
-    scope: "Runtime",
-    decisionRecord: "",
-  });
-  assert.deepEqual(
-    findings,
-    [],
-    "MIT is a base entry, not an extension — no record to cite",
+      approver: "",
+    },
+    null,
+  );
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /gnarly-thing@1\.0\.0/);
+  assert.match(findings[0].problem, /WTFPL/);
+  assert.match(
+    findings[0].remedy,
+    /Decision record column and the person in Approver/,
   );
 });
 
-test("requiredExtensionRecord: null for a base allow-list licence and for one on neither list", () => {
-  assert.equal(requiredExtensionRecord("MIT"), null);
-  assert.equal(requiredExtensionRecord("GPL-3.0-only"), null);
+test("evaluateRegisterRow: the same row passes once a human has recorded a Decision record and named an Approver", () => {
+  const findings = evaluateRegisterRow(
+    {
+      dep: "gnarly-thing",
+      version: "1.0.0",
+      licence: "WTFPL",
+      scope: "Development",
+      decisionRecord: "docs/ADR/0099-test-fixture.md",
+      approver: "Pat",
+    },
+    null,
+  );
+  assert.deepEqual(
+    findings,
+    [],
+    "a human accepted this specific dependency — recorded on the row, not a code-level allow-list edit",
+  );
+});
+
+test("evaluateRegisterRow: a licence that passes the decision rule on its own needs neither column filled in", () => {
+  const findings = evaluateRegisterRow(
+    {
+      dep: "ordinary-thing",
+      version: "1.0.0",
+      licence: "MIT",
+      scope: "Runtime",
+      decisionRecord: "",
+      approver: "",
+    },
+    null,
+  );
+  assert.deepEqual(
+    findings,
+    [],
+    "MIT passes the decision rule outright — no human decision to cite",
+  );
+});
+
+test("evaluateRegisterRow: a licence absent from the table blocks and asks for an entry, and is not answerable by a Decision record alone", () => {
+  // Distinct from the "fails the decision rule" case above: nobody can
+  // accept a licence the table has never classified, because there is
+  // nothing recorded to accept yet.
+  const findings = evaluateRegisterRow(
+    {
+      dep: "mystery-thing",
+      version: "1.0.0",
+      licence: "Zlib",
+      scope: "Development",
+      decisionRecord: "docs/ADR/0099-test-fixture.md",
+      approver: "Pat",
+    },
+    null,
+  );
+  assert.equal(findings.length, 1);
+  assert.match(
+    findings[0].problem,
+    /has no entry in scripts\/licence-table\.mjs/,
+  );
 });
 
 test("acceptedAdvisoryIds reads GHSA ids only from Accepted ADRs, not Proposed ones", () => {
@@ -2473,4 +2621,45 @@ test("quality-script wiring: a WIRING claim that no longer matches the file's ac
   assert.equal(unwired.length, 1);
   assert.match(unwired[0], /lint/);
   assert.match(unwired[0], /drifted/);
+});
+
+// --- scripts/check-licence-table.mjs — gate 7's on-demand licence table
+// re-validation (fix brief 6: "re-validating the table against OSI is an
+// invoked task at gate 7," never a scheduled one). `fetchFn` is injected —
+// these tests make no real network call, the same reason
+// classifyAdvisories (check-dependency-advisories.mjs) is tested against a
+// fixed report rather than a live `npm audit`.
+
+test("checkLicenceTableReferences: every reference resolving raises nothing", async () => {
+  const table = { MIT: { reference: "https://opensource.org/license/mit" } };
+  const findings = await checkLicenceTableReferences(table, async () => ({
+    ok: true,
+    status: 200,
+  }));
+  assert.deepEqual(findings, []);
+});
+
+test("checkLicenceTableReferences: a reference answering with a non-2xx status is named, by the licence id and the status", async () => {
+  const table = {
+    Moved: { reference: "https://example.invalid/moved-license" },
+  };
+  const findings = await checkLicenceTableReferences(table, async () => ({
+    ok: false,
+    status: 404,
+  }));
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /Moved/);
+  assert.match(findings[0].problem, /404/);
+});
+
+test("checkLicenceTableReferences: a reference the network cannot reach at all is its own finding, distinct from a bad status", async () => {
+  const table = {
+    Unreachable: { reference: "https://example.invalid/unreachable" },
+  };
+  const findings = await checkLicenceTableReferences(table, async () => {
+    throw new Error("getaddrinfo ENOTFOUND example.invalid");
+  });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /Unreachable/);
+  assert.match(findings[0].problem, /could not be reached/);
 });

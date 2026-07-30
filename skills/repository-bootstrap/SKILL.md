@@ -85,7 +85,25 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    before reaching for a marker; a change that only moves a finding without
    changing the risk is evasion, not a fix.
 
-8. **Docs style**, once the repository starts writing its own `/docs`. Load
+8. **Licence recommendation**, once step 7 has left the repository with a
+   populated dependency-licence register — only when the repository itself
+   declares no licence (`package.json`'s `license` field absent or blank; this
+   toolkit's own repository is its first case, and carries none). Load
+   `docs/standards/guardrails/gate-6-pull-request.md#licence-policy-a-table-not-two-allow-lists`
+   and read two things already established by now: the resolved dependency
+   set's own conditions (a dependency imposing share-alike or source-disclosure
+   rules out a permissive licence for anything that ships alongside it) and
+   the intended use (a published library, an internal service, a CLI tool, a
+   hosted service — visible from whether step 6 found anything to deploy, and
+   from `package.json`'s own `bin` or `main`/`exports` fields). **Recommend a
+   licence, with the reasoning and the alternatives rejected, in the bootstrap
+   report — do not choose one.** Selecting a licence is the owner's decision,
+   in the same class as accepting a risk or a licence exception: this skill
+   never writes a `LICENSE` file on its own initiative, the same restraint
+   `docs/standards/guardrails/agent-integration.md` already asks for on any
+   decision the standards reserve for a human.
+
+9. **Docs style**, once the repository starts writing its own `/docs`. Load
    `docs/standards/docs-style.md` and `skills/docs-review/SKILL.md` when the
    first document is drafted — not before, and not as a reason to write
    documents nobody asked for. This is also where the standards themselves

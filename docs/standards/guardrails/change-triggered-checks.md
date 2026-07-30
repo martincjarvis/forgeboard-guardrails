@@ -18,6 +18,7 @@ runs when its inputs change, and reports a visible skip when they have not.**
 | Dependency licence register | A lock file is in the change                                                       | No lock file changed                                  |
 | Dependency licence policy   | The resolved dependency set changed — a lock file diff                             | The dependency set is untouched                       |
 | Dependency advisory scan    | The resolved dependency set changed, **or** on a schedule                          | —                                                     |
+| Licence table re-validation | Invoked (adding a licence, or on demand)                                           | Never on a schedule                                   |
 | Whole-repository scan       | Invoked, or on a schedule                                                          | Per commit                                            |
 
 ## Licence and advisory differ, and the difference matters
@@ -31,6 +32,20 @@ the repository having moved.
 So the licence check is purely change-triggered, and the advisory check is
 change-triggered **plus** scheduled — the schedule is what catches the advisory
 published against code nobody is currently editing.
+
+**The licence table's own facts are governed by the same reasoning, not a
+special case of it.** A licence's text does not change once published, and its
+permissions and conditions are fixed with it — the only thing that can move is
+OSI's _classification_, rarely, and never retroactively invalidating a decision
+already recorded against a pinned version. Re-validating
+[`scripts/licence-table.mjs`](../../../scripts/licence-table.mjs) against its
+own recorded references is therefore an **invoked** task at [gate
+7](gate-7-on-demand.md) — run when adding a licence, or when someone wants to
+confirm the table is current — never a scheduled one. Putting it on a cron
+alongside the advisory scan's schedule would cost a run against nothing that
+moves and would imply the two are the same kind of check; they are not, for
+exactly the reason the licence check above is purely change-triggered while
+the advisory check also runs on a schedule.
 
 ## Staying current is itself scheduled
 
@@ -72,6 +87,8 @@ has quietly stopped working.
 - [ ] No lock file in the change was regenerated without a manifest change or a
       stated upgrade.
 - [ ] Dependency update proposals are raised on a schedule and pass the same gates.
+- [ ] The licence table's own re-validation runs on demand, and nowhere in the
+      toolkit or a consuming repository is it wired to a schedule.
 
 ## References
 

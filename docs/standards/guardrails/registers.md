@@ -49,14 +49,17 @@ condition** and **approver** — and adds the columns its own subject needs.
 ## A register row or a decision record?
 
 By **scope, not severity**. One accepted finding is a register row. Excluding a
-check from the repository, accepting a licence outside the allow list, or
-answering a push back is a [decision record](bypass-and-exceptions.md), because
-it outlives the change that raised it.
+check from the repository, or answering a push back, is a [decision
+record](bypass-and-exceptions.md), because it outlives the change that raised
+it — a licence that fails the table's decision rule is accepted on its own
+register row instead, because the acceptance is about one dependency, not a
+standing exclusion (gate-6-pull-request.md's own reasoning for why there is no
+allow list left to extend).
 
 **The human-approver requirement follows the decision, not the artefact it is
 recorded in.** Every register in this file names its own Approver column and
 requires a human there. A decision record accepting the same class of thing —
-a risk, a licence outside the allow list, a suppression, an opt-out — needs
+a risk, a suppression, an opt-out — needs
 exactly the same human, in an `approver` field of its own
 ([ADR frontmatter](../../ADR/README.md)), even though an ADR's ordinary
 frontmatter (`status`, `decided`, `owner`, `supersedes`) has no column that
@@ -116,52 +119,54 @@ retries, quarantined tests still run, expiry blocks — are in
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dependency           | Name, as resolved                                                                                                                                                       |
 | Version              | The pinned version or range the register was assessed against                                                                                                           |
-| Licence              | The licence as resolved, not as advertised in documentation                                                                                                             |
+| Licence              | The licence as resolved, as a proper SPDX identifier or expression — not as advertised in documentation, and not a free-text rendering with spaces in place of a hyphen |
 | Direct or transitive | Which, and for a transitive dependency, what pulls it in                                                                                                                |
-| Scope                | Runtime or development — which allow list the row is judged against                                                                                                     |
+| Scope                | Runtime or development — development-only carries no obligation to what ships (gate-6-pull-request.md's decision rule)                                                  |
 | Used by              | The components that depend on it                                                                                                                                        |
 | Why                  | What it is for — the row a reviewer reads when asking whether it is still needed                                                                                        |
-| Decision record      | Required when the licence is outside the allow list, **or when it is on the allow list only because a decision record extended it to add it** — a base entry needs none |
-| Obligations          | What acceptance commits the organisation to — seat or usage limits, redistribution restrictions, attribution, audit rights. Empty for an allow-listed licence           |
+| Decision record      | Required when the licence's table entry does not pass the decision rule on its own — names the ADR carrying the reasoning; a licence that passes needs none             |
+| Obligations          | What acceptance commits the organisation to — seat or usage limits, redistribution restrictions, attribution, audit rights. Empty for a licence that passes on its own  |
 | Expires              | Required for a commercial or purchased licence; the date the acceptance stops being valid                                                                               |
-| Approver             | Required when the licence is outside the allow list                                                                                                                     |
+| Approver             | Required when the licence's table entry does not pass the decision rule on its own                                                                                      |
 
-**A row whose licence reached the allow list by extension names the record
-that extended it.** [Gate 6 check 7](gate-6-pull-request.md#61-revalidation)
-extends the allow list by a code change made alongside the accepting decision
-record, per gate-6-pull-request.md: "the gate reads the allow list, not the
-records... updating the list is how the decision takes effect." That change
-moves a licence from "outside the allow list" to "on it" — the register's own
-literal rule ("Decision record: required when outside the allow list") then
-reads as satisfied for every row citing that licence, even though nothing
-points a reviewer at the record that put it there. It is not: the column is
-also required for a row whose licence is on the allow list **only because of**
-an extension, and it names that same record. A row whose licence was always a
-base entry — the standard's own defaults — still needs none. The check reads
-each allow-list entry's own provenance (base or extension) to tell the two
-apart, not the row alone; the prose above the table naming the ADR is not
-a substitute, because a reviewer reading one row in isolation does not see it.
+**A row whose licence fails the decision rule names the record that accepted
+it — there is no allow list left to extend.** [Gate 6 check
+7](gate-6-pull-request.md#61-revalidation) reads
+[`scripts/licence-table.mjs`](../../../scripts/licence-table.mjs)'s recorded
+facts, not a policy list a decision record used to grow: "permissive" and
+"OSI-approved" are looked up, not chosen, so accepting a licence that fails
+the table's decision rule is a decision about the one dependency that raised
+the question, recorded on that row alone — its own Decision record column
+names the ADR, its own Approver column names the human. Nothing about that
+acceptance reaches a second row citing the same licence; each needs its own.
+A row whose licence passes the decision rule on its own needs neither column.
 
 **Completeness and policy are two different checks, not one job under two
-names.** [Gate 2 check 16](gate-2-commit.md#23-repository-rules) asks whether
-every dependency the lock file resolves — direct and transitive alike, because
-a transitive dependency is exactly the one a manifest diff will not show — has
-a current row in this register. [Gate 6 check 7](gate-6-pull-request.md#61-revalidation)
-asks whether the licence on every one of those rows is on the allow list for
-its scope. Both read the full transitive set: narrowing completeness to direct
-dependencies to keep the commit-time check cheap does not make it a smaller
-version of the same check, it removes the transitive rows the policy check
-depends on — check 16 never asked for them, and check 7 then has nothing to
-compare against the allow list for anything reached through depth. The two
-checks need different tooling for the same reason: completeness is a diff
-against the register, cheap enough to run on every commit that touches a lock
-file; policy is a classification against the allow list, which is what gate 6
-exists to do server-side rather than on every commit.
+names — and both now also check the table has an entry at all.** [Gate 2 check
+16](gate-2-commit.md#23-repository-rules) asks whether every dependency the
+lock file resolves — direct and transitive alike, because a transitive
+dependency is exactly the one a manifest diff will not show — has a current
+row in this register, **and** whether every row's licence has an entry in the
+table (a coverage gap, not a policy failure — see
+[gate-6-pull-request.md](gate-6-pull-request.md#licence-policy-a-table-not-two-allow-lists)).
+[Gate 6 check 7](gate-6-pull-request.md#61-revalidation) asks whether the
+licence on every one of those rows passes the table's decision rule. Both read
+the full transitive set: narrowing completeness to direct dependencies to keep
+the commit-time check cheap does not make it a smaller version of the same
+check, it removes the transitive rows the policy check depends on — check 16
+never asked for them, and check 7 then has nothing to judge for anything
+reached through depth. The two checks need different tooling for the same
+reason: completeness is a diff against the register, cheap enough to run on
+every commit that touches a lock file; policy is a decision-rule evaluation
+against the table, which is what gate 6 exists to do server-side rather than
+on every commit.
 
-**Three artefacts, three jobs, and they are easy to confuse.** The allow list is
-policy: which licences are acceptable. The register is the record: what is
-actually here, under which licence, and why. The published inventory is
-evidence: what a given run resolved. The gate compares the first two; the third
+**Three artefacts, three jobs, and they are easy to confuse.** The table is
+fact: what each licence permits, requires and forbids, with a citation. The
+register is the record: what is actually here, under which licence, and why —
+plus, for the licences that need one, the human decision that accepted this
+dependency specifically. The published inventory is evidence: what a given run
+resolved. The gate reads the first two together to reach a verdict; the third
 proves what the run saw.
 
 **Drift is the failure this catches.** A transitive dependency arriving through
@@ -228,10 +233,13 @@ table.
       they differ, the register is the one that is wrong.
 - [ ] A dependency whose licence cannot be determined appears as blocked, not as
       an empty licence cell.
-- [ ] A dependency licence register row whose licence is on the allow list only
-      by extension names the decision record that extended it — a blank
-      Decision record column is refused, even though the row is otherwise
-      complete and the licence itself passes.
+- [ ] A dependency licence register row whose licence fails the table's
+      decision rule on its own names the decision record and the approver
+      that accepted it — a blank Decision record or Approver column is
+      refused, even though the row is otherwise complete.
+- [ ] A row whose licence has no entry in the licence table is refused with
+      its own finding, distinct from one whose licence has an entry but does
+      not pass the decision rule.
 - [ ] The register has a row for a transitive dependency, not only for the ones
       named in the manifest — completeness (gate 2) and policy (gate 6) both
       read the full resolved set, not the direct one.

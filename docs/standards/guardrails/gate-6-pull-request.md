@@ -19,18 +19,18 @@ evidence but does not block leaves the merge to whoever is impatient.
 
 ## 6.1 Revalidation
 
-| #   | Check                                     | Type        | Fails when                                                                                                                    |
-| --- | ----------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Clean-checkout provenance                 | Integrity   | The pipeline builds anything the repository does not contain                                                                  |
-| 2   | Merge-result build                        | Correctness | The **merge result** fails to build, not merely the branch tip                                                                |
-| 3   | Every blocking local check                | Correctness | Any check from gates 2–5 fails when re-run server-side                                                                        |
-| 4   | Whole-repository build and test           | Correctness | Any component fails, changed or not                                                                                           |
-| 5   | End-to-end tests                          | Correctness | Health checks fail, or an end-to-end test fails, against an environment the pipeline provisioned and destroyed                |
-| 6   | Dependency advisory scan                  | Security    | A dependency carries an advisory at or above the block severity, or one at the push-back severity with no record accepting it |
-| 7   | Dependency licence policy                 | Policy      | A resolved dependency, direct or transitive, carries a licence outside the allow list                                         |
-| 8   | Changed-line coverage                     | Correctness | Coverage of the lines this change added or modified is below the floor                                                        |
-| 9   | Untrusted-run isolation                   | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                           |
-| 10  | Cross-stack dependency scan (osv-scanner) | Security    | osv-scanner reports an advisory with no accepted record, published as SARIF                                                   |
+| #   | Check                                     | Type        | Fails when                                                                                                                                                 |
+| --- | ----------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Clean-checkout provenance                 | Integrity   | The pipeline builds anything the repository does not contain                                                                                               |
+| 2   | Merge-result build                        | Correctness | The **merge result** fails to build, not merely the branch tip                                                                                             |
+| 3   | Every blocking local check                | Correctness | Any check from gates 2–5 fails when re-run server-side                                                                                                     |
+| 4   | Whole-repository build and test           | Correctness | Any component fails, changed or not                                                                                                                        |
+| 5   | End-to-end tests                          | Correctness | Health checks fail, or an end-to-end test fails, against an environment the pipeline provisioned and destroyed                                             |
+| 6   | Dependency advisory scan                  | Security    | A dependency carries an advisory at or above the block severity, or one at the push-back severity with no record accepting it                              |
+| 7   | Dependency licence policy                 | Policy      | A resolved dependency, direct or transitive, carries a licence that has no table entry, or fails the table's decision rule with no recorded human decision |
+| 8   | Changed-line coverage                     | Correctness | Coverage of the lines this change added or modified is below the floor                                                                                     |
+| 9   | Untrusted-run isolation                   | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                                                        |
+| 10  | Cross-stack dependency scan (osv-scanner) | Security    | osv-scanner reports an advisory with no accepted record, published as SARIF                                                                                |
 
 Check 1 is the reason this gate exists in its current form. A local run proves
 the checks pass **on that machine**, with that machine's tool versions, caches
@@ -113,52 +113,106 @@ published either way; the check is what refuses the merge. It also reads a
 different scope than gate 2's completeness check over the same register — see
 [registers: completeness and policy are different checks](registers.md#the-dependency-licence-register).
 
-### Four licence categories, not two
+### Licence policy: a table, not two allow lists
 
-The allow lists are **enumerated identifiers, not adjectives**. "Permissive" and
-"copyleft" are category judgements, and licence classification is the last place
-to improvise one — two implementers will sort the ambiguous cases differently
-and neither will know. A licence is on the list or it is not.
+**Licence facts are recorded once, per licence, with a citation — not
+enumerated onto two allow lists.** Each licence this repository's dependencies
+actually carry has an entry in `scripts/licence-table.mjs`: its SPDX
+identifier, an authoritative reference (the OSI approval page where one
+exists, the licence steward's own text otherwise), whether OSI has approved
+it, and its permissions, conditions and limitations as explicit booleans —
+commercial use, distribution, modification, private use, patent grant and
+sublicensing; notice retention, state-changes disclosure, source disclosure,
+same-licence (share-alike) and network-use disclosure; no trademark grant, no
+warranty, no liability.
 
-| Category                                                         | Examples                                       | Treatment                                          |
-| ---------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------- |
-| **Permissive**                                                   | The runtime allow list                         | Passes                                             |
-| **Weak copyleft**                                                | The development allow list additions           | Passes for build and test only; blocks if it ships |
-| **Strong copyleft, source-available, commercial, dual-licensed** | Everything else                                | Blocks until accepted by decision record           |
-| **Unknown or absent**                                            | No licence file; a scanner reporting `UNKNOWN` | **Blocks. Never treated as unclassified-yet.**     |
+**The decision rule**, mechanical rather than a judgement:
 
-**Unknown is the dangerous one, and it is not a gap in the list.** A dependency
-with no licence is not unlicensed in the permissive sense — it is all rights
-reserved by default, the strictest position there is. A rule written as "block
-what is not on the list" invites an implementation where unknown falls through
-as "not classified yet" and passes. State it as its own blocking condition, and
-test it with a dependency that genuinely has no licence file.
+> A dependency's licence passes without blocking when it is **OSI-approved**
+> and its conditions are **compatible with this repository's own licence** —
+> or the repository declares none. Anything else needs an explicit human
+> decision, recorded on the register row itself.
+
+Three parts, each a recorded fact or a small relation, not an adjective read
+by eye:
+
+- **OSI-approved** is the table entry's own recorded fact, with its
+  `reference` as the citation — not asserted from a licence's reputation.
+- **Permissive**, which the compatibility relation below treats as always
+  compatible, is _derived_ from the recorded conditions: a licence imposing
+  none of source-disclosure, same-licence or network-use-disclosure is
+  permissive. Notice retention alone is permissive.
+- **Compatible** is a relation between the dependency's conditions and this
+  repository's own declared licence (its `package.json` `license` field, the
+  same field `npm ls` and every licence scanner already read), so the same
+  dependency can pass in one repository and block in another — correct, and
+  something a flat allow list could not express. A non-permissive licence
+  that never reaches what ships (development-only scope) has nothing
+  downstream to conflict with either.
+
+**Why this does not contradict the earlier, stricter reading of this
+section.** This gate used to say the allow lists were "enumerated
+identifiers, not adjectives" — that "permissive" and "copyleft" are category
+judgements two implementers would sort differently, and neither would know.
+That objection is sound, and this design answers it rather than overriding
+it: the adjective becomes **data with a citation**. Two people reading one
+entry's `osiApproved: true` and `conditions.sameLicence: false` reach the
+same answer, which is exactly what the enumerated list was protecting — the
+prohibition on improvising a category judgement stands; what changed is that
+the category is now looked up, not guessed. `Artistic-2.0` is the worked
+example: OSI-approved, and easy to wave through on that fact alone, but its
+conditions record `sourceDisclosure: true` — checked against the licence
+text directly, not assumed — so it does not pass on its own for a runtime
+dependency, exactly the ambiguous case the old prohibition was written to
+stop two people from resolving differently.
+
+**A licence with no table entry blocks and asks for one, distinct from
+failing the decision rule.** It is a coverage gap, not a policy judgement:
+nobody has recorded the facts needed to judge it yet, so nobody — not even a
+human decision on the register row — can accept it until the table carries
+an entry with its reference. This is a finding at gate 2 as well as gate 6,
+because you need the entry precisely when a dependency introduces the
+licence, which is when both checks already run
+([registers: completeness and policy are different
+checks](registers.md#the-dependency-licence-register)).
+
+**Unknown or absent is a third, separate case, and it is not a gap in the
+table.** A dependency with no licence is not unlicensed in the permissive
+sense — it is all rights reserved by default, the strictest position there
+is. State it as its own blocking condition — never "no table entry", which
+invites correcting it by adding one, and never "not classified yet", which
+invites it passing once someone gets around to it — and test it with a
+dependency that genuinely has no licence file.
 
 **Source-available licences are the trap.** Some widely used licences are not
-open source and restrict _offering the software as a service_ rather than using
-it. A dependency under one can pass a glance, pass a naive scanner that only
-looks for a licence string, and still forbid precisely what a hosted service
-does with it. They are outside both allow lists deliberately.
+open source and restrict _offering the software as a service_ rather than
+using it. A dependency under one can pass a glance, pass a naive scanner that
+only looks for a licence string, and still forbid precisely what a hosted
+service does with it. `osiApproved: false` catches the ones outside OSI's
+list; a source-available licence OSI has never been asked to approve reads
+the same way a copyleft one does here — blocked, pending a human decision
+that names what the licence actually restricts.
 
 **A commercial acceptance records more than the licence.** Purchased
 dependencies carry obligations a licence identifier does not express: seat or
 usage limits, redistribution restrictions, renewal dates, audit clauses. The
-decision record names them, and it **carries an expiry** — a purchased licence
-that lapses becomes an unlicensed dependency in production, and nothing else in
-this standard would notice.
+register row's own Decision record and Obligations columns name them, and
+Expires **carries an expiry** — a purchased licence that lapses becomes an
+unlicensed dependency in production, and nothing else in this standard would
+notice.
 
-**A licence decision is an architecture decision record, not a register row.**
-Accepting a licence outside the allow list, or changing the allow list itself,
-binds every future dependency and every consumer of what is shipped — it
-outlives the change that raised it, which is precisely the boundary between a
-suppression and a decision record. Record the licence, the dependency that
-raised the question, the obligations accepted, the alternatives rejected and why
-they were rejected. A register row cannot carry that, and a row that tries makes
-the reasoning unfindable a year later, when the question is asked again about a
-different dependency.
-
-The gate reads the allow list, not the records: the decision record is the
-justification, and updating the list is how the decision takes effect.
+**A licence decision is recorded on the register row, naming an architecture
+decision record — there is no code-level allow list left to extend.** Once
+"permissive" is derived data instead of list membership, accepting a licence
+that fails the decision rule is a decision about _this dependency_, not a
+change to what the table considers permissive (the table's facts are not
+anyone's to decide — OSI approval either happened or it did not). The row's
+own **Decision record** column names the ADR carrying the reasoning — the
+obligations accepted, the alternatives rejected and why — and its **Approver**
+column names the human who accepted it; both blank is a block, both filled is
+what unblocks that row and only that row. The next dependency under the same
+licence still needs its own row filled in — nothing here changes globally
+the way extending an allow list used to.
 
 ### Coverage and untrusted runs
 
@@ -326,27 +380,40 @@ pipeline refuses the merge.
       repository total is comfortably above its own.
 - [ ] A run triggered from a fork receives no deployment or publishing
       credentials, and the checks still run.
-- [ ] A dependency with an unacceptable licence is refused even when it has no
-      known advisory.
+- [ ] A dependency whose licence does not pass the decision rule is refused
+      even when it has no known advisory.
 - [ ] A dependency with **no licence file at all** is refused, and the refusal
       says unknown rather than reporting an empty licence and passing.
+- [ ] A dependency whose licence has no entry in `scripts/licence-table.mjs`
+      is refused, naming the licence and asking for an entry with its
+      reference — distinct from a licence that has an entry and still fails
+      the decision rule.
 - [ ] A source-available licence is refused for a shipped component, however
-      open it looks.
-- [ ] A weak-copyleft dependency passes for build and test and is refused when
+      open it looks — `osiApproved: false` catches it the same way a
+      copyleft licence is caught.
+- [ ] A non-permissive dependency (source-disclosure, same-licence or
+      network-use-disclosure) passes for build and test and is refused when
       it moves into what ships.
 - [ ] Every commercial acceptance records its obligations and an expiry, and an
       expired one fails the gate.
 - [ ] The licence check reads the transitive set, not only direct dependencies.
-- [ ] A runtime dependency and a development-only one with the same licence are
-      judged against different lists.
-- [ ] Moving a dependency from development to runtime re-runs the licence check
-      against the stricter list.
+- [ ] A runtime dependency and a development-only one carrying the same
+      licence can reach different verdicts, because scope changes what
+      "compatible" means, not because they are judged against different lists.
+- [ ] Moving a dependency from development to runtime re-runs the licence
+      check, and a previously-passing non-permissive dependency can now block.
+- [ ] The same dependency passes in a repository with no declared licence and
+      blocks in one whose licence conflicts — the compatibility relation is
+      evaluated, not a membership test.
 - [ ] A pull request touching no dependency skips both dependency checks
       **visibly**, naming the reason.
-- [ ] The advisory scan also runs on a schedule, and a newly published advisory
-      is caught without anyone changing a dependency.
-- [ ] Every entry on the licence allow list traces to a decision record naming
-      the obligations accepted and the alternatives rejected.
+- [ ] The advisory scan also runs on a schedule; the licence table's own
+      re-validation against its references is invoked on demand at gate 7,
+      never on a schedule — a licence's text and OSI classification do not
+      drift the way an advisory database does.
+- [ ] Every table entry cites an authoritative reference that resolves, and
+      every row whose licence needed a human decision names that decision
+      record and its approver on the row itself.
 - [ ] No lock file in the change was regenerated without a manifest change or a
       stated upgrade.
 - [ ] A check that fails but is not in the required list is identified — that is
