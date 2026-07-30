@@ -14,6 +14,7 @@ import {
   writeFileSync,
   readFileSync,
   readdirSync,
+  existsSync,
   rmSync,
   symlinkSync,
 } from "node:fs";
@@ -1428,6 +1429,31 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
   assert.equal(skips.length, 1);
   assert.match(skips[0], /osv-scanner/);
   assert.match(skips[0], /not on PATH/);
+});
+
+test("regression guard: hooks/ carries a README.md indexing every file in it and in hooks/lib", () => {
+  // Fix 20. file-classes.md: "The directory carries a README.md indexing
+  // every script — what it is for, and why it exists." scripts/ has one;
+  // hooks/ did not, in this toolkit or in anything bootstrapped from it. A
+  // README that exists but silently falls behind a new hook is the same gap
+  // by a slower route, so this checks every current file is actually named
+  // in it rather than only that the file exists.
+  const readmePath = join(ROOT, "hooks", "README.md");
+  assert.ok(existsSync(readmePath), "hooks/README.md is missing");
+  const readme = readFileSync(readmePath, "utf8");
+  const hooksDir = join(ROOT, "hooks");
+  const topLevel = readdirSync(hooksDir).filter((f) => f.endsWith(".mjs"));
+  const libFiles = readdirSync(join(hooksDir, "lib")).filter((f) =>
+    f.endsWith(".mjs"),
+  );
+  assert.ok(topLevel.length > 0 && libFiles.length > 0);
+  for (const file of [...topLevel, ...libFiles]) {
+    assert.match(
+      readme,
+      new RegExp(file.replace(/\./g, "\\.")),
+      `hooks/README.md does not mention ${file}`,
+    );
+  }
 });
 
 test("regression guard: every GitHub Actions `uses:` in every workflow is pinned to a commit SHA, not a mutable tag", () => {
