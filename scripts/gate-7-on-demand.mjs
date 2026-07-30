@@ -26,6 +26,11 @@ import {
 } from "./check-script-wiring.mjs";
 import { checkBranchProtection } from "./check-branch-protection.mjs";
 import { checkRepositoryFeatures } from "./check-repository-features.mjs";
+import {
+  checkToolingClassDeclared,
+  checkToolingCoverageLeakage,
+  complexityScanFiles,
+} from "./check-tooling-class.mjs";
 
 const findings = [];
 const skips = [];
@@ -142,8 +147,29 @@ if (have("semgrep", ["--version"])) {
 // span artefact above. Excluding JavaScript to avoid the artefact would have
 // hidden the two true findings, which is the worse trade. Confirm a span against
 // the source before splitting a function to satisfy it.
-if (have("lizard", ["--version"])) {
-  const lz = run("lizard", ["-C", "15", "-L", "100", "-a", "7", "."]);
+//
+// Fix 45 — this used to hand lizard "." unfiltered, scanning every tracked
+// file regardless of class. That had no visible effect here only because
+// every file in this toolkit's own repository is `production`
+// (file-classes.md's stated carve-out for a repository whose product is the
+// tooling); ported to a consuming repository it would scan a `tooling`-
+// classed gate script too, silently reintroducing exactly what the class was
+// declared to exclude (thresholds.md: the complexity backstop's own scope is
+// "Production and test code", never tooling). complexityScanFiles derives
+// the file list from each file's own declared class instead.
+const complexityFiles = complexityScanFiles();
+if (!complexityFiles.length) {
+  skips.push("repository-wide size scan — no production or test file tracked");
+} else if (have("lizard", ["--version"])) {
+  const lz = run("lizard", [
+    "-C",
+    "15",
+    "-L",
+    "100",
+    "-a",
+    "7",
+    ...complexityFiles,
+  ]);
   if (lz.status !== 0) {
     add(
       "repository-wide size scan (lizard)",
@@ -154,6 +180,24 @@ if (have("lizard", ["--version"])) {
   }
 } else {
   skips.push("repository-wide size scan — lizard not on PATH");
+}
+
+// --- Size: tooling file class (fix 45; file-classes.md, "The class is per
+// repository, not per filename") --------------------------------------------
+// Two checks the class attribute never had exercised against it before:
+// a consuming repository with ported gate scripts and no file classed
+// `tooling` anywhere (checkToolingClassDeclared — this toolkit's own
+// repository is exempt, the same carve-out complexityScanFiles above
+// relies on), and a `tooling`-classed file that still shows up in the
+// coverage report this run's own `test:coverage` script produced
+// (checkToolingCoverageLeakage — a visible skip, not a finding, when no
+// report exists yet in this pass).
+{
+  for (const f of checkToolingClassDeclared())
+    add(f.check, f.path, f.problem, f.remedy);
+  const { findings: leaked, skips: leakSkips } = checkToolingCoverageLeakage();
+  for (const f of leaked) add(f.check, f.path, f.problem, f.remedy);
+  skips.push(...leakSkips);
 }
 
 // --- Documentation: link and anchor integrity ---

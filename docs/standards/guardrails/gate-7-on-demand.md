@@ -130,7 +130,8 @@ tell rather than guessing.
 | Repository-wide secret scan   | `npx secretlint '**/*'`                                                                                            |
 | History secret scan           | `npx secretlint --secretlintignore .gitignore` over `git rev-list --all` checkouts, or a dedicated history scanner |
 | Repository-wide analysis      | `semgrep --config auto .`                                                                                          |
-| Repository-wide size scan     | `lizard -C 15 -L 100 -a 7 .`                                                                                       |
+| Repository-wide size scan     | `lizard -C 15 -L 100 -a 7` over the production-and-test file list, by class — not a bare `.`                       |
+| Tooling file class            | `node scripts/check-tooling-class.mjs`                                                                             |
 | Link and anchor integrity     | The repository's own docs command                                                                                  |
 | Long-path support             | `git config --get core.longpaths`                                                                                  |
 | Large-file storage            | `git lfs env` · `git lfs track`                                                                                    |

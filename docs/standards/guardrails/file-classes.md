@@ -127,10 +127,25 @@ from a hunch about the path.
 - [ ] A file classed `tooling` is absent from a packaged or deployed
       artefact — checked by inspecting the artefact's contents, not the source
       tree.
-- [ ] A file classed `tooling` does not appear in the coverage report.
+- [ ] A file classed `tooling` does not appear in the coverage report — a
+      `tooling`-classed file written in the product's own language, not only
+      one lizard or the coverage tool happens to skip by extension or import
+      scope, is proof: `scripts/check-tooling-class.mjs`'s own fixtures cover
+      exactly this case (fix 45; audit 12 found the class-exclusion machinery
+      had never been exercised against a real `tooling`-classed file).
 - [ ] The same script is classed `tooling` in a repository that consumes this
       standard, and `production` in a repository whose product is the tooling
       itself.
+- [ ] A repository that consumes this standard and carries ported gate or
+      check scripts has at least one file classed `tooling` — a repository
+      with such scripts and zero, checked by `scripts/check-tooling-class.mjs`
+      (`checkToolingClassDeclared`), is the audit-12 defect: the rule stated
+      above and nothing enforcing it.
+- [ ] A check that decides what to scan or measure by file class does not
+      substitute a file extension or language for it — an extension filter
+      only accidentally excludes a `tooling`-classed file that happens to be
+      written in a different language from the product; one in the same
+      language passes straight through it.
 - [ ] A `tooling` directory has a `README.md` indexing what each script is
       for and why it exists.
 - [ ] A `tooling` directory's instruction file, where one exists, carries
