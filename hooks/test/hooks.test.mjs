@@ -1431,6 +1431,39 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
   assert.match(skips[0], /not on PATH/);
 });
 
+test("regression guard: hooks/lib/run.mjs's spawn-shell-true and detect-child-process findings carry a suppression marker, and each is registered", () => {
+  // Fix 21. `semgrep --config auto --error hooks/lib/run.mjs` found three
+  // live, unsuppressed findings (one spawn-shell-true, two
+  // detect-child-process) with no inline suppression marker and no register
+  // row. Closed by registering, not by rewriting the code to dodge the
+  // pattern: spawn-shell-true is a genuine OS constraint on Windows,
+  // verified directly — even a fully resolved .cmd path still returns
+  // EINVAL without a shell, and detect-child-process is inherent to being a
+  // generic process-spawning helper.
+  //
+  // Asserting only "no unregistered marker finding" would pass just as well
+  // on the original, unfixed file — it has no marker at all, so there is
+  // nothing for checkSuppressions to call unregistered. This first checks
+  // the markers actually exist, then that each is registered — the real
+  // gate 2 check, not a re-implementation of it, over the real staged file.
+  // NOSEMGREP is built by concatenation (declared above): a literal marker
+  // string here would flag this test file's own source, the same reason
+  // ESLINT_DISABLE and SECRETLINT_DISABLE above it are built the same way.
+  const content = readFileSync(join(ROOT, "hooks", "lib", "run.mjs"), "utf8");
+  assert.match(
+    content,
+    new RegExp(`${NOSEMGREP}:.*spawn-shell-true`),
+    "the spawn-shell-true finding has no suppression marker",
+  );
+  assert.match(
+    content,
+    new RegExp(`${NOSEMGREP}:.*detect-child-process`),
+    "the detect-child-process finding has no suppression marker",
+  );
+  const findings = checkSuppressions(["hooks/lib/run.mjs"]);
+  assert.deepEqual(findings, []);
+});
+
 test("regression guard: hooks/ carries a README.md indexing every file in it and in hooks/lib", () => {
   // Fix 20. file-classes.md: "The directory carries a README.md indexing
   // every script — what it is for, and why it exists." scripts/ has one;

@@ -1,3 +1,4 @@
+// cspell:ignore symref
 // Cross-platform process helpers for the gate hooks.
 //
 // npm ships its executables as `.cmd` shims on Windows, and Node (since the
@@ -35,8 +36,19 @@ export function run(command, args, options = {}) {
     // cmd.exe lets PATHEXT resolve .cmd/.exe/.bat uniformly, so npx, semgrep
     // and any other PATH tool all work the same way. Without it a tool reports
     // unavailable when it is installed — the silent green a gate must never give.
+    //
+    // Verified, not assumed (fix 21): spawnSync(fullPathTo("npm.cmd"), args,
+    // { shell: false }) still returns EINVAL on this platform — Windows has
+    // no native way to execute a .cmd/.bat file's content without a shell
+    // interpreter, so resolving the path more precisely cannot remove the
+    // shell option here the way it can for a real .exe. docs/registers/
+    // suppression-register.md carries the accepted-risk row: args are built
+    // by the gates themselves (this file's own top comment), never from
+    // untrusted input, which is the assumption `shell: true` rests on.
+    // nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true,javascript.lang.security.detect-child-process.detect-child-process
     return spawnSync(command, args, { ...base, shell: true });
   }
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
   return spawnSync(command, args, base);
 }
 
