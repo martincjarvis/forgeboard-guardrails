@@ -26,6 +26,21 @@
 // deliberate, not an oversight to imitate: this repository is the
 // canonical corpus, not an instantiated copy (see above) — do not copy the
 // absence of wiring along with the file.
+//
+// Fix 46 — gate 7 alone is not enough either. A bootstrapped repository
+// with this wired only there reported 60 findings across 13 gate-reference
+// documents and never blocked a merge on any of them: the sweep runs
+// unconditionally and only ever reports, by design (a stack added later
+// touches no file under docs/standards/, and gate 7 is what notices that
+// regardless). ALSO wire it into that repository's own gate 6, blocking,
+// whenever the pull request's range touches `docs/standards/` — the same
+// change-triggered shape gate-6-pull-request.mjs's own checks 6 and 7
+// already use (a `changedFiles(range)` read, not a second range comparison
+// invented for this one check), documented in full at
+// docs/standards/docs-style.md#enforcement and
+// docs/standards/guardrails/change-triggered-checks.md. A pull request that
+// never touches the instantiated corpus is not asked about it; one that
+// does and leaves it non-clean does not merge that way.
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { trackedFiles } from "./lib.mjs";

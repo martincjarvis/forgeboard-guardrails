@@ -11,15 +11,16 @@ fires. A few read something that only moves when a specific input moves, and
 running those every time is waste that trains people to skip the gate. **A check
 runs when its inputs change, and reports a visible skip when they have not.**
 
-| Check                       | Runs when                                                                          | Not when                                              |
-| --------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Dependency lock sync        | A dependency manifest is in the change                                             | Any other file changed                                |
-| Lock file regeneration      | A manifest changed, or a deliberate upgrade is stated — enforced by gate 2 check 3 | Routinely, and never as a step in an unrelated change |
-| Dependency licence register | A lock file is in the change                                                       | No lock file changed                                  |
-| Dependency licence policy   | The resolved dependency set changed — a lock file diff                             | The dependency set is untouched                       |
-| Dependency advisory scan    | The resolved dependency set changed, **or** on a schedule                          | —                                                     |
-| Licence table re-validation | Invoked (adding a licence, or on demand)                                           | Never on a schedule                                   |
-| Whole-repository scan       | Invoked, or on a schedule                                                          | Per commit                                            |
+| Check                       | Runs when                                                                                   | Not when                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Dependency lock sync        | A dependency manifest is in the change                                                      | Any other file changed                                                                          |
+| Lock file regeneration      | A manifest changed, or a deliberate upgrade is stated — enforced by gate 2 check 3          | Routinely, and never as a step in an unrelated change                                           |
+| Dependency licence register | A lock file is in the change                                                                | No lock file changed                                                                            |
+| Dependency licence policy   | The resolved dependency set changed — a lock file diff                                      | The dependency set is untouched                                                                 |
+| Dependency advisory scan    | The resolved dependency set changed, **or** on a schedule                                   | —                                                                                               |
+| Licence table re-validation | Invoked (adding a licence, or on demand)                                                    | Never on a schedule                                                                             |
+| Whole-repository scan       | Invoked, or on a schedule                                                                   | Per commit                                                                                      |
+| Corpus instantiation tuning | The range touches `docs/standards/` — blocking at gate 6, **and** unconditionally at gate 7 | Neither trigger fires the other's absence away — gate 7's sweep runs regardless of what changed |
 
 ## Licence and advisory differ, and the difference matters
 
@@ -46,6 +47,23 @@ alongside the advisory scan's schedule would cost a run against nothing that
 moves and would imply the two are the same kind of check; they are not, for
 exactly the reason the licence check above is purely change-triggered while
 the advisory check also runs on a schedule.
+
+## A check can be both change-triggered and unconditional at once
+
+Corpus instantiation tuning is the shape the advisory scan is not quite: the
+advisory check is change-triggered **plus** scheduled, two runs of the _same_
+check at two different tiers. This one is two different _consequences_ at two
+different tiers. Gate 7's sweep runs every time, unconditionally, and only
+ever reports — it exists so a stack added later, which touches no file under
+`docs/standards/` at all, still gets noticed. Gate 6 asks a narrower question
+only when the range gives it a reason to: did this change touch the
+instantiated corpus, and if so, did it leave it clean? A change that never
+touches `docs/standards/` is not asked, and nothing about that skip weakens
+gate 7's own sweep — the two do not substitute for each other.
+[docs-style.md's enforcement section](../docs-style.md#enforcement) is the
+full account, including why a bootstrapped repository missing the gate 6 half
+is the exact failure an audit already found: findings reported, nothing
+blocking on them.
 
 ## Staying current is itself scheduled
 

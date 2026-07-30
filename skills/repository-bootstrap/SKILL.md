@@ -143,11 +143,18 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    **Wire what you copy, in the same commit as the copy.** A reference
    checker is not adopted by sitting in the tooling directory:
    `scripts/check-standards-instantiation.mjs` must be copied into this
-   repository's own tooling directory **and** wired into this repository's
-   own gate 7 — the file's own header states this, and
-   `scripts/check-script-wiring.mjs` reports it as a finding if the wiring
-   is skipped. Run it once by hand against the freshly instantiated
-   `docs/standards/` before moving on, to confirm the wiring took.
+   repository's own tooling directory, wired into this repository's own
+   gate 7 **and** wired into gate 6, blocking, whenever the pull request's
+   range touches `docs/standards/` — the file's own header states both, and
+   `scripts/check-script-wiring.mjs` reports the gate 7 half as a finding if
+   its wiring is skipped. Run it once by hand against the freshly
+   instantiated `docs/standards/` before moving on, to confirm the wiring
+   took. Gate 7 alone is not the finish line: it sweeps unconditionally and
+   only ever reports, so a corpus left un-tuned reads as findings nobody
+   ever has to clear. This step is not done while
+   `node <tooling-dir>/check-standards-instantiation.mjs` reports a finding
+   — tune the flagged document, or record why the finding stands (a
+   deliberate exception, not an oversight), before moving on.
 
    Skip what does not apply (no deployment strategy for a repository with
    nothing to release) and record the omission, the same as any other
@@ -163,6 +170,15 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    commit that created `docs/standards/`, or names the follow-up commit
    tuning is deferred to. A corpus with no removal recorded and no named
    follow-up is the failure above, recurring.
+
+   **Checkpoint, answerable by running:** this step is not finished while
+   `node <tooling-dir>/check-standards-instantiation.mjs` reports a finding
+   against the freshly instantiated `docs/standards/` — zero findings, or
+   every remaining one named in the bootstrap report with the reason it
+   stands, not merely disclosed as still-open work. A completion claim for
+   this step that does not cite this command's own output is exactly what
+   [never claim more than was checked](../../docs/standards/guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)
+   forbids.
 
 ## What done looks like
 

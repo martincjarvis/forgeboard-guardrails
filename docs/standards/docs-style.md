@@ -272,7 +272,7 @@ Two of the seven instantiation checks are the exception: a stack name outside
 the derived list is a text search, and a multi-component section present at
 one component is a heading search gated on a count. Neither requires reading
 prose for tone or completeness, which is why `scripts/check-standards-instantiation.mjs`
-exists. Porting it is two steps, not one:
+exists. Porting it is three steps, not one:
 
 1. Copy it into the consuming repository's own tooling directory.
 2. **Wire it into that repository's own gate 7**, the same commit as the copy —
@@ -280,6 +280,24 @@ exists. Porting it is two steps, not one:
    nothing, which is exactly the gap a mechanical checker existing and never
    running left open once already; `scripts/check-script-wiring.mjs` reports a
    check script no gate invokes as a finding for this reason.
+3. **Also wire it into that repository's own gate 6, blocking, whenever the
+   pull request's range touches `docs/standards/`.** Gate 7's sweep is
+   unconditional and reports on every run regardless of what changed — right
+   for catching a stack added later that the corpus never mentioned, since
+   nothing else would notice that — but it never blocks a merge on its own.
+   A pull request that edits the instantiated corpus and leaves it non-clean
+   should not merge leaving it that way; one that never touches
+   `docs/standards/` is not asked about it. This is the same change-triggered
+   shape [change-triggered-checks.md](guardrails/change-triggered-checks.md)
+   already states for a dependency check: the trigger is "did the range touch
+   the thing this check reads", computed the same way gate-6-pull-request.mjs's
+   own checks 6 and 7 already compute theirs — a `changedFiles(range)` read,
+   not a second range comparison invented for this one check.
+
+   A bootstrapped repository that skipped this step is the observed failure:
+   audited, gate 7 reported 60 findings across 13 gate-reference documents and
+   never blocked, because nothing was wired to ask at the point a change
+   could have kept the corpus clean.
 
 Run it there, against that repository's **own** instantiated `docs/standards/`.
 It is not run against this corpus's own `docs/standards/`: this repository is
@@ -325,9 +343,11 @@ requirement it stands in for.
 
 The seven checks below always apply to an instantiated repository's copy —
 they verify that tuning happened, so they are never among the content tuning
-removes. Run them at adoption and at
+removes. Run them at adoption and unconditionally at
 [gate 7](guardrails/gate-7-on-demand.md), the same as the rest of this
-section:
+section — and, for the two mechanical checks above, additionally blocking at
+[gate 6](guardrails/gate-6-pull-request.md) whenever the change touches
+`docs/standards/`:
 
 - [ ] Every instantiated standard applies only to the stacks the
       repository's own manifests declare — a language, package manager or
@@ -359,6 +379,12 @@ section:
       checks, what a refusal says, and what the reader does next.
 - [ ] A check the repository cannot run is named as such, with the gate that
       covers it instead — never silently absent.
+- [ ] A pull request that touches `docs/standards/` is blocked at gate 6 while
+      either mechanical instantiation check reports a finding — reported at
+      gate 7 is not enough, and a change that never touches `docs/standards/`
+      is not asked about it. A repository whose gate 6 does not have this
+      wired has the failure Audit 12 found: 60 findings reported at gate 7,
+      nothing ever blocking on them.
 
 ## References
 
