@@ -132,6 +132,7 @@ tell rather than guessing.
 | Repository-wide analysis      | `semgrep --config auto .`                                                                                          |
 | Repository-wide size scan     | `lizard -C 15 -L 100 -a 7` over the production-and-test file list, by class — not a bare `.`                       |
 | Tooling file class            | `node scripts/check-tooling-class.mjs`                                                                             |
+| Tooling test suite exists     | `node scripts/check-tooling-class.mjs` (same command — `checkToolingTestSuiteExists`)                              |
 | Link and anchor integrity     | The repository's own docs command                                                                                  |
 | Long-path support             | `git config --get core.longpaths`                                                                                  |
 | Large-file storage            | `git lfs env` · `git lfs track`                                                                                    |
@@ -197,6 +198,11 @@ caught it before the cycle called itself done simply was not run.
       history scan, and the response revokes it rather than only removing it.
 - [ ] The repository-wide security scan has been run at least once, and its date
       is recorded.
+- [ ] A repository carrying `tooling`-classed gate or check scripts has at
+      least one `test`-classed file naming one of them — `node
+    scripts/check-tooling-class.mjs` (`checkToolingTestSuiteExists`) is the
+      mechanical form; the toolkit's own repository is exempt, the same
+      carve-out `checkToolingClassDeclared` already applies.
 - [ ] Long-path support is enabled, and a deep path clones and builds.
 - [ ] `.gitattributes` declares text normalisation, and binary files are marked
       binary so they are never mangled by it.

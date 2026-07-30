@@ -29,6 +29,7 @@ import { checkRepositoryFeatures } from "./check-repository-features.mjs";
 import {
   checkToolingClassDeclared,
   checkToolingCoverageLeakage,
+  checkToolingTestSuiteExists,
   complexityScanFiles,
 } from "./check-tooling-class.mjs";
 
@@ -198,6 +199,12 @@ if (!complexityFiles.length) {
   const { findings: leaked, skips: leakSkips } = checkToolingCoverageLeakage();
   for (const f of leaked) add(f.check, f.path, f.problem, f.remedy);
   skips.push(...leakSkips);
+  // Fix 52 — testing-strategy.md's own tooling-suite requirement, stated in
+  // full and never checked: a repository carrying tooling-classed gate
+  // scripts with nothing that tests them is a finding, the same tier as the
+  // class-declaration check just above.
+  for (const f of checkToolingTestSuiteExists())
+    add(f.check, f.path, f.problem, f.remedy);
 }
 
 // --- Documentation: link and anchor integrity ---

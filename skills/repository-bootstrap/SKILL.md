@@ -50,6 +50,16 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    configured — wiring gate 5 or a release gate against a suite that does not
    exist yet just moves the failure, it does not prevent it.
 
+   **Checkpoint, answerable by running:** once step 7 has ported any gate or
+   check scripts, this step is not finished while
+   `node <tooling-dir>/check-tooling-class.mjs` reports the tooling-suite
+   finding — testing-strategy.md's own requirement ("a repository carrying
+   ported gate or check scripts runs a `tooling tests` suite against them")
+   is text nobody implemented once already (audit 13: 26 `tooling`-classed
+   scripts, no test file, no job, and nothing positioned to notice); a
+   completion claim for this step names this command's own clean run, not
+   that a test file exists somewhere.
+
 5. **Logging and diagnostics.** Load `docs/standards/logging-diagnostics.md`'s
    enforcement boundary section and the matching stack reference under
    `skills/logging-review/reference/` (`dotnet.md` or `react-ts.md`) when
