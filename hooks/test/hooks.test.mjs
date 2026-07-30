@@ -609,10 +609,10 @@ test("eslint --max-warnings 0 refuses a rule configured at its own default (warn
     "junction",
   );
 
-  const clean = spawnSync(
+  const clean = run(
     "npx",
     ["eslint", "--no-config-lookup", "--rule", "no-var:warn", "warn.mjs"],
-    { cwd: dir, encoding: "utf8", shell: true },
+    { cwd: dir },
   );
   assert.equal(
     clean.status,
@@ -620,7 +620,7 @@ test("eslint --max-warnings 0 refuses a rule configured at its own default (warn
     "a warn-severity rule alone must not fail the run — otherwise this is not testing --max-warnings",
   );
 
-  const gated = spawnSync(
+  const gated = run(
     "npx",
     [
       "eslint",
@@ -631,7 +631,7 @@ test("eslint --max-warnings 0 refuses a rule configured at its own default (warn
       "0",
       "warn.mjs",
     ],
-    { cwd: dir, encoding: "utf8", shell: true },
+    { cwd: dir },
   );
   assert.notEqual(
     gated.status,
