@@ -1431,6 +1431,33 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
   assert.match(skips[0], /not on PATH/);
 });
 
+test("regression guard: gate 7 reports, rather than crashes, when package.json is absent", () => {
+  // Fix 16 follow-up — caught by running `npm run gate:7` before declaring
+  // the fix cycle done, per fix 17's own rule. The quality-script wiring
+  // audit read package.json unconditionally; check-refusal-proofs.mjs's own
+  // semgrep fixture builds a scratch repository with no package.json (it
+  // exists only to isolate the semgrep step), so gate 7 threw before it
+  // ever reached semgrep — the refusal-proof audit reported the semgrep
+  // check as "does not refuse" for a reason that had nothing to do with
+  // semgrep. .gitattributes is created here for the same reason the real
+  // fixture creates one: gate 7's workspace-capability check already reads
+  // it unconditionally, and this test is about the package.json read, not
+  // that pre-existing one.
+  const dir = scratchRepo();
+  writeFileSync(join(dir, ".gitattributes"), "* text=auto eol=lf\n");
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/gate-7-on-demand.mjs", dir);
+  assert.equal(
+    r.status,
+    0,
+    "gate 7 reports and never blocks — it must not exit non-zero, let alone crash",
+  );
+  assert.match(
+    r.stderr,
+    /quality-script wiring.*package\.json missing or unparseable/,
+  );
+});
+
 test("regression guard: hooks/lib/run.mjs's spawn-shell-true and detect-child-process findings carry a suppression marker, and each is registered", () => {
   // Fix 21. `semgrep --config auto --error hooks/lib/run.mjs` found three
   // live, unsuppressed findings (one spawn-shell-true, two

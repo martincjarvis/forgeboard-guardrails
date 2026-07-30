@@ -288,9 +288,25 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
 // that no gate invokes and no on-demand declaration covers reads as a
 // check the repository runs when nothing runs it — worse than an absent
 // script. Also a wiring property, also reported rather than blocked.
+//
+// package.json may not exist or may not parse — a scratch repository built
+// to isolate one check (this module's own refusal-proof fixtures do exactly
+// this) has no reason to carry one, and a gate crashing on a missing file
+// it does not itself require is worse than the finding it would otherwise
+// report. Read the same way the installation check below reads its own
+// config files: try, and report rather than throw.
 {
-  const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-  const { wired, onDemand, unwired } = checkScriptWiring(pkg.scripts);
+  let pkg = null;
+  try {
+    pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  } catch {
+    skips.push(
+      "quality-script wiring — package.json missing or unparseable, check skipped",
+    );
+  }
+  const { wired, onDemand, unwired } = pkg
+    ? checkScriptWiring(pkg.scripts)
+    : { wired: [], onDemand: [], unwired: [] };
   for (const s of unwired) {
     add(
       "quality-script wiring",
