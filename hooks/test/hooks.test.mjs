@@ -36,7 +36,12 @@ import {
   RUNTIME_ALLOW_EXTENSIONS,
   evaluateRegisterRow,
 } from "../../scripts/check-licence-policy.mjs";
-import { checkSuppressions } from "../../scripts/check-suppressions.mjs";
+import {
+  checkSuppressions,
+  evaluateRegisterRows,
+  pendingSuppressionApprovals,
+  unapprovedSuppressionFindings,
+} from "../../scripts/check-suppressions.mjs";
 import {
   normalizeSarifPaths,
   filterSuppressedSarif,
@@ -1307,7 +1312,7 @@ test("suppression check: a registered marker passes; an unregistered one is refu
   writeFileSync(
     join(dir, "docs", "registers", "suppression-register.md"),
     REGISTER_HEADER +
-      "| no-console | ok.mjs | needed for the CLI banner | never | Someone |\n",
+      "| no-console | ok.mjs | needed for the CLI banner | drop once the banner is removed | Someone |\n",
   );
   writeFileSync(
     join(dir, "ok.mjs"),
@@ -1329,16 +1334,240 @@ test("suppression check: a registered marker passes; an unregistered one is refu
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("suppression check: a marker naming more than one rule is refused as broadened", () => {
+test("fix 33: a marker naming two rules checks each independently — a registered one passes, an unregistered one is refused by name", () => {
+  // bypass-and-exceptions.md, restated by fix 36: multiple rules on one line
+  // are legal (two analysers, or one rule firing twice); what is forbidden
+  // is a marker naming NO rule. The old behaviour — refusing the whole
+  // marker as "broadened" the moment it named more than one rule — is
+  // exactly the count-based misreading fix 36 corrects.
   const dir = scratchRepo();
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
   writeFileSync(
-    join(dir, "broad.mjs"),
+    join(dir, "docs", "registers", "suppression-register.md"),
+    REGISTER_HEADER +
+      "| rule-a | two.mjs | needed here | drop once rule-a is fixed | Someone |\n",
+  );
+  writeFileSync(
+    join(dir, "two.mjs"),
     `// ${ESLINT_DISABLE}-next-line rule-a, rule-b\n`,
   );
   git(dir, ["add", "-A"]);
-  const r = runScript("scripts/check-suppressions.mjs", dir, ["broad.mjs"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["two.mjs"]);
+  assert.equal(r.status, 2, "rule-b has no register row");
+  assert.match(r.stderr, /two\.mjs:1/);
+  assert.match(r.stderr, /`rule-b` has no register row/);
+  assert.doesNotMatch(
+    r.stderr,
+    /`rule-a` has no register row/,
+    "rule-a's row covers it",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("fix 36: an unregistered rule at a multi-rule site names the count in the finding, so a reviewer sees the escalation without counting rows", () => {
+  const dir = scratchRepo();
+  writeFileSync(
+    join(dir, "two.mjs"),
+    `// ${ESLINT_DISABLE}-next-line rule-a, rule-b\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["two.mjs"]);
   assert.equal(r.status, 2);
-  assert.match(r.stderr, /does not name a single rule/);
+  assert.match(r.stderr, /\(2 rules suppressed at this site\)/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("fix 33: a marker naming no rule at all is refused as a blanket suppression", () => {
+  const dir = scratchRepo();
+  writeFileSync(join(dir, "blanket.mjs"), `// ${ESLINT_DISABLE}-next-line\n`);
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["blanket.mjs"]);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /names no rule/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("fix 33: hooks/lib/run.mjs's real two-rule no-semgrep-style marker — both rules are extracted and independently matched; removing one row is refused naming that rule", () => {
+  // Reproduces the live defect named in fix brief 7: the old regex, matching
+  // the "no" + "semgrep" directive followed by `(?::\s*([A-Za-z0-9._-]+))?`,
+  // has no comma in its character class, so on a comma-separated marker it
+  // silently stops capturing at the
+  // first rule and never sees the second — the second rule then passes with
+  // no register row ever being checked for it, not merely "trusted": a
+  // finding is never even considered. This constructs the exact line shape
+  // from hooks/lib/run.mjs:48 with only the FIRST rule registered, so a
+  // fixed parser must refuse the commit naming the second rule by name; the
+  // broken regex would have reported zero findings here.
+  const dir = scratchRepo();
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "suppression-register.md"),
+    REGISTER_HEADER +
+      "| javascript.lang.security.audit.spawn-shell-true.spawn-shell-true | run.mjs | Windows .cmd shim needs a shell | Node ships a shell-free way to run .cmd | Someone |\n",
+  );
+  writeFileSync(
+    join(dir, "run.mjs"),
+    `// ${NOSEMGREP}: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true,javascript.lang.security.detect-child-process.detect-child-process\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["run.mjs"]);
+  assert.equal(
+    r.status,
+    2,
+    "detect-child-process has no register row and must be refused, not silently skipped",
+  );
+  assert.match(
+    r.stderr,
+    /`javascript\.lang\.security\.detect-child-process\.detect-child-process` has no register row/,
+  );
+  assert.doesNotMatch(
+    r.stderr,
+    /spawn-shell-true` has no register row/,
+    "spawn-shell-true's row covers it",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("fix 34: a register row with a blank justification or removal condition blocks, even though the marker-to-row lookup by code+scope succeeds", () => {
+  const dir = scratchRepo();
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "suppression-register.md"),
+    REGISTER_HEADER + "| no-console | ok.mjs |  |  |  |\n",
+  );
+  writeFileSync(
+    join(dir, "ok.mjs"),
+    `// ${ESLINT_DISABLE}-next-line no-console\nconsole.log('hi');\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["ok.mjs"]);
+  assert.equal(
+    r.status,
+    2,
+    "the row satisfies the code+scope lookup but is otherwise empty",
+  );
+  assert.match(r.stderr, /Justification/);
+  assert.match(r.stderr, /Removable when/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("fix 34: an approver that reads as a team label, not a person, blocks — sharing check-adr-approver.mjs's judgement", () => {
+  const dir = scratchRepo();
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "suppression-register.md"),
+    REGISTER_HEADER +
+      "| no-console | ok.mjs | needed for the CLI banner | drop once the banner is removed | the maintainers |\n",
+  );
+  writeFileSync(
+    join(dir, "ok.mjs"),
+    `// ${ESLINT_DISABLE}-next-line no-console\nconsole.log('hi');\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-suppressions.mjs", dir, ["ok.mjs"]);
+  assert.equal(
+    r.status,
+    2,
+    "a team label is not a human approver, whether written by a person or an agent",
+  );
+  assert.match(r.stderr, /team label, not a person/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// --- fix 34/35 — evaluateRegisterRows / pendingSuppressionApprovals /
+// unapprovedSuppressionFindings: the pure classification, tested directly
+// against constructed rows the same way check-licence-policy.mjs's
+// evaluateRegisterRow is (no register file on disk needed).
+
+test("evaluateRegisterRows: a blank approver alone is a pending approval, not a block, once every other column is complete", () => {
+  const rows = [
+    {
+      code: "no-console",
+      scope: "ok.mjs",
+      justification: "needed for the CLI banner",
+      removalCondition: "drop once the banner is removed",
+      approver: "",
+    },
+  ];
+  const { blocking, pendingApproval } = evaluateRegisterRows(rows);
+  assert.deepEqual(blocking, []);
+  assert.equal(pendingApproval.length, 1);
+  assert.equal(pendingApproval[0].code, "no-console");
+});
+
+test("evaluateRegisterRows: a missing justification and a 'never' removal condition each block outright, even with a named approver", () => {
+  const rows = [
+    {
+      code: "a",
+      scope: "x.mjs",
+      justification: "",
+      removalCondition: "someday",
+      approver: "Pat",
+    },
+    {
+      code: "b",
+      scope: "y.mjs",
+      justification: "needed",
+      removalCondition: "never",
+      approver: "Pat",
+    },
+  ];
+  const { blocking, pendingApproval } = evaluateRegisterRows(rows);
+  assert.equal(blocking.length, 2);
+  assert.match(blocking[0].problem, /Justification/);
+  assert.match(blocking[1].problem, /never/);
+  assert.deepEqual(pendingApproval, []);
+});
+
+test("pendingSuppressionApprovals / unapprovedSuppressionFindings: gate 2's push-back data and gate 6's block finding read the same pending rows, shaped differently — not one check behind a mode flag", () => {
+  const rows = [
+    {
+      code: "no-console",
+      scope: "ok.mjs",
+      justification: "needed",
+      removalCondition: "someday",
+      approver: "",
+    },
+  ];
+  const pending = pendingSuppressionApprovals(rows);
+  assert.equal(pending.length, 1, "gate 2 sees the row as pending approval");
+  const blocked = unapprovedSuppressionFindings(rows);
+  assert.equal(blocked.length, 1, "gate 6 turns the same row into a finding");
+  assert.equal(blocked[0].check, "suppression register — approver");
+  assert.match(blocked[0].problem, /no-console.*no approver/);
+});
+
+test("fix 35: gate 2 (pre-commit.mjs) allows a commit whose suppression register row is complete except for the approver — a push back, not a block", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  // Sidesteps an unrelated environment issue: an `npx --no-install
+  // secretlint` resolved from a stray global npx cache (rather than this
+  // scratch repo's own, nonexistent, node_modules) fails to load its rule
+  // plugins with no local config present — the same fixture the existing
+  // "gate 2 wires a lint check independently of the build" test above uses.
+  writeFileSync(
+    join(dir, ".secretlintrc.json"),
+    JSON.stringify({ rules: [] }) + "\n",
+  );
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "suppression-register.md"),
+    REGISTER_HEADER +
+      "| no-console | ok.mjs | needed for the CLI banner | drop once the banner is removed |  |\n",
+  );
+  writeFileSync(
+    join(dir, "ok.mjs"),
+    `// ${ESLINT_DISABLE}-next-line no-console\nconsole.log('hi');\n`,
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/pre-commit.mjs", dir);
+  assert.equal(
+    r.status,
+    0,
+    "a blank approver alone must not block the commit at gate 2 — that is gate 6's job",
+  );
+  assert.match(r.stderr, /PUSH BACK/);
+  assert.match(r.stderr, /no-console/);
   rmSync(dir, { recursive: true, force: true });
 });
 

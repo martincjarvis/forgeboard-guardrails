@@ -18,7 +18,10 @@ import {
   withStagedWorkingTree,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
-import { checkSuppressions } from "./check-suppressions.mjs";
+import {
+  checkSuppressions,
+  pendingSuppressionApprovals,
+} from "./check-suppressions.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkProtectedBranch } from "./check-protected-branch.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
@@ -168,6 +171,19 @@ note("cross-language analysis (semgrep) — runs at gate 7, not per-commit");
 {
   const found = checkSuppressions();
   if (found.length) report("gate 2", found, skips);
+}
+
+// Fix 35 — gate 2's own half of the approver split. A register row missing
+// only its approver is allowed to commit — a push back
+// (guardrail-standards.md's verdict table), not a block — but is stated in
+// the output so it is not silently forgotten. Gate 6 blocks the merge on the
+// same rows; there is no author present there to push back to.
+for (const row of pendingSuppressionApprovals()) {
+  process.stderr.write(
+    `gate 2: PUSH BACK suppression register — '${row.code}' (${row.scope}) has no approver; ` +
+      "every other column is complete. Options: fix the underlying finding and drop the " +
+      "suppression, or get a human to approve it. Unanswered, gate 6 refuses the merge.\n",
+  );
 }
 
 // Fix 22 — an Accepted ADR that reads as accepting a risk, a licence, a

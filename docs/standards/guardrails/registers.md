@@ -27,8 +27,15 @@ beside the standards a reader actually reads through. One file per register.
 
 - **Each has a gate.** A register nobody can fail is decoration; the gate is what
   makes the row a precondition rather than a courtesy.
-- **A row is specific.** One rule, one dependency, one test. A row that
-  generalises silences things nobody assessed.
+- **A row is specific.** One rule, one dependency, one test, at one path — not
+  a limit of one _suppression_ per line. Two analysers can flag the same
+  defect under different rule identifiers, or one analyser can fire several
+  rules at one site, and every rule named there gets its own row; a row that
+  covers more than the one rule, dependency or test it names is what
+  generalises and silences things nobody assessed. [Bypass and
+  exceptions](bypass-and-exceptions.md#exceptions-are-per-rule-per-path-and-recorded)
+  restates this for suppressions specifically, because the earlier wording
+  read as a count rather than a scope.
 - **Every row carries a removal condition.** What would have to become true for
   the row to go. A register whose rows have no exit becomes a list of things
   nobody will ever revisit.
@@ -59,6 +66,24 @@ lives, nothing about who may make it. An ADR whose `owner` is a team is fine
 for an ordinary design choice; the moment that same record accepts a risk,
 licence, suppression or opt-out, it needs a human `approver` the same as a
 register row would.
+
+**A blank approver is not the same defect as an incomplete row, and the two
+get different verdicts at gate 2.** Every column of a row is validated —
+justification, removal condition and approver alike — not only the code and
+scope a marker needs to find its row. A missing justification, a removal
+condition of "never", or an approver that reads as a team label or a machine
+(`check-adr-approver.mjs`'s own "person, not a team label" judgement, shared
+rather than re-implemented) blocks the commit outright: the row is broken.
+A row that is otherwise complete with **only** the approver blank is a
+different thing — an agent recording a proposed suppression honestly, because
+it is not the one who may accept it. Gate 2 lets that through as a **push
+back**: visible in the commit output, unresolved, not a pass and not a block.
+Gate 6 reads the same rows and blocks the merge on them, because nobody is
+present server-side to answer a push back — see [gate
+6](gate-6-pull-request.md#61-revalidation)'s own approver check. Two checks
+over one set of rows, not one check behind a mode flag: gate 2 asks "is this
+row complete except for approval," gate 6 asks "has a person approved it,"
+and collapsing them would report the wrong verdict for whichever gate asked.
 
 ## The suppression register
 
@@ -187,11 +212,18 @@ table.
 ## Verification
 
 - [ ] Every register has a gate that fails when a row is missing.
-- [ ] Every row names a human approver, and no automated worker appears in that
-      column.
+- [ ] Every row eventually names a human approver, and an approver that reads
+      as a team label or a machine is refused the moment it is written, not
+      merely when it is blank.
+- [ ] A row missing only its approver pushes back at gate 2 (allowed,
+      visible, unresolved) and blocks the merge at gate 6 (no author present
+      to answer it) — the same rows, two different verdicts, not one check
+      with a mode flag.
 - [ ] Every row has a removal condition, and none of them is "never".
-- [ ] A row covering more than one rule, dependency or test is treated as a
-      defect.
+- [ ] A row covers exactly one rule at one path (or one dependency, or one
+      test) — never more than the one it names. A marker naming several rules
+      on one line is legal and gets one row per rule; a row that tries to
+      cover several is the defect, not the multiple markers.
 - [ ] The published dependency inventory and the licence register agree; where
       they differ, the register is the one that is wrong.
 - [ ] A dependency whose licence cannot be determined appears as blocked, not as

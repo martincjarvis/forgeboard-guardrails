@@ -12,6 +12,15 @@ reference it needs at the step that needs it.
 
 ## Operating rules
 
+- **Fix it, restructure it, or suppress it — in that order.** A finding gets
+  fixed first; where the finding cannot be fixed without changing behaviour,
+  restructure to avoid the pattern; suppress with a justification only once
+  both are genuinely unavailable, and say why fixing was not possible, not
+  merely why suppressing is tolerable. A change that makes a finding
+  disappear without changing what the code does — moving the pattern rather
+  than removing it — is evasion, refused the same as an unregistered
+  suppression. Full rule:
+  [`docs/standards/guardrails/bypass-and-exceptions.md`](docs/standards/guardrails/bypass-and-exceptions.md#fix-it-restructure-it-or-suppress-it-in-that-order).
 - **Stream progress and blockers as you work.** State what you are doing, what
   you have finished, and what is blocking you, while the work is still
   running — not only in a final report.

@@ -78,7 +78,12 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    a private repository, `gh` unauthenticated) that make it a visible skip
    rather than silently done. A pipeline that runs and publishes evidence
    with nothing configured to refuse the merge on it is exactly the gap
-   audit 8 found, repeated at adoption.
+   audit 8 found, repeated at adoption. **A finding this order surfaces gets
+   fixed first, restructured second, and only suppressed with a justification
+   once both are unavailable** — load
+   `docs/standards/guardrails/bypass-and-exceptions.md#fix-it-restructure-it-or-suppress-it-in-that-order`
+   before reaching for a marker; a change that only moves a finding without
+   changing the risk is evasion, not a fix.
 
 8. **Docs style**, once the repository starts writing its own `/docs`. Load
    `docs/standards/docs-style.md` and `skills/docs-review/SKILL.md` when the

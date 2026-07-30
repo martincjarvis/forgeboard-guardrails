@@ -6,66 +6,86 @@
 // The register itself is the reviewed record; a generated inventory is not one.
 import { resolve } from "node:path";
 import { trackedFiles, isText, classOf, readStaged, report } from "./lib.mjs";
+import { looksLikeTeamLabel } from "./check-adr-approver.mjs";
 import { pathToFileURL } from "node:url";
 
-const REGISTER = "docs/registers/suppression-register.md";
+export const REGISTER = "docs/registers/suppression-register.md";
 // This checker defines the marker patterns as data, so it would flag its own
 // source. Identified by this module's own URL — not process.argv[1], which is the
 // invoker (pre-commit.mjs) when the function is imported rather than run as a CLI.
 const SELF_URL = import.meta.url;
 
-// Each marker: a directive and a function pulling the single rule it names (or
-// null when it names none, which is itself a defect — a broadened annotation).
+// Each marker: a directive and a function pulling every rule it names, as an
+// array (fix 33). Multiple rules on one line are legal — two analysers can
+// name the same defect differently, or one fires several rules at one site
+// (hooks/lib/run.mjs:48 is exactly that case) — so every named rule is
+// checked independently against the register rather than the joined string
+// being treated as one identifier or the whole marker being refused for
+// naming more than one. An empty array means the marker names no rule at
+// all, which IS the defect this guards against: a blanket suppression.
 const MARKERS = [
   {
     name: "eslint-disable",
     re: /eslint-disable(?:-next-line|-line)?(?:\s+(.+))?/,
-    rule: (m) => firstRule(m[1]),
+    rules: (m) => splitRules(m[1]),
   },
   {
     name: "secretlint-disable",
     re: /secretlint-disable(?:\s+(.+))?/,
-    rule: (m) => firstRule(m[1]),
+    rules: (m) => splitRules(m[1]),
   },
   {
     name: "markdownlint-disable",
     re: /markdownlint-disable(?:-next-line|-line|-file)?(?:\s+(.+))?/,
-    rule: (m) => firstRule(m[1]),
+    rules: (m) => splitRules(m[1]),
   },
   {
+    // Captures everything after the colon (not just a comma-free character
+    // class — fix 33's actual defect) so a comma-separated rule list is seen
+    // in full; splitRules then breaks it apart the same as every other
+    // marker family.
     name: "nosemgrep",
-    re: /nosemgrep(?::\s*([A-Za-z0-9._-]+))?/,
-    rule: (m) => (m[1] ? m[1] : null),
+    re: /nosemgrep(?::\s*(.+))?/,
+    rules: (m) => splitRules(m[1]),
   },
   {
+    // TypeScript has no per-rule form for either directive, so these are
+    // inherently blanket at the language level — not a gap in this parser.
+    // Each still requires its own complete register row, naming the
+    // diagnostic it suppresses in the row's justification (bypass-and-
+    // exceptions.md, registers.md).
     name: "@ts-expect-error",
     re: /@ts-expect-error/,
-    rule: () => "@ts-expect-error",
+    rules: () => ["@ts-expect-error"],
   },
   {
     name: "@ts-ignore",
     re: /@ts-ignore/,
-    rule: () => "@ts-ignore",
+    rules: () => ["@ts-ignore"],
   },
   {
     name: "coverage ignore",
     re: /\b(?:c8|istanbul|v8|coverage)[ _-]ignore(?:-next-line|-start)?/,
-    rule: () => "coverage-ignore",
+    rules: () => ["coverage-ignore"],
   },
 ];
 
-function firstRule(rest) {
-  if (!rest) return null;
-  // Rules are the first whitespace/comma-separated token that looks like an id.
-  const tok = rest
+/** Every rule a marker names, split on comma or whitespace and filtered to
+ *  tokens that look like an identifier. Empty when the marker names none. */
+function splitRules(rest) {
+  if (!rest) return [];
+  return rest
     .split(/[\s,]+/)
     .map((t) => t.trim())
     .filter((t) => /^[A-Za-z][\w./-]*$/.test(t));
-  return tok.length === 1 ? tok[0] : tok.length > 1 ? null : null;
 }
 
-/** Parse the register into [{ code, scope }]. Columns: Code | Scope | ... */
-function parseRegister() {
+/** Every register row, fully parsed. Columns: Code | Scope | Justification |
+ *  Removable when | Approved by (registers.md). Fix 34 — the marker-matching
+ *  lookup below only ever needed the first two cells; register-row
+ *  completeness (evaluateRegisterRows) needs every column, so all five are
+ *  read here in one place rather than the first two being parsed twice. */
+export function suppressionRegisterRows() {
   const rows = [];
   let md;
   try {
@@ -82,9 +102,96 @@ function parseRegister() {
     // Skip the header row and the "no rows" sentinel.
     if (!code || (/code/i.test(code) && /scope/i.test(scope))) continue;
     if (code.startsWith("_") || code.startsWith("No rows")) continue;
-    rows.push({ code, scope });
+    rows.push({
+      code,
+      scope,
+      justification: (cells[2] ?? "").trim(),
+      removalCondition: (cells[3] ?? "").trim(),
+      approver: (cells[4] ?? "").trim(),
+    });
   }
   return rows;
+}
+
+/** Fix 34 — every column of a register row, not only whether a marker can
+ *  find it by code+scope. `looksLikeTeamLabel` is check-adr-approver.mjs's
+ *  own "person, not a team label" judgement, shared rather than
+ *  re-implemented ("check-adr-approver.mjs already makes that judgement;
+ *  share that logic, do not write it twice").
+ *
+ *  Returns `{ blocking, pendingApproval }`. `blocking` rows are refused
+ *  outright: a missing justification or removal condition, a removal
+ *  condition of "never" (registers.md: "none of them is 'never'"), or an
+ *  approver that reads as a team label or a machine. `pendingApproval` rows
+ *  are otherwise complete with only the approver blank — fix 35 gives that
+ *  its own verdict per gate (gate 2 pushes back, gate 6 blocks), not a
+ *  finding here. */
+export function evaluateRegisterRows(rows) {
+  const blocking = [];
+  const pendingApproval = [];
+  for (const row of rows) {
+    const missing = [];
+    if (!row.justification) missing.push("Justification");
+    if (!row.removalCondition) missing.push("Removable when");
+    else if (/^never$/i.test(row.removalCondition)) {
+      missing.push(
+        "Removable when (reads 'never', which registers.md refuses as a removal condition)",
+      );
+    }
+    if (missing.length) {
+      blocking.push({
+        check: "suppression register",
+        path: REGISTER,
+        problem: `row for '${row.code}' at '${row.scope}' is missing ${missing.join(", ")}`,
+        remedy:
+          "complete the row before the suppression it authorises can be relied on",
+      });
+      continue;
+    }
+    if (!row.approver) {
+      pendingApproval.push(row);
+      continue;
+    }
+    if (looksLikeTeamLabel(row.approver)) {
+      blocking.push({
+        check: "suppression register",
+        path: REGISTER,
+        problem: `row for '${row.code}' at '${row.scope}' names '${row.approver}' as approver, which reads as a team label, not a person`,
+        remedy: "name the individual human who accepted this suppression",
+      });
+    }
+  }
+  return { blocking, pendingApproval };
+}
+
+/** Fix 35 — rows complete except for approval, as data. `rows` is
+ *  injectable for direct testing (the same shape checkAdrApprover's `adrDir`
+ *  parameter takes); the production path (no argument) reads the real
+ *  register. Gate 2 (pre-commit.mjs) prints these as a push back — allowed
+ *  to commit, visible, unresolved. Gate 6 (unapprovedSuppressionFindings,
+ *  below) reads the same list and blocks instead: two different questions
+ *  over one set of rows, not one check behind a mode flag. */
+export function pendingSuppressionApprovals(rows) {
+  return evaluateRegisterRows(rows ?? suppressionRegisterRows())
+    .pendingApproval;
+}
+
+/** Fix 35 — the same pending-approval rows, shaped as blocking findings.
+ *  gate-6-pull-request.mjs pushes these into its own findings list: there is
+ *  no author present server-side to push back to (guardrail-standards.md's
+ *  verdict table — "Where no author is present, the check looks for that
+ *  record and fails without it"), so an unapproved suppression fails the
+ *  merge rather than merely being printed. */
+export function unapprovedSuppressionFindings(rows) {
+  return pendingSuppressionApprovals(rows).map((row) => ({
+    check: "suppression register — approver",
+    path: REGISTER,
+    problem:
+      `'${row.code}' (${row.scope}) has no approver — every other column ` +
+      "is complete, but a human must accept a suppression before it merges",
+    remedy:
+      "name a human in the register row's Approved by column, or remove the suppression and fix the finding instead",
+  }));
 }
 
 function cellsOf(row) {
@@ -116,34 +223,45 @@ function shouldScanFile(file) {
   return true;
 }
 
-/** Findings for one line: zero, or one per marker matched (more than one
- *  marker can legitimately appear on the same line). */
+/** Findings for one line: zero, or one per rule a marker names that lacks a
+ *  register row, plus one for a marker naming no rule at all (more than one
+ *  marker, and more than one rule per marker, can legitimately appear on the
+ *  same line — fix 33). */
 function findingsForLine(file, lineNumber, lineText, rows) {
   const findings = [];
   const path = `${file}:${lineNumber}`;
   for (const marker of MARKERS) {
     const m = lineText.match(marker.re);
     if (!m) continue;
-    const rule = marker.rule(m);
-    if (!rule) {
+    const rules = marker.rules(m);
+    if (rules.length === 0) {
       findings.push({
         check: "suppression register",
         path,
-        problem: `${marker.name} does not name a single rule`,
-        remedy: "name the one rule, and add a register row for it",
+        problem: `${marker.name} names no rule — a blanket suppression, which silences everything at this site`,
+        remedy: "name the rule it silences, and add a register row for it",
       });
       continue;
     }
-    const hasRow = rows.some(
-      (r) => r.code === rule && pathMatches(r.scope, file),
-    );
-    if (!hasRow) {
-      findings.push({
-        check: "suppression register",
-        path,
-        problem: `${marker.name} of \`${rule}\` has no register row`,
-        remedy: `add a row to ${REGISTER} (Code: ${rule}, Scope: ${file})`,
-      });
+    // Fix 36 — multiple rules at one site are corroborating evidence, not
+    // noise: the count is stated in the finding itself so a reviewer sees
+    // the escalation without counting rows themselves.
+    const siteNote =
+      rules.length > 1
+        ? ` (${rules.length} rules suppressed at this site)`
+        : "";
+    for (const rule of rules) {
+      const hasRow = rows.some(
+        (r) => r.code === rule && pathMatches(r.scope, file),
+      );
+      if (!hasRow) {
+        findings.push({
+          check: "suppression register",
+          path,
+          problem: `${marker.name} of \`${rule}\` has no register row${siteNote}`,
+          remedy: `add a row to ${REGISTER} (Code: ${rule}, Scope: ${file})`,
+        });
+      }
     }
   }
   return findings;
@@ -155,7 +273,7 @@ function findingsForLine(file, lineNumber, lineText, rows) {
  *  (bypass-and-exceptions.md: a wholesale config disable is a documented
  *  decision, not an exception to a rule). */
 export function checkSuppressions(files) {
-  const rows = parseRegister();
+  const rows = suppressionRegisterRows();
   const scan = files ?? trackedFiles();
   const findings = [];
   for (const file of scan) {
@@ -170,6 +288,9 @@ export function checkSuppressions(files) {
       findings.push(...findingsForLine(file, i + 1, lineText, rows));
     });
   }
+  // Fix 34 — register-row completeness is independent of which files this
+  // commit scanned: an incomplete row is a defect in the register itself.
+  findings.push(...evaluateRegisterRows(rows).blocking);
   return findings;
 }
 
@@ -184,8 +305,13 @@ const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const files = process.argv.slice(2).filter((a) => !a.startsWith("-"));
   const findings = checkSuppressions(files.length ? files : undefined);
+  for (const row of pendingSuppressionApprovals()) {
+    process.stderr.write(
+      `suppressions: PUSH BACK '${row.code}' (${row.scope}) has no approver; every other column is complete\n`,
+    );
+  }
   process.stderr.write(
-    `suppressions: ${findings.length} unregistered or broadened\n`,
+    `suppressions: ${findings.length} unregistered, broadened or incomplete\n`,
   );
   report("gate 2", findings);
 }

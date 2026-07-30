@@ -9,6 +9,19 @@ A row authorises **one rule at one path**. The same rule elsewhere needs its own
 repository, which is the broadened
 annotation the standards forbid, reached by another route.
 
+This is a limit on a row's _scope_, not on how many suppressions may share a
+line. A marker naming several rules is legal — two analysers can flag the same
+defect under different identifiers, or one analyser can fire more than once at
+a site — and every rule it names gets its own row below. What is refused is a
+marker that names **no** rule: that silences everything at its site, which is
+the blanket suppression this register exists to prevent.
+
+Every row also carries a removal condition that is not "never" and, once a
+human has looked at it, that human's name in Approved by. A row missing only
+the approver is not refused here — gate 2 lets it through as a push back, and
+gate 6 is what blocks the merge on it — but a row missing anything else, or
+naming an automated worker or a team as approver, is refused outright.
+
 **What belongs here:** anything that turns a gate off for a line or a block —
 `nosemgrep`, `eslint-disable`, `secretlint-disable`, `markdownlint-disable`,
 `@ts-expect-error`, coverage ignores.

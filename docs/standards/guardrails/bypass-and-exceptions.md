@@ -70,12 +70,67 @@ somebody made. A suppressed check that reports as a pass is a lie the whole
 standard is built to prevent; one that reports as absent is how a repository
 loses track of what it decided not to look at.
 
+## Fix it, restructure it, or suppress it — in that order
+
+**The rules are there for a reason, and a suppression is a claim that this one
+instance is the exception.** "Strongly discourage suppressing" is not
+enforceable as prose; three things are.
+
+**A fixed preference order, not a choice each time.** Fix the finding first.
+Where the finding itself cannot be fixed without changing what the code does,
+restructure to avoid the pattern second. Suppress with a justification only
+once both are genuinely unavailable, and the register row says why fixing was
+not possible — not merely why suppressing is tolerable, which is a different
+and weaker claim. An earlier cycle did this unprompted for `hooks/lib/run.mjs`:
+it tried `spawnSync(fullPathTo("npm.cmd"), args, { shell: false })` before
+registering anything, found Windows returns `EINVAL` regardless of how precise
+the path is, and only then suppressed — with that attempt recorded in the
+row's own justification.
+
+**Moving the finding is not fixing it.** Hoisting `shell: true` into a
+variable, renaming a parameter, or wrapping the flagged call in another
+function that still does the same thing removes the analyser's match without
+changing the risk the rule is warning about. A change that makes a finding
+disappear without changing what the code actually does is evasion, not a fix,
+and is refused the same as an unregistered suppression — the analyser stops
+complaining, but nothing the rule cared about is different.
+
+**Multiple rules at one site escalate the priority to fix, they do not
+average it out.** When two or more independent rules — or two analysers
+naming the same defect differently — fire at one line, that is corroborating
+evidence, not noise to be waited out. The finding reports the count, so a
+reviewer sees it without counting rows themselves, and the justification for
+suppressing states why fixing is not possible for _each_ rule named, not a
+single justification asserted to cover all of them.
+
+**The register is the visible artefact, and stays the only one.** It already
+carries every suppression with its justification, reviewed at review time —
+that is the control. Do not add a suppression _count_ metric or a trend chart
+on top of it: a number nobody is asked to act on is decorative, and this
+standard already refuses decorative evidence elsewhere (evidence that is
+published but never consumed is the same failure by another route).
+
 ## Exceptions are per-rule, per-path and recorded
 
-An accepted finding needs an inline annotation naming the single rule it
-silences, plus a complete row in the [suppression register](registers.md). A
-broadened annotation, a rule disabled in configuration, and a gate switched off
-are all failures of this rule.
+A suppression **names every rule it silences**, and each named rule has its own
+row in the [suppression register](registers.md). This is not a limit of one
+suppression per line — two analysers routinely flag the same defect under
+different rule identifiers, and one analyser can fire several rules at one
+site (`hooks/lib/run.mjs`'s own `nosemgrep` marker is exactly that case: one
+line, two rules, two register rows). That is correct and stays legal. What is
+forbidden is the **blanket** suppression: a marker that names no rule at all
+silences everything at that site and is refused, as is a rule disabled in
+configuration or a gate switched off wholesale (fix 33 — the earlier reading
+of this rule as a count, "no suppression silences more than the one rule it
+names," left a marker's second rule unchecked when a parser stopped at the
+first; restated here to say what the rule actually guards against).
+
+`@ts-expect-error` and `@ts-ignore` are a known limitation of the per-rule
+form: TypeScript has no way to name which diagnostic a directive silences, so
+both are inherently blanket at the language level. Each occurrence still needs
+its own complete register row, naming the diagnostic it suppresses in the
+row's justification — the per-rule requirement is answered in the row, not in
+the marker, for these two.
 
 **No worker approves its own exception.** The approver column is a human's —
 and where the exception is accepted by decision record rather than register
@@ -97,8 +152,10 @@ configuration that has never been exercised is a claim.
 
 - [ ] A bypass flag is denied at the permission layer for automated workers.
 - [ ] The server-side gate refuses a change whose local hooks were skipped.
-- [ ] Every inline suppression has a complete register row.
-- [ ] No suppression silences more than the one rule it names.
+- [ ] Every inline suppression has a complete register row, one row per rule
+      it names — a marker naming two rules needs two rows, not one.
+- [ ] No suppression silences a rule it does not name. A marker naming no
+      rule at all (a blanket suppression) is refused, not merely flagged.
 - [ ] Every opted-out check has a decision record, and the run names it.
 - [ ] A suppressed check reports as suppressed, never as a pass and never as absent.
 - [ ] A previously excluded check is not re-raised on the next review.
@@ -107,6 +164,17 @@ configuration that has never been exercised is a claim.
       opt-out names a human in its own `approver` field, whatever its `owner`
       is — `status: Accepted` with that field empty or naming a team is
       refused, not merely reviewed on trust.
+- [ ] A justification that only restates why suppressing is tolerable, with
+      no attempt at fixing or restructuring recorded, is treated as
+      incomplete — the row states why fixing was not possible.
+- [ ] A change that silences a finding without changing what the code does —
+      moving the pattern rather than removing it — is refused, the same as an
+      unregistered suppression.
+- [ ] A site where more than one rule fires reports the count, and the
+      justification addresses each rule named, not one blanket sentence.
+- [ ] No suppression count, trend chart or similar metric exists alongside
+      the register — the register itself, read at review time, is the
+      control.
 
 ## References
 

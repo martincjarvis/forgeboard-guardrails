@@ -38,7 +38,10 @@ import {
   report,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
-import { checkSuppressions } from "./check-suppressions.mjs";
+import {
+  checkSuppressions,
+  unapprovedSuppressionFindings,
+} from "./check-suppressions.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
 import { checkLicencePolicy } from "./check-licence-policy.mjs";
@@ -318,6 +321,13 @@ for (const f of checkLinks()) findings.push(f);
 // Also whole-repository already (pre-commit.mjs calls it with no argument);
 // same call here.
 for (const f of checkSuppressions()) findings.push(f);
+
+// --- Fix 35 — gate 6's own half of the approver split. Gate 2 lets a row
+// missing only its approver through as a push back; here there is no author
+// present to push back to, so the same rows fail the merge outright
+// (guardrail-standards.md: "Where no author is present, the check looks for
+// that record and fails without it").
+for (const f of unapprovedSuppressionFindings()) findings.push(f);
 
 // --- Fix 22 — ADR approver, over the whole ADR corpus ------------------------
 // Same repository-wide call as pre-commit.mjs; an ADR accepting a risk,
