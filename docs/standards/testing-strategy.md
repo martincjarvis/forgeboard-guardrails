@@ -204,6 +204,36 @@ floor downward for a number that no longer means what it claims.
 [File classes](guardrails/file-classes.md) states the one exception: a
 repository whose product is the tooling itself.
 
+## Tooling code is excluded from the product's coverage floor, not from testing
+
+Exclusion from a metric is not exemption from a suite. A `tooling`-classed
+file enforces every other rule in this standard — it is what a bad commit or
+a bad pull request actually meets — so leaving it untested makes it the one
+piece of code in the repository nothing guards. Two audit iterations, given
+the same guidance, produced opposite answers: one invented a `tooling tests`
+job and made it required on every pull request unconditionally; the next
+created none at all. Neither is what the standard actually asks for.
+
+**A repository carrying ported gate or check scripts runs a `tooling tests`
+suite against them**, at three tiers rather than one:
+
+- **Change-triggered, blocking, at gate 6** — the same shape
+  [change-triggered checks](guardrails/change-triggered-checks.md) already
+  states for a dependency, applied to a different subject: the suite runs
+  when the pull request's range touches a `tooling`-classed file, and reports
+  a visible skip naming why when it does not. A change to product code alone
+  does not wait on, or get blocked by, tests of machinery it never touched.
+- **Unconditional, at gate 7 and on a schedule** — a gate script can break
+  without anyone editing it (a dependency it calls changes behaviour, a
+  platform API it reads drifts), the same reasoning the dependency-advisory
+  scan's own schedule exists for. Gate 7's sweep and the scheduled run catch
+  that regardless of what a pull request touched.
+
+Making the suite **required** in branch protection needs one more thing
+before it is safe: [a required check that legitimately skips can leave a
+pull request permanently pending](guardrails/branch-protection.md#a-required-check-that-legitimately-skips-must-still-report) —
+read that before wiring this one in.
+
 ## Artifact categories
 
 Never merged — a hundred low-severity findings must not bury a coverage
@@ -254,6 +284,16 @@ improvement as suspicious.
       threshold — proved by raising the floor above current coverage and seeing
       the gate refuse, not by reading the configuration.
 - [ ] The coverage report contains no file classed `tooling`.
+- [ ] A repository carrying ported gate or check scripts runs a `tooling
+    tests` suite against them — its absence is not a silent default, one
+      way or the other.
+- [ ] The `tooling tests` suite is change-triggered and blocking at gate 6
+      (a visible skip, naming why, when the range touches no `tooling`-classed
+      file) and unconditional at gate 7 and on a schedule.
+- [ ] If the suite is a required status check, it is wired the way
+      [branch protection](guardrails/branch-protection.md#a-required-check-that-legitimately-skips-must-still-report)
+      states — a skip that still leaves a pull request mergeable, not one
+      that leaves it stuck waiting for a status nothing will ever report.
 
 ## References
 
@@ -267,3 +307,9 @@ improvement as suspicious.
 - [Logging and diagnostics](logging-diagnostics.md) — what end-to-end tests
   assert on.
 - [Flaky tests](guardrails/flaky-tests.md) — retries and quarantine.
+- [File classes](guardrails/file-classes.md) — what `tooling` is, and the
+  toolkit's own exception to it.
+- [Change-triggered checks](guardrails/change-triggered-checks.md) — the
+  trigger shape the `tooling tests` suite reuses.
+- [Branch protection](guardrails/branch-protection.md) — the trap in making
+  a conditionally-skipped suite a required status check, and how to avoid it.

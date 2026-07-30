@@ -146,6 +146,48 @@ tooling it can resolve from `PATH` or write directly instead
 parser for a file format this small is exactly the "write it directly"
 side of that line, not a gap the line was written to fill.
 
+## A required check that legitimately skips must still report
+
+A check that is change-triggered ([change-triggered
+checks](change-triggered-checks.md)) reports a visible skip when its trigger
+did not fire — the corpus instantiation check when a pull request never
+touches `docs/standards/`, the `tooling tests` suite when it never touches a
+`tooling`-classed file. Making a check like that a **required** status check
+needs one more thing verified, or the skip stops being harmless: GitHub only
+treats a required context as satisfied once a check run for that exact
+context has been **posted**, with any conclusion — including `skipped`. Two
+different places can produce the skip, and only one of them posts anything:
+
+- **A job-level `if:`, inside a workflow that still triggers.** The workflow
+  runs, the job's check run is created, its conclusion reads `skipped`, and
+  GitHub treats that the same as a pass for a required check. This is safe.
+- **A workflow-level trigger filter** — `on.push.paths-ignore`,
+  `on.pull_request.paths`, a branch filter, or any condition that stops the
+  _workflow itself_ from running for this pull request. No job ever starts,
+  so no check run for that context is ever posted at all. A required context
+  with nothing posted against it reads "Expected — waiting for status to be
+  reported" and stays there — not a failure a person can point at and fix,
+  because nothing failed; the check simply never ran. This is the trap: it
+  looks identical to the safe case in the workflow file at a glance, and
+  identical to a slow CI run for the first several minutes.
+
+**The fix is where the skip decision lives, not whether one exists.** Trigger
+the workflow unconditionally (the same `on: pull_request` this toolkit's own
+`pull-request.yml` already uses for gate 6), and put the skip decision
+_inside_ the job — a job-level `if:` reading whatever the check needs to
+decide (a prior job's output naming whether the range touched a
+`tooling`-classed file, for the tooling-suite case), or a first step that
+detects nothing to do and exits 0 immediately, logging why. Either way a
+check run gets posted, GitHub reads its conclusion, and a required check that
+is legitimately skipped still leaves the pull request mergeable.
+
+A related, narrower pitfall: a single-axis matrix job (the same shape
+`deriveRequiredContexts` above expands) whose _matrix leg_ is what gets
+skipped, rather than the whole job, has been reported to leave that leg's own
+required context stuck pending even though the job-level mechanism above is
+otherwise correct — expand the matrix (or drop the leg) rather than
+conditionally skipping one leg of a job whose name is a required context.
+
 ## Running it by hand
 
 | Purpose                                                            | Command                                                  |
@@ -178,6 +220,14 @@ side of that line, not a gap the line was written to fill.
 - [ ] `configure-branch-protection.mjs` refuses to run with an empty derived
       required-checks list rather than protecting the branch with nothing
       required.
+- [ ] Every required status check's workflow triggers unconditionally
+      (`on: pull_request`, no `paths`/`paths-ignore`/branch filter that could
+      stop the workflow itself from running) — any skip decision lives inside
+      a job, not at the trigger.
+- [ ] A pull request that exercises a required check's skip path (touches no
+      `tooling`-classed file, for the tooling-suite case) still shows that
+      check posting `skipped`, not "Expected — waiting for status to be
+      reported" with nothing else changing.
 
 ## References
 
@@ -185,5 +235,9 @@ side of that line, not a gap the line was written to fill.
   policy (16-24) this configures and verifies.
 - [Cross-gate rules](cross-gate-rules.md) — "every blocking local check has a
   named required status check server-side," the rule this closes.
+- [Change-triggered checks](change-triggered-checks.md) — the trigger shapes
+  that produce a legitimate skip.
+- [Testing strategy](../testing-strategy.md#tooling-code-is-excluded-from-the-products-coverage-floor-not-from-testing) —
+  the `tooling tests` suite this trap most concretely applies to.
 - [Skills: repository bootstrap](../../../skills/repository-bootstrap/SKILL.md) —
   where configuring protection is a named adoption step.
