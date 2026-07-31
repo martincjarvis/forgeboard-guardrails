@@ -3494,7 +3494,7 @@ test("findMultiComponentContent: the same heading raises nothing once the reposi
   assert.deepEqual(findings, []);
 });
 
-test("findMultiComponentContent: the phrase inside a paragraph rather than a heading is not a finding — only the section itself is", () => {
+test("findMultiComponentContent: the phrase inside a paragraph rather than a heading is not a finding — only the section itself is", async (t) => {
   const text = "This paragraph mentions cross-component effects in passing.\n";
   const findings = findMultiComponentContent(text, 1);
   assert.deepEqual(findings, []);
@@ -3505,74 +3505,92 @@ test("findMultiComponentContent: the phrase inside a paragraph rather than a hea
   // docs/standards-enforcement.md carried no removal record at all. This does
   // not judge whether the removal's stated reason is honest; only whether it
   // was written down somewhere durable.
+  //
+  // Nested with awaited t.test(), not a further top-level test() — fix 58. A
+  // top-level test() nested inside a running one races the parent's
+  // completion instead of being awaited by it, and under load the parent can
+  // be marked done before the child reports, which node:test then cancels as
+  // "did not finish before its parent". See flaky-tests.md.
 
-  test("findRemovalsOutsideEnforcementMap: a removals heading in a session report with no removals record anywhere durable is refused, naming the report", () => {
-    const findings = findRemovalsOutsideEnforcementMap({
-      reportFiles: [
-        {
-          path: "docs/bootstrap-report.md",
-          text: "## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
-        },
-      ],
-      enforcementMapText:
-        "# Standards enforcement\n\n| Standard | Enforced by |\n",
-      instantiatedDocFiles: [],
-    });
-    assert.equal(findings.length, 1);
-    assert.equal(findings[0].path, "docs/bootstrap-report.md");
-    assert.match(
-      findings[0].problem,
-      /neither the enforcement map nor any instantiated standard/,
-    );
-  });
+  await t.test(
+    "findRemovalsOutsideEnforcementMap: a removals heading in a session report with no removals record anywhere durable is refused, naming the report",
+    () => {
+      const findings = findRemovalsOutsideEnforcementMap({
+        reportFiles: [
+          {
+            path: "docs/bootstrap-report.md",
+            text: "## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+          },
+        ],
+        enforcementMapText:
+          "# Standards enforcement\n\n| Standard | Enforced by |\n",
+        instantiatedDocFiles: [],
+      });
+      assert.equal(findings.length, 1);
+      assert.equal(findings[0].path, "docs/bootstrap-report.md");
+      assert.match(
+        findings[0].problem,
+        /neither the enforcement map nor any instantiated standard/,
+      );
+    },
+  );
 
-  test("findRemovalsOutsideEnforcementMap: the same report raises nothing once the enforcement map carries its own removals section", () => {
-    const findings = findRemovalsOutsideEnforcementMap({
-      reportFiles: [
-        {
-          path: "docs/bootstrap-report.md",
-          text: "## Removals\n\nDropped the .NET rows.\n",
-        },
-      ],
-      enforcementMapText:
-        "# Standards enforcement\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
-      instantiatedDocFiles: [],
-    });
-    assert.deepEqual(findings, []);
-  });
+  await t.test(
+    "findRemovalsOutsideEnforcementMap: the same report raises nothing once the enforcement map carries its own removals section",
+    () => {
+      const findings = findRemovalsOutsideEnforcementMap({
+        reportFiles: [
+          {
+            path: "docs/bootstrap-report.md",
+            text: "## Removals\n\nDropped the .NET rows.\n",
+          },
+        ],
+        enforcementMapText:
+          "# Standards enforcement\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+        instantiatedDocFiles: [],
+      });
+      assert.deepEqual(findings, []);
+    },
+  );
 
-  test("findRemovalsOutsideEnforcementMap: a PROVENANCE note on the instantiated standard itself also satisfies the requirement", () => {
-    const findings = findRemovalsOutsideEnforcementMap({
-      reportFiles: [
-        {
-          path: "docs/bootstrap-report.md",
-          text: "## Removals\n\nDropped the .NET rows.\n",
-        },
-      ],
-      enforcementMapText: "# Standards enforcement\n",
-      instantiatedDocFiles: [
-        {
-          path: "docs/standards/testing-strategy.md",
-          text: "# Testing strategy\n\nBody.\n\n## PROVENANCE\n\nCopied from forgeboard-guardrails; .NET rows dropped, no .csproj here.\n",
-        },
-      ],
-    });
-    assert.deepEqual(findings, []);
-  });
+  await t.test(
+    "findRemovalsOutsideEnforcementMap: a PROVENANCE note on the instantiated standard itself also satisfies the requirement",
+    () => {
+      const findings = findRemovalsOutsideEnforcementMap({
+        reportFiles: [
+          {
+            path: "docs/bootstrap-report.md",
+            text: "## Removals\n\nDropped the .NET rows.\n",
+          },
+        ],
+        enforcementMapText: "# Standards enforcement\n",
+        instantiatedDocFiles: [
+          {
+            path: "docs/standards/testing-strategy.md",
+            text: "# Testing strategy\n\nBody.\n\n## PROVENANCE\n\nCopied from forgeboard-guardrails; .NET rows dropped, no .csproj here.\n",
+          },
+        ],
+      });
+      assert.deepEqual(findings, []);
+    },
+  );
 
-  test("findRemovalsOutsideEnforcementMap: a report with no removals heading at all is not this check's concern", () => {
-    const findings = findRemovalsOutsideEnforcementMap({
-      reportFiles: [
-        {
-          path: "docs/bootstrap-report.md",
-          text: "## Summary\n\nEverything passed.\n",
-        },
-      ],
-      enforcementMapText: null,
-      instantiatedDocFiles: [],
-    });
-    assert.deepEqual(findings, []);
-  });
+  await t.test(
+    "findRemovalsOutsideEnforcementMap: a report with no removals heading at all is not this check's concern",
+    () => {
+      const findings = findRemovalsOutsideEnforcementMap({
+        reportFiles: [
+          {
+            path: "docs/bootstrap-report.md",
+            text: "## Summary\n\nEverything passed.\n",
+          },
+        ],
+        enforcementMapText: null,
+        instantiatedDocFiles: [],
+      });
+      assert.deepEqual(findings, []);
+    },
+  );
 });
 
 test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree with a stack reference outside the derived list, refuses and names it", () => {
@@ -3605,7 +3623,7 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("regression guard: check-standards-instantiation.mjs run for real, against a tuned scratch tree, passes clean", () => {
+test("regression guard: check-standards-instantiation.mjs run for real, against a tuned scratch tree, passes clean", async (t) => {
   const dir = scratchRepo();
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
   mkdirSync(join(dir, "docs", "standards"), { recursive: true });
@@ -3618,54 +3636,64 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
   assert.equal(r.status, 0);
   assert.match(r.stderr, /standards instantiation: 0 findings/);
   rmSync(dir, { recursive: true, force: true });
-  test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree recording a removal only in a session report, refuses and names it (fix 53)", () => {
-    const dir = scratchRepo();
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
-    mkdirSync(join(dir, "docs", "standards"), { recursive: true });
-    writeFileSync(
-      join(dir, "docs", "standards", "testing-strategy.md"),
-      "# Testing\n\nRun `npm test` before merging.\n",
-    );
-    writeFileSync(
-      join(dir, "docs", "bootstrap-report.md"),
-      "# Bootstrap report\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
-    );
-    writeFileSync(
-      join(dir, "docs", "standards-enforcement.md"),
-      "# Standards enforcement\n\n| Standard | Enforced by |\n| --- | --- |\n",
-    );
-    git(dir, ["add", "-A"]);
-    const r = runScript("scripts/check-standards-instantiation.mjs", dir);
-    assert.equal(r.status, 2);
-    assert.match(r.stderr, /docs\/bootstrap-report\.md/);
-    assert.match(
-      r.stderr,
-      /neither the enforcement map nor any instantiated standard/,
-    );
-    rmSync(dir, { recursive: true, force: true });
-  });
 
-  test("regression guard: check-standards-instantiation.mjs run for real, the same removal recorded in the enforcement map too, passes clean", () => {
-    const dir = scratchRepo();
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
-    mkdirSync(join(dir, "docs", "standards"), { recursive: true });
-    writeFileSync(
-      join(dir, "docs", "standards", "testing-strategy.md"),
-      "# Testing\n\nRun `npm test` before merging.\n",
-    );
-    writeFileSync(
-      join(dir, "docs", "bootstrap-report.md"),
-      "# Bootstrap report\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
-    );
-    writeFileSync(
-      join(dir, "docs", "standards-enforcement.md"),
-      "# Standards enforcement\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
-    );
-    git(dir, ["add", "-A"]);
-    const r = runScript("scripts/check-standards-instantiation.mjs", dir);
-    assert.equal(r.status, 0);
-    rmSync(dir, { recursive: true, force: true });
-  });
+  // Nested with awaited t.test(), not a further top-level test() — fix 58.
+  // See flaky-tests.md and the note beside the earlier instance of this
+  // pattern in this file.
+  await t.test(
+    "regression guard: check-standards-instantiation.mjs run for real, against a scratch tree recording a removal only in a session report, refuses and names it (fix 53)",
+    () => {
+      const dir = scratchRepo();
+      writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+      mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+      writeFileSync(
+        join(dir, "docs", "standards", "testing-strategy.md"),
+        "# Testing\n\nRun `npm test` before merging.\n",
+      );
+      writeFileSync(
+        join(dir, "docs", "bootstrap-report.md"),
+        "# Bootstrap report\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+      );
+      writeFileSync(
+        join(dir, "docs", "standards-enforcement.md"),
+        "# Standards enforcement\n\n| Standard | Enforced by |\n| --- | --- |\n",
+      );
+      git(dir, ["add", "-A"]);
+      const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+      assert.equal(r.status, 2);
+      assert.match(r.stderr, /docs\/bootstrap-report\.md/);
+      assert.match(
+        r.stderr,
+        /neither the enforcement map nor any instantiated standard/,
+      );
+      rmSync(dir, { recursive: true, force: true });
+    },
+  );
+
+  await t.test(
+    "regression guard: check-standards-instantiation.mjs run for real, the same removal recorded in the enforcement map too, passes clean",
+    () => {
+      const dir = scratchRepo();
+      writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+      mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+      writeFileSync(
+        join(dir, "docs", "standards", "testing-strategy.md"),
+        "# Testing\n\nRun `npm test` before merging.\n",
+      );
+      writeFileSync(
+        join(dir, "docs", "bootstrap-report.md"),
+        "# Bootstrap report\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+      );
+      writeFileSync(
+        join(dir, "docs", "standards-enforcement.md"),
+        "# Standards enforcement\n\n## Removals\n\nDropped the .NET rows — no .csproj in this repository.\n",
+      );
+      git(dir, ["add", "-A"]);
+      const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+      assert.equal(r.status, 0);
+      rmSync(dir, { recursive: true, force: true });
+    },
+  );
 });
 
 // --- fix 55 — instantiation residue outside docs/standards/**. Audit 14

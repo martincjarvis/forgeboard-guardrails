@@ -27,6 +27,17 @@ until someone shows otherwise. Intermittency usually means real non-determinism
 — an unsynchronised wait, a shared fixture, an ordering assumption — and the
 test found it.
 
+**A test whose result depends on load or timing is a defect in the test**, not
+grounds for a retry or a quarantine — the pattern is fixable, so fix it. Known
+instance: a synchronous `test(...)` callback in a Node test file that nests
+further top-level `test(...)` calls instead of an awaited `t.test(...)`. The
+nested test is scheduled but never awaited by its parent, so the two race —
+the parent usually wins on an idle machine and the suite is green, but under
+load the parent can be marked complete before the child reports, and node:test
+cancels the child as having "did not finish before its parent". The fix is
+structural, not a timing tweak: nest with `await t.test(...)` so the parent
+cannot finish first by construction.
+
 ## Running it by hand
 
 | Purpose                           | Node                                              | .NET                                                         |
