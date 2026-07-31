@@ -222,6 +222,37 @@ gate's own number, not a local run's.** A local test run that passes
 reliably is not lying when CI's does not; it is the wrong instrument for a
 claim CI has already settled, cited instead of the one that matters.
 
+**Fix 61 — the same rule applied to a list still allowed choosing which
+checks to include.** A report cited fix 56's rule almost verbatim — "copied
+from gate output, not recalled" — and still listed 5 of a real 16 findings:
+nine dependency advisories and an osv-scanner finding, from
+`check-dependency-advisories.mjs`, a local Node script run the same way as
+the licence check the report did cite, omitted on the stated reason that the
+tool was "network/PATH-resolved" — false for that script. Fix 56 named the
+source; it did not remove the step where an implementer picks which of
+several checks to run and pastes the results together, and picking is where
+a check gets dropped even while every individual number stays honest. **The
+outstanding-work list is the verbatim output of one command — the gate
+itself — not an assembly of individually chosen checks.** A check that
+cannot run locally is a line in that command's own output, reported
+unavailable, never a line missing because the implementer judged it out of
+scope.
+
+**Fix 62 — the identical belief, restated in a second artefact.** An
+enforcement map once described a repository's licence rows as "the single
+reserved-decision item the bootstrap leaves for a human," unaware of the
+nine advisories and the osv-scanner finding the same partial run had already
+missed in the report beside it — one wrong belief about what remains,
+written down twice from the same incomplete recall. The fix is not a second
+gate-sourced rule for the enforcement map to match fix 56's for the report —
+that would be the identical defect recurring in the very guidance meant to
+close it. **Any artefact stating what remains derives that statement from
+the same single command the report does, or cites the report rather than
+recomputing the set.** A second document that recomputes "what's left"
+independently can drift from the first the moment either one is edited; a
+document that only points at the report cannot, because there is nothing
+left in it to get wrong.
+
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
 not stack-specific or component-specific content — they are a property of
@@ -481,6 +512,13 @@ requirement it stands in for.
       in front of them. A finding present in the gate's own output and
       absent from the report is a defect in the report, not a smaller
       version of the truth.
+- [ ] The outstanding-work list names the single command that produced it —
+      the gate itself, not an assembled set of individually run checks.
+- [ ] The list's line count equals that command's own finding count.
+- [ ] A check the implementer could not run locally appears in the list as
+      unavailable, never as an omission nobody can see.
+- [ ] A second artefact — an enforcement map, a status note — describing
+      what remains cites the report rather than recomputing its own set.
 - [ ] Every numeric claim anywhere in the report — not only its
       outstanding-work section — names the command whose output produced
       it, and where a gate produces the same figure for the same commit,

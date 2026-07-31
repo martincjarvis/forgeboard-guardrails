@@ -185,7 +185,12 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    enforces it — the part no upstream text can supply, because it names
    files only this repository has. This repository's own
    [`docs/standards-enforcement.md`](../../docs/standards-enforcement.md) is
-   the worked example.
+   the worked example. Where the enforcement map also notes what is left open
+   (a gap reported rather than fixed, a reserved decision), that note follows
+   [docs-style.md: Fix
+   62](../../docs/standards/docs-style.md#standards-in-a-consuming-repository) —
+   it cites the bootstrap report's own gate-sourced list rather than
+   recomputing a second one from memory.
 
    **Checkpoint, answerable by looking:** the instantiated corpus carries at
    least one recorded removal (or a stated reason none applied) in the same
@@ -224,10 +229,28 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    guidance](../../docs/standards/docs-style.md#standards-in-a-consuming-repository),
    [cross-gate-rules.md: a claim about a set names the command whose output
    produced it](../../docs/standards/guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)).
-   **Checkpoint, answerable by looking:** the report's outstanding-work list
-   matches the gate output it names, finding for finding — a finding present
-   in the gate's own output and absent from the report is a defect in the
-   report.
+
+   **Fix 61 — the list is the verbatim output of that one command, never an
+   assembly of individually run checks.** A later bootstrap report cited this
+   rule ("copied from gate output, not recalled") and still listed 5 of a real
+   16 findings, because the implementer ran the licence check it recognised
+   and stopped there — reasoning that the rest were "network/PATH-resolved,"
+   which was false for `check-dependency-advisories.mjs`, a local Node script
+   run the same way as the licence check that was cited. Choosing which checks
+   to run and pasting their output together is where a check gets dropped,
+   even once the source of each individual number is honest. Run the gate
+   itself — `gate-6-pull-request.mjs`, or the platform's gate-6 job, reading
+   its own job log rather than a summary of it (below) — and record what it
+   printed. A check that genuinely cannot run locally is a line in that same
+   output, reported unavailable; it is never a line quietly missing because
+   the implementer judged it out of scope.
+
+   **Checkpoint, answerable by looking:** the report names the single command
+   whose output produced its outstanding-work list; that list's line count
+   equals the finding count in that command's own output; and a check the
+   implementer could not run locally appears in the list as unavailable,
+   never as an absence nobody can see. A finding present in the gate's own
+   output and absent from the report is a defect in the report.
 
 ## What done looks like
 

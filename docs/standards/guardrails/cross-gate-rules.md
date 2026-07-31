@@ -295,6 +295,36 @@ passes reliably and CI running the identical suite that does not are two
 different instruments, and quoting the local one is not lying — it is
 citing the wrong instrument for a claim CI has already settled.
 
+**Fix 61 — naming the command is not enough while the set can still be
+assembled check by check.** A report cited the rule above and still lost
+lines: it ran the licence check and the suppression check, called the
+result "copied from gate output," and never ran `check-dependency-advisories.mjs`
+at all — a local Node script it mistakenly reasoned was "network/PATH-resolved"
+the same as osv-scanner, which it also skipped. Two whole categories were
+missing, each honestly sourced to nothing, because the set was built by
+choosing which checks to run rather than by running the one command that
+owns all of them. **The list itself must be the verbatim output of one
+command — the gate — never a concatenation of individually chosen checks'
+output.** A check that cannot run locally is a line in that command's own
+output, reported unavailable, not a line the implementer decided to leave
+out.
+
+**Fix 64 — read a gate's own output, not a platform's summary of it.**
+`gh api .../check-runs/{id}/annotations` caps the annotations it returns at
+10 per check run and silently drops the rest, no marker that anything was
+cut. A report built from that endpoint against a run with sixteen findings
+gets ten, missing three advisories, an osv-scanner finding and both
+suppression rows — the exit-0 class in a new place: an instrument that
+reports success-shaped output while omitting data. The raw job log is the
+only place the true count is visible. **Read a gate's own output — the job
+log, the command's own transcript — not a platform's summary of it.** A
+platform view may paginate, cap or deduplicate; the transcript a gate itself
+wrote does not. Where a report cites CI, it cites the job log. This is also
+why fix 61's rule is "one command, one transcript" rather than "check each
+source that has one": there is exactly one authoritative output, and every
+derived view of it — an API summary, a hand-picked subset of checks — can
+lose rows the transcript never did.
+
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
 The same principle, one level more specific: a suppression's own verification
@@ -448,6 +478,14 @@ choice is reported, not guessed.
       session report names its command — not only a report's
       outstanding-work section, which is the recurring case, not the whole
       rule.
+- [ ] The set named is the verbatim output of that one command, not an
+      assembly of individually run checks — a check left out because it
+      "couldn't run here" appears in the output as unavailable, never as a
+      silent absence.
+- [ ] A report built from a platform's API summary of a check run (GitHub's
+      annotations endpoint, capped at 10 per run) is instead read from the
+      job log — a platform view that can paginate, cap or deduplicate is not
+      the gate's own output.
 - [ ] Where a gate also produces the figure a report states — a test count,
       a pass/fail split — the report quotes that gate's own output for the
       same commit, not a local run's. A local run that passes reliably
