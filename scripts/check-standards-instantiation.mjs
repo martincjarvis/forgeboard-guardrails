@@ -1,4 +1,4 @@
-// cspell:ignore pyproject pytest golangci clippy
+// cspell:ignore pyproject pytest golangci clippy nunit mstest msbuild pylint virtualenv gofmt phpunit rubocop
 // Reference implementation for two of the seven "instantiated docs are tuned
 // to the repository" checkpoints
 // (docs-style.md#standards-in-a-consuming-repository): a stack name outside
@@ -9,6 +9,21 @@
 // documents read as a process, a gap named rather than silent, and these
 // seven checks themselves never pruned) ask whether prose is honest or well
 // formed, which no script here scores; see the standard for why.
+//
+// Fix 55 — the first checkpoint is not confined to `docs/standards/**`.
+// Audit 14 found four dead .NET words (`Roslynator`, `Meziantou`, `xunit`,
+// `warnaserror`) in a Node-only repository's `cspell.json`, each with zero
+// occurrences anywhere else in the tree, copied wholesale from this
+// toolkit's own multi-stack word list — where the same words are not
+// residue, because they occur in this corpus's own `.NET` prose.
+// Instantiation residue is not confined to prose: a repository's own
+// configuration can carry a stack it does not have, the same as its
+// documents can. checkCspellResidue below reads the instantiated
+// repository's own cspell.json, kept conservative on purpose — an unused
+// word alone is not a finding, only one that also names a stack outside the
+// derived list, because plenty of legitimate vocabulary appears once and is
+// later edited away and a checker that flags every unused word gets turned
+// off.
 //
 // Fix 53 — one narrow exception, not a third full checkpoint. Whether a
 // removal's stated *reason* is honest and complete stays judgement, same as
@@ -55,7 +70,7 @@
 // does and leaves it non-clean does not merge that way.
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { trackedFiles } from "./lib.mjs";
+import { trackedFiles, isText, deriveComponent } from "./lib.mjs";
 
 /** Manifest that, if present, means the stack is genuinely in use. */
 const STACK_MARKERS = {
@@ -117,6 +132,118 @@ export function findStackReferencesOutsideList(text, presentStacks) {
     }
   }
   return findings;
+}
+
+// Fix 55 — single-token markers, distinct from STACK_KEYWORDS above. A
+// cspell dictionary word is a bare identifier ("xunit"), not running prose,
+// so a phrase built for a substring search in text ("dotnet ", trailing
+// space and all) does not apply to it; this is the same per-stack universe
+// with the tool and framework names a dictionary word copied wholesale from
+// that stack would actually carry — the demonstrated case (Roslynator,
+// Meziantou, xunit, warnaserror) is every entry in STACK_WORD_MARKERS.dotnet.
+const STACK_WORD_MARKERS = {
+  dotnet: [
+    "roslynator",
+    "meziantou",
+    "xunit",
+    "nunit",
+    "mstest",
+    "warnaserror",
+    "nuget",
+    "csproj",
+    "msbuild",
+  ],
+  python: ["pytest", "pyproject", "pylint", "flake8", "virtualenv"],
+  go: ["golangci", "gofmt", "goroutine"],
+  rust: ["clippy", "rustfmt", "cargo"],
+  java: ["junit", "gradle", "maven", "mockito"],
+  php: ["phpunit", "composer", "psr"],
+  ruby: ["rspec", "rubocop", "bundler"],
+  node: [],
+};
+
+/** True when `word` names one stack's own tooling by containment either
+ *  way — an exact match, a marker contained in the word, or the word
+ *  contained in a marker — so both a bare tool name ("xunit") and a longer
+ *  compound one still match without an exhaustive per-word list. */
+function wordNamesStack(word, markers) {
+  const w = word.toLowerCase();
+  return markers.some((m) => w === m || w.includes(m) || m.includes(w));
+}
+
+/** Every `words` entry with no occurrence anywhere in `corpusText` (the rest
+ *  of the tracked tree) that also names a stack absent from `presentStacks`.
+ *  Returns [{ word, stack }]. Deliberately conservative: an unused word with
+ *  no stack match is not a finding — most legitimate vocabulary appears once
+ *  and is later edited away, and only the combination (unused AND names a
+ *  stack the repository does not have) is the residue fix 55 demonstrated.
+ *
+ *  A case-insensitive substring test, not a RegExp built from the word — a
+ *  cspell word list is repository content, not trusted input, and semgrep's
+ *  detect-non-literal-regexp rule correctly flags any `new RegExp(variable)`
+ *  as a ReDoS surface regardless of escaping; `.includes()` needs no escaping
+ *  and answers the same "does this occur anywhere" question this check
+ *  actually asks. */
+export function findCspellResidue(words, corpusText, presentStacks) {
+  const findings = [];
+  const corpusLower = corpusText.toLowerCase();
+  for (const word of words) {
+    if (corpusLower.includes(word.toLowerCase())) continue;
+    for (const [stack, markers] of Object.entries(STACK_WORD_MARKERS)) {
+      if (presentStacks.has(stack)) continue;
+      if (wordNamesStack(word, markers)) {
+        findings.push({ word, stack });
+        break;
+      }
+    }
+  }
+  return findings;
+}
+
+/** Fix 55: `cspell.json`'s word list is configuration the instantiation
+ *  copies verbatim, the same as a document under `docs/standards/**` — a
+ *  dead stack's vocabulary can hide there just as easily. This toolkit's
+ *  own repository is exempt outright, the same reasoning
+ *  `check-tooling-class.mjs`'s `isToolkit` already applies
+ *  (`deriveComponent()` names this repository's own shipped product; its
+ *  absence means a consuming repository): this corpus's `cspell.json`
+ *  legitimately lists every stack it documents, in prose this same check
+ *  would otherwise have to read to rule out. `files` and `readFile` are
+ *  injectable for testing, the same shape the rest of this module uses. */
+export function checkCspellResidue({
+  cspellPath = "cspell.json",
+  files = trackedFiles(),
+  readFile = (f) => readFileSync(f, "utf8"),
+  isToolkit = () => deriveComponent() !== null,
+} = {}) {
+  if (isToolkit()) return [];
+  let cspell;
+  try {
+    cspell = JSON.parse(readFile(cspellPath));
+  } catch {
+    return [];
+  }
+  const words = Array.isArray(cspell.words) ? cspell.words : [];
+  if (words.length === 0) return [];
+  const stacks = deriveStackList(files);
+  const corpus = files
+    .filter((f) => f !== cspellPath && isText(f))
+    .map((f) => {
+      try {
+        return readFile(f);
+      } catch {
+        return "";
+      }
+    })
+    .join("\n");
+  return findCspellResidue(words, corpus, stacks).map(({ word, stack }) => ({
+    path: cspellPath,
+    problem:
+      `${cspellPath} lists '${word}' in its word list, with no occurrence ` +
+      `anywhere else in the tree, and the word names ${stack} tooling — a ` +
+      `stack outside this repository's derived list (${[...stacks].join(", ") || "none"})`,
+    remedy: `remove '${word}' from ${cspellPath}'s word list, or add the manifest that shows the ${stack} stack is actually present`,
+  }));
 }
 
 /** Multi-component section headings in `text`, when `componentCount` is 1.
@@ -187,6 +314,22 @@ export function findRemovalsOutsideEnforcementMap({
   }));
 }
 
+/** isMain's fix-55 leg, pulled out as its own function rather than an
+ *  inline loop — the isMain block below is already lizard's own
+ *  span-artifact case (gate-7-on-demand.mjs's comment on `run.mjs`
+ *  documents the same tool misreading a large top-level `if` as one giant
+ *  function); adding another inline loop to it only feeds that, where a
+ *  named function keeps this leg's own count separate and small. Returns
+ *  the number of findings printed. */
+function reportCspellResidue(files) {
+  let count = 0;
+  for (const f of checkCspellResidue({ files })) {
+    count++;
+    process.stderr.write(`${f.path}: ${f.problem}\n`);
+  }
+  return count;
+}
+
 const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   // ponytail: component count taken from argv rather than derived from a
@@ -214,6 +357,10 @@ if (isMain) {
       );
     }
   }
+
+  // Fix 55 — the same residue, outside docs/standards/**: cspell.json's own
+  // word list, copied wholesale, keeping a stack's dead vocabulary alive.
+  findingCount += reportCspellResidue(files);
 
   // Fix 53 — a removal recorded only in a one-time session report, not in
   // the enforcement map or a PROVENANCE note. "Report-shaped" is a filename

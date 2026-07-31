@@ -299,7 +299,23 @@ Two of the seven instantiation checks are the exception: a stack name outside
 the derived list is a text search, and a multi-component section present at
 one component is a heading search gated on a count. Neither requires reading
 prose for tone or completeness, which is why `scripts/check-standards-instantiation.mjs`
-exists. Porting it is three steps, not one:
+exists.
+
+**The first of those two is not confined to `docs/standards/**` — instantiation
+residue is not confined to prose.** Fix 55: a Node-only repository's
+`cspell.json` carried `Roslynator`, `Meziantou`, `xunit` and `warnaserror`,
+each with zero occurrences anywhere else in the tree, copied wholesale from
+this toolkit's own multi-stack word list, where the same words are not
+residue — they occur in this corpus's own `.NET` prose. A repository's
+configuration can carry a stack it does not have the same as its documents
+can. `checkCspellResidue` (same module) reads the instantiated repository's
+own `cspell.json` word list, kept conservative on purpose: a word absent
+everywhere else in the tree is only a finding when it _also_ names a stack
+outside the derived list — an unused word alone is not, because plenty of
+legitimate vocabulary appears once and is later edited away, and a checker
+that flags every unused word gets turned off.
+
+Porting the module is three steps, not one:
 
 1. Copy it into the consuming repository's own tooling directory.
 2. **Wire it into that repository's own gate 7**, the same commit as the copy —
@@ -308,13 +324,14 @@ exists. Porting it is three steps, not one:
    running left open once already; `scripts/check-script-wiring.mjs` reports a
    check script no gate invokes as a finding for this reason.
 3. **Also wire it into that repository's own gate 6, blocking, whenever the
-   pull request's range touches `docs/standards/`.** Gate 7's sweep is
-   unconditional and reports on every run regardless of what changed — right
-   for catching a stack added later that the corpus never mentioned, since
-   nothing else would notice that — but it never blocks a merge on its own.
-   A pull request that edits the instantiated corpus and leaves it non-clean
-   should not merge leaving it that way; one that never touches
-   `docs/standards/` is not asked about it. This is the same change-triggered
+   pull request's range touches `docs/standards/` or `cspell.json`.** Gate
+   7's sweep is unconditional and reports on every run regardless of what
+   changed — right for catching a stack added later that the corpus never
+   mentioned, since nothing else would notice that — but it never blocks a
+   merge on its own. A pull request that edits the instantiated corpus or
+   the word list and leaves either non-clean should not merge leaving it
+   that way; one that touches neither is not asked about it. This is the
+   same change-triggered
    shape [change-triggered-checks.md](guardrails/change-triggered-checks.md)
    already states for a dependency check: the trigger is "did the range touch
    the thing this check reads", computed the same way gate-6-pull-request.mjs's
@@ -326,10 +343,17 @@ exists. Porting it is three steps, not one:
    never blocked, because nothing was wired to ask at the point a change
    could have kept the corpus clean.
 
-Run it there, against that repository's **own** instantiated `docs/standards/`.
-It is not run against this corpus's own `docs/standards/`: this repository is
-the canonical source, not an instantiated copy, and correctly documents every
-stack it supports — do not copy that exemption along with the file.
+Run it there, against that repository's **own** instantiated `docs/standards/`
+and its own `cspell.json`. It is not run against this corpus's own
+`docs/standards/` or `cspell.json`: this repository is the canonical source,
+not an instantiated copy, and correctly documents and lists every stack it
+supports — do not copy that exemption along with the file.
+`checkCspellResidue` carries the exemption itself (`deriveComponent()` naming
+this repository's own shipped product, the same signal
+`check-tooling-class.mjs` already uses), rather than relying on a consumer
+to never run it here, because unlike the prose checks this one is cheap
+enough to run unconditionally and a repository that forgets the exemption
+would otherwise flag its own canonical corpus.
 
 Everything else stays judgement, including the other five instantiation
 checks: no gate can tell whether a removal was recorded for the right reason,
@@ -367,14 +391,13 @@ requirement it stands in for.
       actually records that procedure, or dropped — never left broken and
       never satisfied by a replacement sentence that asserts a location
       that, checked, does not contain the thing.
-
-The seven checks below always apply to an instantiated repository's copy —
-they verify that tuning happened, so they are never among the content tuning
-removes. Run them at adoption and unconditionally at
-[gate 7](guardrails/gate-7-on-demand.md), the same as the rest of this
-section — and, for the two mechanical checks above, additionally blocking at
-[gate 6](guardrails/gate-6-pull-request.md) whenever the change touches
-`docs/standards/`:
+      The seven checks below always apply to an instantiated repository's copy —
+      they verify that tuning happened, so they are never among the content tuning
+      removes. Run them at adoption and unconditionally at
+      [gate 7](guardrails/gate-7-on-demand.md), the same as the rest of this
+      section — and, for the two mechanical checks above, additionally blocking at
+      [gate 6](guardrails/gate-6-pull-request.md) whenever the change touches
+      `docs/standards/`:
 
 - [ ] Every instantiated standard applies only to the stacks the
       repository's own manifests declare — a language, package manager or
@@ -384,6 +407,14 @@ section — and, for the two mechanical checks above, additionally blocking at
       form of this check: derive the stack list from the tracked manifests,
       then search the instantiated documents for a keyword belonging to a
       stack not in that list.
+- [ ] The repository's own configuration carries no stack it does not have
+      either — starting with `cspell.json`'s word list, the demonstrated
+      case. A word with no occurrence anywhere else in the tree, that also
+      names a stack outside the derived list, is a finding; an unused word
+      alone is not. `checkCspellResidue`
+      (`scripts/check-standards-instantiation.mjs`) is the mechanical form,
+      exempt outright against this toolkit's own repository, which
+      legitimately lists every stack it documents.
 - [ ] No instantiated standard describes multi-component behaviour —
       deployment ordering, cross-component prerelease propagation, a
       per-component version table — when [the component map](guardrails/components.md)

@@ -81,6 +81,8 @@ import {
   findStackReferencesOutsideList,
   findMultiComponentContent,
   findRemovalsOutsideEnforcementMap,
+  findCspellResidue,
+  checkCspellResidue,
 } from "../../scripts/check-standards-instantiation.mjs";
 import { run, have } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
@@ -3664,6 +3666,147 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
     assert.equal(r.status, 0);
     rmSync(dir, { recursive: true, force: true });
   });
+});
+
+// --- fix 55 — instantiation residue outside docs/standards/**. Audit 14
+// found four dead .NET words (Roslynator, Meziantou, xunit, warnaserror) in
+// a Node-only repository's cspell.json, each with zero occurrences anywhere
+// else in the tree, copied wholesale from this toolkit's own multi-stack
+// word list. Kept conservative: an unused word alone is not a finding, only
+// one that also names a stack outside the derived list.
+
+test("findCspellResidue: a word absent everywhere else that names a stack outside the derived list is a finding", () => {
+  const words = ["Roslynator", "warnaserror"];
+  const corpus = "This repository runs npm test and eslint.\n";
+  const findings = findCspellResidue(words, corpus, new Set(["node"]));
+  assert.equal(findings.length, 2);
+  assert.deepEqual(
+    findings.map((f) => f.stack),
+    ["dotnet", "dotnet"],
+  );
+});
+
+test("findCspellResidue: a word that occurs elsewhere in the tree is legitimate vocabulary, not residue", () => {
+  const words = ["Roslynator"];
+  const corpus = "Roslynator is mentioned here as an example .NET tool.\n";
+  assert.deepEqual(findCspellResidue(words, corpus, new Set(["node"])), []);
+});
+
+test("findCspellResidue: an unused word that names no stack is not a finding on its own — flagging every unused word gets a checker turned off", () => {
+  const words = ["dogfoods", "finalised"];
+  const corpus = "Nothing here uses either word.\n";
+  assert.deepEqual(findCspellResidue(words, corpus, new Set(["node"])), []);
+});
+
+test("findCspellResidue: a word naming a stack that IS in the derived list is not a finding, however unused", () => {
+  const words = ["eslint"];
+  const corpus = "No occurrence of the word itself here.\n";
+  assert.deepEqual(findCspellResidue(words, corpus, new Set(["node"])), []);
+});
+
+test("checkCspellResidue: a Node-only repository's cspell.json carrying dead .NET vocabulary is refused, naming the word and the stack (fix 55, audit 14's exact case)", () => {
+  const files = ["cspell.json", "package.json", "docs/README.md"];
+  const contents = {
+    "cspell.json": JSON.stringify({
+      words: ["Roslynator", "Meziantou", "xunit", "warnaserror"],
+    }),
+    "package.json": JSON.stringify({ name: "x" }),
+    "docs/README.md": "# Docs\n\nRun `npm test` before merging.\n",
+  };
+  const findings = checkCspellResidue({
+    files,
+    readFile: (f) => contents[f],
+    isToolkit: () => false,
+  });
+  assert.equal(findings.length, 4);
+  assert.ok(findings.every((f) => f.path === "cspell.json"));
+  assert.match(findings[0].problem, /'Roslynator'.*dotnet/);
+});
+
+test("checkCspellResidue: the same word list passes clean once the .NET manifest is actually present — the stack is no longer outside the derived list", () => {
+  const files = ["cspell.json", "app.csproj"];
+  const contents = {
+    "cspell.json": JSON.stringify({ words: ["Roslynator"] }),
+    "app.csproj": "<Project />",
+  };
+  const findings = checkCspellResidue({
+    files,
+    readFile: (f) => contents[f],
+    isToolkit: () => false,
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("checkCspellResidue: this toolkit's own repository is exempt outright, whatever its cspell.json lists", () => {
+  const findings = checkCspellResidue({
+    files: ["cspell.json"],
+    readFile: () => JSON.stringify({ words: ["Roslynator"] }),
+    isToolkit: () => true,
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("checkCspellResidue: run for real against this toolkit's own repository, exits clean — the same cspell.json audit 14's demonstrated words came from, verified not to fire here (fix 55)", () => {
+  // Two separate reasons this must stay clean, both worth proving rather
+  // than assuming: the toolkit exemption (isToolkit, the default here since
+  // this repository carries .claude-plugin/plugin.json), AND — checked
+  // independently below with the exemption forced off — every word in this
+  // repository's real cspell.json that names a non-derived stack actually
+  // occurs elsewhere in this corpus's own multi-stack prose, because this
+  // is the canonical corpus documenting every stack it supports.
+  const withExemption = checkCspellResidue();
+  assert.deepEqual(
+    withExemption,
+    [],
+    "the toolkit exemption alone keeps this clean",
+  );
+
+  const withoutExemption = checkCspellResidue({ isToolkit: () => false });
+  assert.deepEqual(
+    withoutExemption,
+    [],
+    "even with the exemption forced off, every non-derived-stack word in this repository's real cspell.json occurs elsewhere in its own prose — not residue",
+  );
+});
+
+test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose cspell.json carries dead .NET vocabulary with zero other occurrences, refuses and names it (fix 55)", () => {
+  const dir = scratchRepo();
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+  writeFileSync(
+    join(dir, "cspell.json"),
+    JSON.stringify({
+      words: ["Roslynator", "Meziantou", "xunit", "warnaserror"],
+    }),
+  );
+  mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "standards", "testing-strategy.md"),
+    "# Testing\n\nRun `npm test` before merging.\n",
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /cspell\.json.*'Roslynator'.*dotnet/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("regression guard: check-standards-instantiation.mjs run for real, the same cspell.json words actually used in prose elsewhere in the tree, passes clean", () => {
+  const dir = scratchRepo();
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+  writeFileSync(
+    join(dir, "cspell.json"),
+    JSON.stringify({ words: ["Roslynator"] }),
+  );
+  mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "standards", "testing-strategy.md"),
+    "# Testing\n\nRoslynator is mentioned here as an example only.\n",
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+  assert.equal(r.status, 0);
+  assert.doesNotMatch(r.stderr, /cspell\.json/);
+  rmSync(dir, { recursive: true, force: true });
 });
 
 // --- scripts/check-tooling-class.mjs — fix 45. file-classes.md's own rule
