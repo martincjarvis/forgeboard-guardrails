@@ -231,11 +231,27 @@ async function measureComplexity(names, findings, warnings) {
 }
 
 async function main() {
-  const base = resolveBase();
+  // Fix 71 — an explicit base (argv[2]) wins over resolveBase(). Invoked
+  // standalone (the Stop hook, hooks.json) this hook has always had to
+  // derive its own base and resolveBase() is the right, and only, way to do
+  // that. Invoked as a subprocess of scripts/gate-6-pull-request.mjs, the
+  // caller has *already* resolved a base for this exact checkout — from
+  // GITHUB_BASE_REF in CI, falling back to resolveBase() only for a manual
+  // run — before spawning this hook; re-deriving here via resolveBase()
+  // alone hits the same gap the caller just worked around, and does so
+  // unconditionally: GitHub Actions' `actions/checkout` never runs `git
+  // remote set-head origin -a`, so `origin/HEAD` is unresolvable on every
+  // run of that workflow, not intermittently. Before this fix, gate 6 always
+  // resolved a base while this hook, spawned seconds later in the same
+  // checkout, always reported the SKIP below — so gate 4's structural checks
+  // (change size, file length, complexity) had never actually run in CI, on
+  // any pull request, despite reading as an ordinary, correctly-worded skip.
+  const base = process.argv[2] || resolveBase();
   if (!base) {
-    // No base to compare against: origin/HEAD could not be resolved. A
-    // silent exit(0) here would read as "nothing to measure" when the truth
-    // is "could not tell" — say so instead (cross-gate-rules.md).
+    // No base to compare against: origin/HEAD could not be resolved and no
+    // explicit base was given. A silent exit(0) here would read as "nothing
+    // to measure" when the truth is "could not tell" — say so instead
+    // (cross-gate-rules.md).
     process.stderr.write(
       "gate 4: SKIP change size / file length / complexity — origin/HEAD could not be resolved\n",
     );

@@ -394,6 +394,35 @@ one component is a heading search gated on a count. Neither requires reading
 prose for tone or completeness, which is why `scripts/check-standards-instantiation.mjs`
 exists.
 
+**Fix 72 — a heading search cannot see a retained standard's contradiction
+when it lives outside a heading.** Audit 17's case: `deployment-strategy.md`
+retained wholesale, 567 of its 568 lines, in a repository this corpus's own
+component map derives as one component — and the multi-component heading
+search reported clean, because the contradiction was in the document's own
+frontmatter `summary` field ("How a multi-component app is versioned
+per-component…"), never a Markdown heading. The checker was not lying: it
+detects literal dead-stack vocabulary and heading mismatches, and there
+were none. It could not detect the wrong standard retained wholesale, the
+larger version of the same defect. `findComponentCountContradiction` (same
+module) widens exactly that far: a document's own frontmatter or title
+naming "multi-component" while the component map declares one component is
+a finding — structural, not vocabulary-based, since the component count is
+already derived and this compares that one fact against the two places a
+document states what it is about. Deliberately narrow to those two
+locations: reading the body for the same phrase would reopen the "was this
+reduced enough" judgement call this section already refuses to automate.
+
+**A claim that no residue remains is itself subject to [never claim more
+than was checked](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked).**
+An enforcement map or bootstrap report stating "no dead stack vocabulary, no
+multi-component content, no residue remains" is a completeness claim the
+same as any other, and names the check that supports it — the widened
+`check-standards-instantiation.mjs`, run and reporting zero findings — not
+a document that was read and judged clean by eye. A residue claim written
+alongside the map rather than derived from the checker's own output is the
+same defect fix 56 already closed for a report's outstanding-work section,
+one artefact over.
+
 **The first of those two is not confined to `docs/standards/**` — instantiation
 residue is not confined to prose.** Fix 55: a Node-only repository's
 `cspell.json` carried `Roslynator`, `Meziantou`, `xunit` and `warnaserror`,
@@ -600,6 +629,12 @@ section — and, for the two mechanical checks above, additionally blocking at
       declares one component. `findMultiComponentContent` in the same script
       is the mechanical form: a known multi-component heading present while
       the component count is 1 is a finding.
+- [ ] No instantiated standard's own frontmatter or title contradicts the
+      same component map either — a document retained wholesale rather than
+      tuned can carry the contradiction there instead of in a heading.
+      `findComponentCountContradiction` (fix 72, same script) is the
+      mechanical form: `deployment-strategy.md`'s frontmatter reading "a
+      multi-component app" at component count 1 is the demonstrated case.
 - [ ] No instantiated standard describes an environment deployment procedure
       (health check, smoke test, rollback) when no declared deployment
       target is an environment.

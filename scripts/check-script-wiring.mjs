@@ -140,6 +140,8 @@ const SCRIPT_FILE_ON_DEMAND = {
     "reference implementation meant to be ported into a consuming repository's own tooling directory and wired into that repository's own gate 7 (docs-style.md#standards-in-a-consuming-repository, and the file's own header) — this repository is the canonical corpus, not an instantiated copy, and correctly documents every stack it supports, so it is not run here",
   "check-licence-table.mjs":
     "licence-table re-validation against each entry's own external reference — the file's own header: invoked by hand when adding a licence or confirming the table is current, deliberately not folded into gate 7's default sweep because it depends on external hosts staying reachable, a slower and less reliable failure mode than the rest of that sweep",
+  "check-pr-body-artefacts.mjs":
+    "fix 68's reserved-class citation check: it reads an already-open pull request's own body via `gh pr view`, which has nothing to read before a pull request exists — a chicken-and-egg gate 6 cannot resolve by running earlier. Invoked by hand, or from a reviewer session, against the pull request under review; the file's own header records the same reasoning.",
 };
 
 /** { wired, onDemand, unwired } for `check-*.mjs` files in scripts/ itself,

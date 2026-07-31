@@ -1,4 +1,4 @@
-// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis
+// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
 // The hooks are the only code in this repository, and they run on every edit on
 // somebody's machine. Their logic — thresholds, the override marker, which files
 // count — is exactly the kind that fails quietly, so it leaves a runnable check
@@ -81,6 +81,7 @@ import {
   deriveStackList,
   findStackReferencesOutsideList,
   findMultiComponentContent,
+  findComponentCountContradiction,
   findRemovalsOutsideEnforcementMap,
   findCspellResidue,
   checkCspellResidue,
@@ -107,6 +108,13 @@ import {
   checkApprovalProvenanceStaged,
   checkApprovalProvenanceRange,
 } from "../../scripts/check-approval-provenance.mjs";
+import {
+  adrNumbersProposedOrAccepted,
+  registerRowIdentities,
+  citesReservedArtefact,
+  disclosedFindingLines,
+  findUncitedFindings,
+} from "../../scripts/check-pr-body-artefacts.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -256,6 +264,79 @@ test("gate 4 passes a small branch", () => {
   git(dir, ["commit", "-qm", "feat: small"]);
   assert.equal(runHook("gate-4-task-completion.mjs", dir).status, 0);
   rmSync(dir, { recursive: true, force: true });
+});
+
+// --- Fix 71. Root cause: scripts/gate-6-pull-request.mjs resolves its own
+// base via GITHUB_BASE_REF first (always set on a real `pull_request` CI
+// run), falling back to resolveBase() only for a manual run — but it used
+// to spawn this hook as a subprocess with no base argument at all, so the
+// hook always re-derived its own base via a bare resolveBase() call. That
+// call needs `origin/HEAD`, a symref GitHub Actions' `actions/checkout`
+// never sets (no `git remote set-head origin -a` step in the workflow), so
+// on every real CI run of gate 6 this hook's own resolveBase() failed and
+// it silently skipped — while gate 6 itself, seconds apart in the same
+// checkout, resolved its base successfully via GITHUB_BASE_REF and
+// proceeded. The two tests below prove the fix at the hook's own interface:
+// an explicit base argument is used when given, and the pre-existing local
+// behaviour (Stop hook, hooks.json, called with no argument) is unchanged.
+
+test("gate 4 uses an explicit base argument instead of resolveBase() when one is given (fix 71)", () => {
+  const dir = scratchRepo();
+  // Break resolveBase() the same single-failure way line 722's test does —
+  // origin/main still resolves, origin/HEAD does not — so a pass here can
+  // only be explained by the explicit argument, never by a lucky derivation.
+  git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
+  git(dir, ["checkout", "-qb", "feature"]);
+  for (let i = 0; i < 5; i++)
+    writeFileSync(join(dir, `part${i}.ts`), lines(200));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "feat: large"]);
+  const r = spawnSync(
+    process.execPath,
+    [join(HOOKS, "gate-4-task-completion.mjs"), "origin/main"],
+    { cwd: dir, encoding: "utf8", env: CLEAN_ENV },
+  );
+  assert.equal(
+    r.status,
+    2,
+    "an explicit base must be measured against, not skipped for lack of a derivable one",
+  );
+  assert.match(r.stderr, /change size/);
+  assert.doesNotMatch(
+    r.stderr,
+    /origin\/HEAD could not be resolved/,
+    "an explicit base was given; resolveBase() must not even be consulted",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("gate 4 still skips visibly, with no explicit base given, when origin/HEAD is unresolvable (unchanged local/Stop-hook behaviour)", () => {
+  const dir = scratchRepo();
+  git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, "small.ts"), lines(20));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "feat: small"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(r.status, 0);
+  assert.match(r.stderr, /origin\/HEAD could not be resolved/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("regression guard: scripts/gate-6-pull-request.mjs passes its own resolved base to the gate-4 subprocess by argument, rather than letting it re-derive independently (fix 71)", () => {
+  // A wiring check, the same shape check-script-wiring.mjs already uses for
+  // "does the claimed call site actually say what it claims" — re-reads the
+  // real source rather than trusting a comment, so a future edit that drops
+  // the argument again is caught here rather than only in production.
+  const text = readFileSync(
+    join(ROOT, "scripts", "gate-6-pull-request.mjs"),
+    "utf8",
+  );
+  assert.match(
+    text,
+    /run\(\s*"node"\s*,\s*\[\s*"hooks\/gate-4-task-completion\.mjs"\s*,\s*base\s*\]\s*\)/,
+    "gate 6 must invoke the gate-4 subprocess with the base it already resolved, not with no argument",
+  );
 });
 
 test("gate 4 blocks a branch over the change-size error threshold", () => {
@@ -3646,6 +3727,59 @@ test("findMultiComponentContent: the same heading raises nothing once the reposi
   assert.deepEqual(findings, []);
 });
 
+// --- findComponentCountContradiction — fix 72. findMultiComponentContent
+// above is a heading search; audit 17's demonstrated case (docs/standards/
+// deployment-strategy.md, 567 of 568 lines retained) carried its own
+// contradiction in the frontmatter `summary` field, which is never a
+// Markdown heading, so the heading search read the document as clean.
+
+test("findComponentCountContradiction: a frontmatter summary reading multi-component is a finding when the repository has one component", () => {
+  const text =
+    "---\ntype: reference\nsummary: How a multi-component app is versioned.\nread_when: Setting up deployment.\n---\n\n# Deployment strategy\n";
+  const findings = findComponentCountContradiction(text, 1);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].field, "frontmatter");
+  assert.equal(findings[0].line, 3);
+});
+
+test("findComponentCountContradiction: a title reading multi-component is a finding, distinct from the frontmatter", () => {
+  const text =
+    "---\ntype: reference\nsummary: fine\n---\n\n# The multi-component release process\n";
+  const findings = findComponentCountContradiction(text, 1);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].field, "title");
+});
+
+test("findComponentCountContradiction: raises nothing once the repository actually has more than one component", () => {
+  const text =
+    "---\nsummary: How a multi-component app is versioned.\n---\n\n# Deployment\n";
+  assert.deepEqual(findComponentCountContradiction(text, 3), []);
+});
+
+test("findComponentCountContradiction: a clean frontmatter and title raise nothing — this is not a body-prose scan", () => {
+  const text =
+    "---\ntype: reference\nsummary: How this repository is packaged and released.\n---\n\n" +
+    "# Deployment strategy\n\nThis paragraph mentions a multi-component app in passing, describing what the standard used to cover.\n";
+  assert.deepEqual(
+    findComponentCountContradiction(text, 1),
+    [],
+    "the offending word sits in the body, not the frontmatter or the title, and this check deliberately never reads the body",
+  );
+});
+
+test("regression guard: findComponentCountContradiction run for real against this toolkit's own docs/standards/deployment-strategy.md, at component count 1, refuses on its frontmatter (fix 72, audit 17's exact case)", () => {
+  const text = readFileSync(
+    join(ROOT, "docs", "standards", "deployment-strategy.md"),
+    "utf8",
+  );
+  const findings = findComponentCountContradiction(text, 1);
+  assert.ok(
+    findings.length > 0,
+    "deployment-strategy.md's own frontmatter still reads as multi-component; this is the retained-standard defect fix 72 exists to catch, not a false positive",
+  );
+  assert.equal(findings[0].field, "frontmatter");
+});
+
 test("findMultiComponentContent: the phrase inside a paragraph rather than a heading is not a finding — only the section itself is", async (t) => {
   const text = "This paragraph mentions cross-component effects in passing.\n";
   const findings = findMultiComponentContent(text, 1);
@@ -4780,5 +4914,160 @@ test("fix 49, hazard 3 (continued): the same commit's ADR-0004 — introduced an
   assert.ok(
     !/allow[- ]list/i.test(afterText),
     "sanity check: the gap is real — this ADR's prose never uses the phrase acceptsRiskLicenceSuppressionOrOptOut requires alongside 'licence'",
+  );
+});
+
+// --- scripts/check-pr-body-artefacts.mjs — fix 68. cross-gate-rules.md
+// names five reserved classes a pull request may open with findings still
+// outstanding — a register row or ADR accepting a risk, a licence, a
+// suppression or an opt-out, and a named conflict between two standing
+// directives — and says "a finding the implementer could have fixed is a
+// reason not to open yet, not a line item to disclose and open anyway."
+// Audit 17: a pull request opened findings under an invented sixth heading
+// ("One tool limitation, documented rather than hidden") with no register
+// row or ADR behind it, and six dependency advisories cited none either.
+
+test("adrNumbersProposedOrAccepted: reads Proposed and Accepted ADRs, not Superseded or Rejected ones", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pr-artefacts-adr-"));
+  writeFileSync(join(dir, "0001-proposed.md"), "---\nstatus: Proposed\n---\n");
+  writeFileSync(join(dir, "0002-accepted.md"), "---\nstatus: Accepted\n---\n");
+  writeFileSync(
+    join(dir, "0003-superseded.md"),
+    "---\nstatus: Superseded\n---\n",
+  );
+  const numbers = adrNumbersProposedOrAccepted(dir);
+  assert.ok(numbers.has("0001") && numbers.has("0002"));
+  assert.ok(
+    !numbers.has("0003"),
+    "a Superseded ADR no longer reserves anything a pull request can cite",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("adrNumbersProposedOrAccepted: a missing ADR directory contributes nothing rather than throwing", () => {
+  assert.equal(
+    adrNumbersProposedOrAccepted(join(tmpdir(), "does-not-exist-xyz")).size,
+    0,
+  );
+});
+
+test("registerRowIdentities: reads a row's own identity across every register file, skipping README", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pr-artefacts-reg-"));
+  writeFileSync(
+    join(dir, "suppression-register.md"),
+    "| Code | Scope | Justification | Removable when | Approved by |\n" +
+      "| --- | --- | --- | --- | --- |\n" +
+      "| no-eval | src/x.mjs | legacy | never | |\n",
+  );
+  writeFileSync(join(dir, "README.md"), "| Code |\n| --- |\n| not-a-row |\n");
+  const identities = registerRowIdentities(dir);
+  assert.ok(identities.some((i) => i.includes("no-eval")));
+  assert.ok(!identities.some((i) => i.includes("not-a-row")));
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("citesReservedArtefact: an ADR number that exists as Proposed or Accepted is a citation", () => {
+  assert.ok(
+    citesReservedArtefact("see ADR-0004 for the accepted licence exception", {
+      adrNumbers: new Set(["0004"]),
+    }),
+  );
+});
+
+test("citesReservedArtefact: an ADR number that does not exist in the Proposed/Accepted set is not a citation — a number alone is not a fact", () => {
+  assert.ok(
+    !citesReservedArtefact("this is basically what ADR-0099 would say", {
+      adrNumbers: new Set(["0004"]),
+    }),
+  );
+});
+
+test("citesReservedArtefact: a register row's own identity is a citation", () => {
+  assert.ok(
+    citesReservedArtefact("filed as the no-eval / src/x.mjs suppression row", {
+      registerIdentities: ["no-eval"],
+    }),
+  );
+});
+
+test("citesReservedArtefact: the root instruction file's named conflict clause is a citation", () => {
+  assert.ok(
+    citesReservedArtefact(
+      "this is a conflict between two standing directives, reserved per AGENTS.md",
+    ),
+  );
+  assert.ok(
+    !citesReservedArtefact("see AGENTS.md for the general operating rules"),
+    "naming the root file alone, with no conflict language, is not a citation",
+  );
+});
+
+test("citesReservedArtefact: an invented reason with no artefact behind it — audit 17's own case — cites nothing", () => {
+  assert.ok(
+    !citesReservedArtefact(
+      "one tool limitation, documented rather than hidden: lizard's parser is unreliable here",
+      { adrNumbers: new Set(["0004"]), registerIdentities: ["no-eval"] },
+    ),
+  );
+});
+
+test("disclosedFindingLines: bullets under a heading naming outstanding work are extracted; a bullet outside any such section is not", () => {
+  const body =
+    "# Pull request\n\nSome narrative.\n\n" +
+    "## Outstanding\n\n" +
+    "- a licence exception, see ADR-0004\n" +
+    "- a suppression row, no-eval\n\n" +
+    "## Test plan\n\n" +
+    "- ran the suite locally\n";
+  const findings = disclosedFindingLines(body);
+  assert.equal(findings.length, 2, "only the two bullets under Outstanding");
+  assert.match(findings[0].text, /ADR-0004/);
+});
+
+test("disclosedFindingLines: a bold-only line opens a section too — the invented-heading shape audit 17 found", () => {
+  const body =
+    "## Findings\n\n" +
+    "**One tool limitation, documented rather than hidden**\n\n" +
+    "- the gap-fill scan misparses this file\n";
+  const findings = disclosedFindingLines(body);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].text, /misparses/);
+});
+
+test("findUncitedFindings: reproduces audit 17's own case — an invented heading with an uncited bullet is a finding", () => {
+  const body =
+    "## Outstanding\n\n" +
+    "**One tool limitation, documented rather than hidden**\n\n" +
+    "- the gap-fill scan touches a file lizard misparses\n";
+  const findings = findUncitedFindings(body, {
+    adrNumbers: new Set(["0004"]),
+    registerIdentities: ["no-eval"],
+  });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /no register row, Proposed\/Accepted ADR/);
+});
+
+test("findUncitedFindings: a bullet citing a real, reserved artefact is not a finding", () => {
+  const body =
+    "## Outstanding\n\n" +
+    "- a licence exception accepted in ADR-0004\n" +
+    "- the no-eval suppression, filed with a blank approver\n";
+  const findings = findUncitedFindings(body, {
+    adrNumbers: new Set(["0004"]),
+    registerIdentities: ["no-eval"],
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("regression guard: adrNumbersProposedOrAccepted and registerRowIdentities run for real against this toolkit's own docs/ADR and docs/registers", () => {
+  const numbers = adrNumbersProposedOrAccepted(join(ROOT, "docs", "ADR"));
+  assert.ok(
+    numbers.has("0004"),
+    "this repository's own ADR-0004 is Accepted and must be citable",
+  );
+  const identities = registerRowIdentities(join(ROOT, "docs", "registers"));
+  assert.ok(
+    Array.isArray(identities),
+    "an empty or populated register both return an array, never throw",
   );
 });

@@ -355,6 +355,61 @@ export function findMultiComponentContent(text, componentCount) {
   return findings;
 }
 
+// Fix 72 — findMultiComponentContent above is a heading search, and a
+// retained standard's own contradiction does not have to live in a heading.
+// Audit 17's demonstrated case: docs/standards/deployment-strategy.md, 567
+// of 568 lines, whose frontmatter `summary` still read "How a multi-component
+// app is versioned per-component, packaged, and deployed..." in a repository
+// this corpus's own component map derives as one component
+// (docs/standards/guardrails/components.md) — a direct, structural
+// contradiction the heading search cannot see, because neither a frontmatter
+// field nor a restated title line is a Markdown heading.
+const MULTI_COMPONENT_PHRASE = /\bmulti-component\b/i;
+
+/** True for a frontmatter block line (`field: value`, between the file's
+ *  opening and closing `---` markers) or the document's own `# ` title
+ *  line — the two places a document states what it is about, as opposed to
+ *  its body, which this check deliberately never reads (docs-style.md: "a
+ *  crude proxy, and deliberately so" — scoring body prose for whether a
+ *  document was reduced enough is exactly the judgement call this corpus
+ *  already refuses to automate; see findMultiComponentContent's own heading
+ *  scope for the same restraint one level up). */
+function frontmatterOrTitleLines(text) {
+  const lines = text.split("\n");
+  const result = [];
+  const fmEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (fmEnd > 0 && i > 0 && i < fmEnd) {
+      result.push({ line: i + 1, text: lines[i], field: "frontmatter" });
+    } else if (/^#\s/.test(lines[i])) {
+      result.push({ line: i + 1, text: lines[i], field: "title" });
+      break; // the first `# ` heading is the title; nothing past it counts
+    }
+  }
+  return result;
+}
+
+/** A retained standard's own title or frontmatter contradicts the derived
+ *  component map — structural rather than vocabulary-based: the component
+ *  count is already derived (the same fact findMultiComponentContent reads),
+ *  so this compares that one derived fact against the document's own most
+ *  visible claim about itself, rather than searching body prose for the
+ *  many ways the same claim could be phrased. Returns
+ *  [{ field, line, text }], 1-indexed. Deliberately narrow to the one
+ *  demonstrated phrase ("multi-component") and the two structural
+ *  locations — widening to body prose or to a larger vocabulary list
+ *  reopens exactly the judgement call this check exists to avoid. */
+export function findComponentCountContradiction(text, componentCount) {
+  if (componentCount > 1) return [];
+  return frontmatterOrTitleLines(text)
+    .filter((l) => MULTI_COMPONENT_PHRASE.test(l.text))
+    .map((l) => ({
+      field: l.field,
+      line: l.line,
+      text: l.text.trim(),
+    }));
+}
+
 const REMOVAL_HEADING = /^#{1,6}\s*.*\bremoval/i;
 const PROVENANCE_HEADING = /^#{1,6}\s*PROVENANCE\b/i;
 
@@ -456,6 +511,14 @@ if (isMain) {
       findingCount++;
       process.stderr.write(
         `${file}:${f.line}: multi-component content ("${f.heading}") but the component map declares ${componentCount} component\n`,
+      );
+    }
+    // Fix 72 — the same comparison, read from the document's frontmatter or
+    // title rather than a body heading.
+    for (const f of findComponentCountContradiction(text, componentCount)) {
+      findingCount++;
+      process.stderr.write(
+        `${file}:${f.line}: ${f.field} reads as multi-component ("${f.text}") but the component map declares ${componentCount} component\n`,
       );
     }
   }

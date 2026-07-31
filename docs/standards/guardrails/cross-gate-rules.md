@@ -4,7 +4,7 @@ summary: The rules every gate holds regardless of what it checks — ordering, t
 read_when: Building a gate, or judging whether an existing one is defective in a way its checks would not reveal.
 ---
 
-<!-- cspell:ignore fixtured -->
+<!-- cspell:ignore fixtured GHSA Uncited symref unrun -->
 
 # Cross-gate rules
 
@@ -200,6 +200,24 @@ those — named in the pull request body, with the command that produced
 them. A finding the implementer could have fixed is a reason not to open
 yet, not a line item to disclose and open anyway.
 
+**Fix 68 — a definition with no check is a suggestion.** Audit 17 found a
+pull request that opened anyway, under a heading it invented: "One tool
+limitation, documented rather than hidden." "Tool limitation" is not one of
+the five, and the same body's six dependency advisories were called "a
+dependency-upgrade decision" with no ADR naming a GHSA id and no advisory
+register row anywhere — while the licence and suppression items beside them
+did carry real, blank-approver register rows. The check is mechanical and
+carries no judgement: **every finding disclosed in a pull request body
+cites the register row, the Proposed or Accepted ADR, or the named conflict
+record that reserves it — an ADR number that does not resolve to an actual
+Proposed or Accepted ADR is not a citation, and neither is a heading that
+invents a sixth class.** `scripts/check-pr-body-artefacts.mjs`
+(`findUncitedFindings`) is the mechanical form: it does not read whether the
+disclosing sentence is honest — that is the prose-honesty check this corpus
+already refuses to build — only whether the artefact it points at exists. A
+finding with no such artefact blocks the pull request rather than appearing
+in its body.
+
 **A skip is not a pass.** Where a check genuinely cannot run locally — a
 network-bound scanner, a platform-specific resolution, a host the developer
 does not have — [gate 5](gate-5-push.md) and
@@ -251,6 +269,55 @@ and in any session report that raises a pull request — see
 [docs-style.md: standards in a consuming
 repository](../docs-style.md#standards-in-a-consuming-repository) for where
 that section lives in the report.
+
+## A check that skips on every surface it runs on has not been skipped
+
+**Fix 71 — a blocking check that skips locally and skips in CI is a
+finding, not a skip, whatever each individual skip message says.** A skip
+is only acceptable where _some_ surface actually runs the check; a
+precondition unmet everywhere the check is invoked is not a property of one
+run, it is a property of the check, and reads as green at every gate that
+touches it.
+
+The live case: [gate 4](gate-4-task-completion.md)'s change-size, file-length
+and complexity check derives its base with the same `resolveBase()`
+[gate 0](gate-0-baseline.md) and every other local gate use — correct, and
+not the defect. The defect was in how [gate 6](gate-6-pull-request.md)
+invoked it: as a subprocess, given no base of its own, so it always
+re-derived one via a bare `resolveBase()` call needing `origin/HEAD` — a
+symref GitHub Actions' `actions/checkout` never sets. Locally, whether
+`origin/HEAD` resolves depends on how the repository was cloned — a real
+gap, but an intermittent one, and exactly what [the gap between a local
+pass and a CI finding](#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding)'s
+third category already names ("the check cannot run locally at all... a
+platform-specific optional dependency, a network-bound scanner"). In CI it
+was not intermittent: every run of that workflow produces a checkout with
+no `origin/HEAD`, so the same call failed the same way on every pull
+request, unconditionally. Two skips that each read as an ordinary, honestly
+worded absence combined into a check that had never actually run, anywhere,
+on any surface — a 112-file, 15,747-line change passed gate 6 with its own
+size check silently absent from both ends. The remedy in this case was
+structural, not a bigger skip message: gate 6 already resolves a base
+reliable in CI ([GITHUB_BASE_REF](gate-6-pull-request.md), read before
+`resolveBase()` is ever consulted); passing that value through to the
+subprocess removes the second, independently-failing derivation rather than
+trying to make it agree with the first.
+
+**Distinguish the two shapes before trusting either skip on its own:**
+
+| Shape                    | Local                    | CI                                  | Verdict                                                  |
+| ------------------------ | ------------------------ | ----------------------------------- | -------------------------------------------------------- |
+| A genuine platform gap   | Skips (tool/host absent) | Runs                                | Skip — the standard's own bypass-and-exceptions.md shape |
+| **Omitted, not skipped** | Skips (sometimes)        | **Skips (always, unconditionally)** | Finding — the check has never validated this repository  |
+
+A visible, correctly-worded skip at each individual call site is not
+evidence the check runs somewhere; it is evidence nobody has yet compared
+the two skip reasons to each other. Where a check is invoked at more than
+one gate or surface, and one of those invocations delegates its own
+precondition to a shared derivation (`resolveBase()`, a tool-on-PATH probe,
+an environment read), the delegating call site is checked for whether it
+could ever succeed on the surface it runs on — not only for whether its own
+skip message reads honestly.
 
 ## Decisions live in decision records; documents state the current position
 
@@ -397,6 +464,26 @@ command — the gate — never a concatenation of individually chosen checks'
 output.** A check that cannot run locally is a line in that command's own
 output, reported unavailable, not a line the implementer decided to leave
 out.
+
+**Fix 69 — "the gate" resolved to whichever gate the rule happened to be
+demonstrated on, not to every gate a report quotes.** A report honoured
+fix 61's rule for gate 7 — a fenced block, one line per finding, verbatim —
+and for gate 6 wrote a paraphrase instead: "see the verbatim run below: 246
+tests pass, 100% line coverage, no findings an implementer could still
+fix." `pass=246 fail=0` is gate 0's own test-count format string
+(`scripts/gate-0-baseline.mjs`), not a gate-6 verdict, and gate 6 never ran
+in that report at all — which is also why its osv-scanner skip line
+(`gate 5: SKIP cross-stack dependency scan — osv-scanner not on PATH;
+install it to enable this check`) never appeared: there was no gate-6
+transcript to find it in. One omission, one remedy, stated so a rule this
+corpus already holds cannot be satisfied by demonstrating it on the easier
+gate: **a report quotes gate 6's own output — the check names, the FAIL
+lines, the skip lines — in its own fenced block, exactly as it quotes gate
+7's**, whichever gate the report happens to lead with. Naming gate 6
+explicitly here is deliberate, not decoration — the previous cycle proved
+that a rule stated only as "the gate" gets applied to whichever section
+demonstrated it and skipped everywhere else the same reader had to
+generalise the rule themselves to reach.
 
 **Fix 64 — read a gate's own output, not a platform's summary of it.**
 `gh api .../check-runs/{id}/annotations` caps the annotations it returns at
@@ -549,12 +636,28 @@ choice is reported, not guessed.
 - [ ] A blocking check skipped in the local run is named in the pull
       request body with its reason — a skip is disclosed as uncertainty
       about CI, not treated as a pass.
+- [ ] Every finding named in a pull request body cites the register row,
+      the Proposed/Accepted ADR or the directive-conflict record that
+      reserves it — `scripts/check-pr-body-artefacts.mjs`
+      (`findUncitedFindings`) is the mechanical form. A finding with no
+      such artefact is a finding of its own, and the five reserved classes
+      are the complete list — a sixth invented in prose has nothing to
+      cite.
 - [ ] Every finding CI produced that the local run did not is categorised
       against one of the four gap kinds, with the local gate that should
       have caught it named, before the underlying defect is fixed.
 - [ ] A check that cannot run locally at all is named as such in the
       standard, at the gate it belongs to — not discovered fresh by each
       repository that adopts it.
+- [ ] A blocking check invoked at more than one gate or surface, where one
+      call site delegates its own precondition to a shared derivation
+      (`resolveBase()`, a tool-on-PATH probe), is checked for whether that
+      call site can ever succeed on the surface it actually runs on — a
+      skip that recurs on every run of that surface is reported as unrun,
+      not as a skip. `hooks/gate-4-task-completion.mjs` invoked from
+      `scripts/gate-6-pull-request.mjs` (fix 71) is the mechanical form:
+      the subprocess call passes the base gate 6 already resolved rather
+      than re-deriving one that fails on every CI checkout.
 - [ ] No gate emits a warning it does not treat as a failure.
 - [ ] A rule configured at a linter's or compiler's own `warn` severity still
       fails the run — the tool is invoked with `--max-warnings 0` or the
@@ -586,6 +689,14 @@ choice is reported, not guessed.
       assembly of individually run checks — a check left out because it
       "couldn't run here" appears in the output as unavailable, never as a
       silent absence.
+- [ ] A report quotes gate 6's own output — named explicitly, not left as
+      "the gate" — in the same fenced, one-line-per-finding form it quotes
+      gate 7's; a paraphrase, or another gate's count (gate 0's `pass=N
+  fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
+      omission this checks for.
+- [ ] No summary sentence about a gate's result contradicts the fenced block
+      beneath it — a sentence claiming "no findings" or "unaffected" is
+      read against the transcript it sits above before either is trusted.
 - [ ] A report built from a platform's API summary of a check run (GitHub's
       annotations endpoint, capped at 10 per run) is instead read from the
       job log — a platform view that can paginate, cap or deduplicate is not

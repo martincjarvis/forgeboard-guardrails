@@ -1,5 +1,7 @@
 # Implementation report — the repository gates itself
 
+<!-- cspell:ignore misparse -->
+
 What was built, what was derived, what each gate was proved against, and what
 does not work. Blunt where it should be.
 
@@ -160,12 +162,23 @@ was needed; nothing here required an approver.
   This is harmless (formatting does not change whether lock sync passes) and the
   cross-gate rule allows reordering where one check does not change what a later
   reads — but it is a deviation worth naming.
-- **lizard's JavaScript.** The standard names `lizard` for complexity, but its JS
-  tokenizer misparses ES modules (it reported a six-line function at cyclomatic
-  complexity 25). `thresholds.md` has the stack's own analyser win over these
-  gap-fill numbers, so for this JS-only repository `tsc` is authoritative and
-  lizard is excluded from JS with the reason stated. The standard's command is
-  right for languages lizard parses well; it is not right for this code.
+- **lizard's span merging, in some JavaScript files.** The standard names
+  `lizard` for complexity. Observed directly against this repository:
+  `lizard` merges adjacent top-level function expressions in some JavaScript
+  files into one reported span covering many real functions (it reported a
+  six-line function at cyclomatic complexity 25). This is narrower than "its
+  JS tokenizer misparses ES modules," a claim an earlier draft of this report
+  made and this revision retracts — it does not do this uniformly, and
+  nothing here establishes a general ES-module misparse. A finding of
+  implausible length (a reported span far longer than the function actually
+  is) is checked against the source before it is believed, not treated as
+  fact on lizard's report alone; where it turns out to be a real span-merge
+  artefact, that file's complexity measurement falls back to the stack's own
+  analyser. `thresholds.md` has the stack's own analyser win over these
+  gap-fill numbers, so for this JS-only repository `tsc`/ESLint is
+  authoritative and lizard is excluded from JS with the reason stated. The
+  standard's command is right for languages lizard parses well; it is not
+  right for every file in this one.
 - **Gate 2 check 9 has no established tool.** Machine-identifying content (local
   absolute paths, usernames) is not covered by secretlint's rules, so the check is
   bespoke (`scripts/check-machine-id.mjs`), at level 3 of the tooling ladder with

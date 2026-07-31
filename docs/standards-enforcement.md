@@ -4,6 +4,8 @@ summary: Which file or gate in this repository enforces each standard it operate
 read_when: Checking whether a standard is actually enforced here, or auditing this repository the same way it audits a consumer.
 ---
 
+<!-- cspell:ignore Uncited -->
+
 # Standards enforcement
 
 This repository is built under the standards it defines
@@ -40,6 +42,7 @@ each one true here.
 | The refusal-proof contract                   | `scripts/check-refusal-proofs.mjs`, gate 7, `.github/workflows/refusal-proof-audit.yml`                                                                                      |
 | Testing strategy                             | The suite shape itself (`hooks/test/hooks.test.mjs`) — judgement, plus gate 5's coverage floor                                                                               |
 | Pull request pipeline                        | `.github/workflows/pull-request.yml` + `scripts/gate-6-pull-request.mjs`, gate 6                                                                                             |
+| Pull request finding citation                | `scripts/check-pr-body-artefacts.mjs` (`findUncitedFindings`, fix 68) — not yet wired into a gate; run by hand (`gh` required) or from a reviewer session                    |
 
 **Why the enforcement column is the valuable half.** It rots visibly. Delete
 `.editorconfig` and the formatting row becomes a lie a reader can see on the

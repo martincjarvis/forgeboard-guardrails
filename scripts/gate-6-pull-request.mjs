@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// cspell:ignore PYTHONUTF nloc
+// cspell:ignore PYTHONUTF nloc symref
 // Gate 6 — Pull request pipeline, local-check surface. Re-runs the gates 2-5
 // checks against the pull request's range, on a clean checkout that has no
 // staged index — see docs/standards/guardrails/gate-6-pull-request.md, "check
@@ -535,11 +535,25 @@ if (!existsSync(COBERTURA_REPORT)) {
 
 // --- Gate 4 — task completion, over the same range --------------------------
 // Change size and file length are already implemented range-scoped — hooks/
-// gate-4-task-completion.mjs is the distributed hook, invoked unmodified
-// rather than reimplemented, because it already measures `${base}...HEAD`
-// against the same file classes this script uses everywhere else.
+// gate-4-task-completion.mjs is the distributed hook, invoked as a
+// subprocess rather than reimplemented, because it already measures
+// `${base}...HEAD` against the same file classes this script uses
+// everywhere else.
+//
+// Fix 71 — pass this script's own already-resolved `base` explicitly,
+// rather than let the subprocess re-derive it via resolveBase(). Before
+// this fix the two calls could resolve differently in the same checkout:
+// this script's own `base` (line 84) reads GITHUB_BASE_REF first, which a
+// `pull_request` CI run always has; the subprocess had no such input and
+// called raw resolveBase(), which needs `origin/HEAD` — a symref GitHub
+// Actions' `actions/checkout` never sets (no `git remote set-head origin
+// -a` step), so it failed on every CI run of this workflow, unconditionally.
+// The result was a change of any size passing gate 6 with gate 4's own
+// check silently absent from both the local and the CI surface. Threading
+// the resolved value through removes the second derivation entirely rather
+// than trying to make it agree with the first.
 {
-  const g4 = run("node", ["hooks/gate-4-task-completion.mjs"]);
+  const g4 = run("node", ["hooks/gate-4-task-completion.mjs", base]);
   process.stderr.write((g4.stdout || "") + (g4.stderr || ""));
   if (g4.status !== 0) {
     fail(

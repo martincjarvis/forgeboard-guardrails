@@ -4,7 +4,7 @@ summary: The branch-scoped size gate — change size, file length, complexity an
 read_when: Finishing a unit of work, or deciding whether a size finding should stop the work or merely print.
 ---
 
-<!-- cspell:ignore cyclomatic shortstat -->
+<!-- cspell:ignore cyclomatic shortstat symref -->
 
 # Gate 4 — Task completion
 
@@ -28,6 +28,17 @@ Every row has both bands, with the verdicts the Size type fixes. Only change
 size takes an override, and the marker reaches nothing else — a branch may
 legitimately be large; a single function may not legitimately be
 incomprehensible.
+
+**The base is derived (`resolveBase()`), or given.** Invoked with no
+argument — the Stop hook, on every hand-off — it derives the base from
+`origin/HEAD` the same as every other local gate. Invoked with a base
+already resolved by a caller (`hooks/gate-4-task-completion.mjs <base>`),
+that value wins outright and `resolveBase()` is never consulted.
+[Gate 6](gate-6-pull-request.md) takes this path, passing the base it
+already resolved from `GITHUB_BASE_REF` rather than letting the subprocess
+re-derive one that needs `origin/HEAD` — a symref a CI checkout may never
+set (fix 71: [a check that skips on every surface it runs on has not been
+skipped](cross-gate-rules.md#a-check-that-skips-on-every-surface-it-runs-on-has-not-been-skipped)).
 
 ## Push back is not a warning
 
