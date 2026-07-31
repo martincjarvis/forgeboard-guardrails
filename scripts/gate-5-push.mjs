@@ -18,6 +18,7 @@ import {
   report,
 } from "./lib.mjs";
 import { checkOsvScanner } from "./check-osv-scanner.mjs";
+import { checkBranchBehindBase } from "./check-branch-behind-base.mjs";
 import { createInterface } from "node:readline";
 
 const findings = [];
@@ -42,6 +43,15 @@ for await (const line of rl) {
   break;
 }
 if (range) process.stderr.write(`gate 5: pushed range ${range}\n`);
+
+// Check 4 — branch behind its base (fix 67; gate-5-push.md). Cheapest-first
+// (cross-gate-rules.md): a branch that cannot merge is worth refusing before
+// paying for the expensive coverage run below.
+{
+  const { findings: found, skips: sk } = checkBranchBehindBase();
+  findings.push(...found);
+  skips.push(...sk);
+}
 
 // Check 1 — coverage, repository-wide. The command owns the floor; prove the
 // gate fails by raising the floor above current coverage once (testing-strategy).

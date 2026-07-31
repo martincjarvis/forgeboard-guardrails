@@ -11,11 +11,36 @@ read_when: Deciding which kind of test something is, or why an end-to-end test m
 The expensive tests live here. They run once per push rather than once per
 commit, and they judge the whole range being pushed.
 
-| #   | Check                                     | Type        | Runs for                    | Fails when                                              |
-| --- | ----------------------------------------- | ----------- | --------------------------- | ------------------------------------------------------- |
-| 1   | Coverage                                  | Correctness | The repository              | The coverage command exits non-zero                     |
-| 2   | Integration tests                         | Correctness | Changed components only     | An integration test for a changed component fails       |
-| 3   | Cross-stack dependency scan (osv-scanner) | Security    | The resolved dependency set | osv-scanner reports an advisory with no accepted record |
+| #   | Check                                     | Type        | Runs for                    | Fails when                                               |
+| --- | ----------------------------------------- | ----------- | --------------------------- | -------------------------------------------------------- |
+| 1   | Coverage                                  | Correctness | The repository              | The coverage command exits non-zero                      |
+| 2   | Integration tests                         | Correctness | Changed components only     | An integration test for a changed component fails        |
+| 3   | Cross-stack dependency scan (osv-scanner) | Security    | The resolved dependency set | osv-scanner reports an advisory with no accepted record  |
+| 4   | Branch behind its base                    | Policy      | The branch being pushed     | `git rev-list --count HEAD..<base>` is greater than zero |
+
+Check 4 is not about correctness — the merge would have been refused anyway,
+because [gate 6's own merge policy](gate-6-pull-request.md#63-merge-policy)
+already requires the branch to be up to date with its base before it can
+merge. It is about not spending a pipeline run finding that out: the cost of
+being wrong is one rebase, the cost of being right and not checking is a
+wasted run and a pull request whose result is about to change under the
+reviewer. **Refuses rather than warns** —
+[no gate emits a warning it does not treat as a
+failure](cross-gate-rules.md#a-warning-is-a-failure) — and names the exact
+remedy, `git rebase <base>`, rather than leaving the author to work out what
+"behind" means to do about it.
+
+The base is **derived**, the same `resolveBase()` (`scripts/lib.mjs`) every
+other check in this corpus uses, never a hardcoded `main`; an unresolvable
+base is a visible skip naming the remedy, the same convention
+`check-protected-branch.mjs` and [gate 0](gate-0-baseline.md) already follow,
+not a silent pass. It **fetches first** so the comparison is against a
+current ref, not a stale one; where the fetch itself fails — no network, an
+unreachable remote — the check still runs against whatever `origin/<base>`
+already resolves to locally, and says so in the finding rather than
+presenting a possibly-stale comparison as a settled one. Pushing while
+offline is not this check's business to refuse; being honest about what it
+compared against is.
 
 Check 3 is not component-scoped like check 2 — it reads the resolved
 dependency set, the same repository-wide shape check 1 already has, not the
@@ -61,13 +86,14 @@ racing on one environment produce failures that belong to neither change.
 
 ## Running it by hand
 
-| Check                       | Node                                  | .NET                                          |
-| --------------------------- | ------------------------------------- | --------------------------------------------- |
-| Coverage                    | `npm test -- --coverage`              | `dotnet test --collect:"XPlat Code Coverage"` |
-| Integration tests           | `npm run test:integration`            | `dotnet test --filter Category=Integration`   |
-| End-to-end tests            | `npx playwright test`                 | `dotnet test --filter Category=EndToEnd`      |
-| Cross-stack dependency scan | `osv-scanner --format json -r .`      | `osv-scanner --format json -r .`              |
-| The pushed range            | `git log --oneline origin/main..HEAD` | —                                             |
+| Check                       | Node                                     | .NET                                          |
+| --------------------------- | ---------------------------------------- | --------------------------------------------- |
+| Coverage                    | `npm test -- --coverage`                 | `dotnet test --collect:"XPlat Code Coverage"` |
+| Integration tests           | `npm run test:integration`               | `dotnet test --filter Category=Integration`   |
+| End-to-end tests            | `npx playwright test`                    | `dotnet test --filter Category=EndToEnd`      |
+| Cross-stack dependency scan | `osv-scanner --format json -r .`         | `osv-scanner --format json -r .`              |
+| Branch behind its base      | `git rev-list --count HEAD..origin/main` | `git rev-list --count HEAD..origin/main`      |
+| The pushed range            | `git log --oneline origin/main..HEAD`    | —                                             |
 
 The offline test is the one worth running deliberately: disable network access,
 clear any infrastructure credentials, and run the suite. Anything that fails was
@@ -99,6 +125,16 @@ reaching outside the repository's own boundary and is not an integration test.
       A non-zero exit with none reports unavailable — the same visible,
       named skip as the tool being absent — never a finding with no
       identifier in it ([cross-gate-rules.md](cross-gate-rules.md#a-refusal-is-a-diagnosis)).
+- [ ] A push from a branch behind its base is refused, and the message names
+      the distance and the remedy (`git rebase <base>`), not merely that a
+      problem exists.
+- [ ] The base is derived (`resolveBase()`), never a hardcoded `main`; an
+      unresolvable base is a visible skip naming the remedy, not a silent
+      pass.
+- [ ] The check fetches first; where the fetch fails, the comparison still
+      runs and the result says it may be stale, rather than refusing to
+      compare at all or presenting a stale comparison as current.
+- [ ] A branch level with, or ahead of, its base passes this check.
 
 ## References
 

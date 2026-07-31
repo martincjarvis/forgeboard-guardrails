@@ -54,6 +54,7 @@ import {
   extractOsvSarifFindings,
 } from "../../scripts/lib.mjs";
 import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
+import { checkBranchBehindBase } from "../../scripts/check-branch-behind-base.mjs";
 import {
   deriveRequiredContexts,
   evaluateBranchProtection,
@@ -2606,6 +2607,155 @@ test("checkOsvScanner: a real advisory in osv-scanner's JSON output is a finding
   assert.equal(skips.length, 0);
   assert.equal(findings.length, 1);
   assert.match(findings[0].problem, /GHSA-aaaa-bbbb-cccc/);
+});
+
+// --- scripts/check-branch-behind-base.mjs — fix 67. gate-5-push.md check 4:
+// branch protection's own `strict: true` already refuses a stale merge
+// (gate-6-pull-request.md: "A pull request behind its base cannot merge
+// until it is updated"); nothing checked it before the push existed. Unit
+// tests below exercise the classification through injected `git`/
+// `resolveBase` collaborators — the same injectable shape checkOsvScanner
+// and checkBranchProtection already take, for the same reason (fix 31): a
+// test must not depend on this host's own network reaching a real remote.
+// The regression guards further down run the real module against a scratch
+// repository with real branches and a real remote-tracking ref (hazard: "Fix
+// 67's tests need real branches and a real remote-tracking ref").
+
+test("checkBranchBehindBase: an unresolvable base is a visible skip naming the remedy, not a finding", () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => null,
+    git: () => {
+      throw new Error("must not shell out once the base cannot be resolved");
+    },
+  });
+  assert.deepEqual(findings, []);
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /branch behind base/);
+  assert.match(skips[0], /origin\/HEAD could not be resolved/);
+  assert.match(skips[0], /git remote set-head/);
+});
+
+test("checkBranchBehindBase: HEAD behind its base is a finding naming the distance and the rebase remedy", () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => "origin/main",
+    git: (args) => {
+      if (args[0] === "fetch") return { status: 0 };
+      if (args[0] === "rev-list") return { status: 0, stdout: "3\n" };
+      throw new Error(`unexpected git ${args.join(" ")}`);
+    },
+  });
+  assert.equal(skips.length, 0);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].check, "branch behind base");
+  assert.match(findings[0].problem, /3 commit\(s\) behind origin\/main/);
+  assert.doesNotMatch(
+    findings[0].problem,
+    /stale/,
+    "a successful fetch must not be reported as a possibly-stale comparison",
+  );
+  assert.match(findings[0].remedy, /git rebase origin\/main/);
+});
+
+test("checkBranchBehindBase: level with the base is clean — zero commits behind is not a finding", () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => "origin/main",
+    git: (args) => {
+      if (args[0] === "fetch") return { status: 0 };
+      if (args[0] === "rev-list") return { status: 0, stdout: "0\n" };
+      throw new Error(`unexpected git ${args.join(" ")}`);
+    },
+  });
+  assert.deepEqual(findings, []);
+  assert.deepEqual(skips, []);
+});
+
+test("checkBranchBehindBase: a fetch failure does not refuse the push by itself — the comparison still runs, labelled possibly stale", () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => "origin/main",
+    git: (args) => {
+      if (args[0] === "fetch") return { status: 1, stderr: "no network" };
+      if (args[0] === "rev-list") return { status: 0, stdout: "2\n" };
+      throw new Error(`unexpected git ${args.join(" ")}`);
+    },
+  });
+  assert.equal(skips.length, 0);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /2 commit\(s\) behind origin\/main/);
+  assert.match(
+    findings[0].problem,
+    /stale/,
+    "a failed fetch must be disclosed rather than presenting the comparison as current",
+  );
+});
+
+test("checkBranchBehindBase: a fetch failure with nothing behind is still clean — offline is not refused on its own", () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => "origin/main",
+    git: (args) => {
+      if (args[0] === "fetch") return { status: 1, stderr: "no network" };
+      if (args[0] === "rev-list") return { status: 0, stdout: "0\n" };
+      throw new Error(`unexpected git ${args.join(" ")}`);
+    },
+  });
+  assert.deepEqual(findings, []);
+  assert.deepEqual(skips, []);
+});
+
+test("checkBranchBehindBase: rev-list itself failing is a visible skip, not a finding", () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => "origin/main",
+    git: (args) => {
+      if (args[0] === "fetch") return { status: 0 };
+      if (args[0] === "rev-list")
+        return { status: 128, stdout: "", stderr: "fatal: bad revision" };
+      throw new Error(`unexpected git ${args.join(" ")}`);
+    },
+  });
+  assert.deepEqual(findings, []);
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /branch behind base/);
+  assert.match(skips[0], /bad revision/);
+});
+
+// Regression guards: the real module (default git/resolveBase), run against
+// a scratch repository with real commits and a real remote-tracking ref —
+// not the injected fakes above. scratchRepo() fabricates
+// refs/remotes/origin/main and refs/remotes/origin/HEAD the same way a real
+// `git clone` writes them, but configures no real `origin` remote, so the
+// module's own `git fetch origin` genuinely fails here — proving the
+// possibly-stale path end to end at the same time as the two required
+// directions (gate-5-push.md: "a branch behind its base refused, a branch
+// level with it passing").
+
+test("regression guard: check-branch-behind-base.mjs run for real, a feature branch behind its fabricated origin/main is refused, naming the distance and the remedy", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  // A commit lands on the base after the feature branch forked from it —
+  // moving the fabricated origin/main ref is what a real `git fetch` would
+  // have done, had a real remote been configured.
+  git(dir, ["checkout", "-q", "main"]);
+  writeFileSync(join(dir, "later.txt"), "later\n");
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: lands on base after branching"]);
+  git(dir, ["update-ref", "refs/remotes/origin/main", "main"]);
+  git(dir, ["checkout", "-q", "feature"]);
+
+  const r = runScript("scripts/check-branch-behind-base.mjs", dir);
+  assert.equal(r.status, 2, "a branch behind its base must be refused");
+  assert.match(r.stderr, /branch behind base/);
+  assert.match(r.stderr, /1 commit\(s\) behind origin\/main/);
+  assert.match(r.stderr, /git rebase origin\/main/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("regression guard: check-branch-behind-base.mjs run for real, a feature branch level with its base passes", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+
+  const r = runScript("scripts/check-branch-behind-base.mjs", dir);
+  assert.equal(r.status, 0, "a branch level with its base must not be refused");
+  assert.doesNotMatch(r.stderr, /branch behind base/);
+  rmSync(dir, { recursive: true, force: true });
 });
 
 // --- scripts/check-branch-protection.mjs — fix 24. Branch protection is
