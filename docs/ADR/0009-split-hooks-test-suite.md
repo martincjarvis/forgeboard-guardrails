@@ -1,8 +1,9 @@
 ---
 type: explanation
-status: Proposed
-decided:
+status: Accepted
+decided: 2026-07-31
 owner: Toolkit maintainers
+approver: Martin Jarvis
 summary: hooks/test/hooks.test.mjs is split by subject area into an entry point plus per-area files, because lizard's function-span detection merges adjacent functions into one over-length block once the file reaches a certain size, and gate 6 — unlike gate 7's identical, report-only invocation of the same scan — hard-blocks on the artefact with no suppression path. Warn-not-block at gate 6, and a tool-artefact register row, are named and rejected.
 read_when: Asking why hooks/test/hooks.test.mjs is a thin entry point rather than the whole suite, or why a check copied between gates needs its severity model stated alongside it.
 ---
