@@ -278,6 +278,23 @@ report](../docs-style.md#standards-in-a-consuming-repository) is this
 principle applied to one recurring case: the outstanding-work section is
 generated from gate output, not written from memory.
 
+**The rule is unscoped: every numeric claim in the report, not only the
+section it was first caught in.** Audit 15 found the outstanding-work
+section fixed — generated from gate output, five of seven findings named
+with the right check and the right counts — and a _different_ section of
+the same report still wrong: its "What was done" narrative stated `node
+--test … reports 225 pass, 0 fail`, while CI on the same commit reported
+`pass 219 / fail 2 / cancelled 4`. The fix had been applied to the section
+audit 14 had named, not to the habit that produced it, so the identical
+defect surfaced one section over. Any count, any "all X pass", any "N
+findings" — anywhere in a bootstrap or session report, not only its
+outstanding-work section — names the command whose output produced it. And
+**where a gate also produces that figure for the same commit, the report
+quotes the gate's number, not a local run's**: a local `npm test` that
+passes reliably and CI running the identical suite that does not are two
+different instruments, and quoting the local one is not lying — it is
+citing the wrong instrument for a claim CI has already settled.
+
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
 The same principle, one level more specific: a suppression's own verification
@@ -426,9 +443,16 @@ choice is reported, not guessed.
       edited, or read as correct.
 - [ ] A claim about a set — "the only blockers are…", "all checks pass
       except…" — names the command whose output produced that set, and the
-      set named matches that output finding for finding. A bootstrap
-      report's outstanding-work section is the recurring case: generated
-      from the gate's own output, not recalled from memory.
+      set named matches that output finding for finding. Unscoped: any
+      count, any "all X pass", any "N findings" anywhere in a bootstrap or
+      session report names its command — not only a report's
+      outstanding-work section, which is the recurring case, not the whole
+      rule.
+- [ ] Where a gate also produces the figure a report states — a test count,
+      a pass/fail split — the report quotes that gate's own output for the
+      same commit, not a local run's. A local run that passes reliably
+      while CI's does not are two different instruments; the report cites
+      whichever one a reader can hold it to.
 - [ ] A suppression's verification claim ("N findings before, 0 after") cites a
       repository-scope run — gate 7's own sweep, or an equivalent `semgrep
 --config auto --error .` at the repository root — never a check scoped

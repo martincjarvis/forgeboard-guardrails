@@ -209,6 +209,19 @@ implementer's own; the list of findings is not something prose summarises
 from memory. A list assembled this way cannot understate what the gate
 found, because it is the gate's own output, not a recollection of it.
 
+**Fix 57 — the rule above is not scoped to the outstanding-work section; it
+is the report.** Once fix 56 made that one section gate-sourced, the same
+report's "What was done" narrative still stated `node --test … reports 225
+pass, 0 fail` while CI on the same commit reported `pass 219 / fail 2 /
+cancelled 4` — the identical undercount defect, one section over, because
+the fix had targeted the section it was found in rather than the habit that
+produced it. **Any count, any "all X pass", any "N findings" — anywhere in
+the report — names the command whose output produced it, and where a gate
+also produces that figure for the same commit, the report quotes the
+gate's own number, not a local run's.** A local test run that passes
+reliably is not lying when CI's does not; it is the wrong instrument for a
+claim CI has already settled, cited instead of the one that matters.
+
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
 not stack-specific or component-specific content — they are a property of
@@ -468,6 +481,19 @@ requirement it stands in for.
       in front of them. A finding present in the gate's own output and
       absent from the report is a defect in the report, not a smaller
       version of the truth.
+- [ ] Every numeric claim anywhere in the report — not only its
+      outstanding-work section — names the command whose output produced
+      it, and where a gate produces the same figure for the same commit,
+      the report quotes the gate's own number rather than a local run's.
+- [ ] A word present only in `tooling`-classed files does not count as "used
+      elsewhere" for an instantiation-residue finding — checked against a
+      scratch repository that has actually ported the checker, not only
+      against this toolkit's own, exempt repository.
+- [ ] A ported test does not hard-code a full 40-character commit SHA —
+      naming the source repository's own history, which a consumer's git
+      log does not and cannot contain. Scoped to files classed `test`; a
+      `configuration`-classed CI workflow pinning a GitHub Action to its
+      commit SHA is not this defect.
 
 The seven checks below always apply to an instantiated repository's copy —
 they verify that tuning happened, so they are never among the content tuning

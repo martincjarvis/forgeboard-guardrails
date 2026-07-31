@@ -260,6 +260,17 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
   applied to the report itself, not only to a gate's own verdict: a completion
   claim broader than the check performed sends whoever reads the report
   looking in the wrong place, the same as any other finding stated wrong.
+- **Every numeric claim anywhere in the report names the command that
+  produced it — not only the outstanding-work section.** Fix 57: a report
+  whose outstanding-work section was already generated from gate output
+  still stated, in its "What was done" narrative, `node --test … reports
+225 pass, 0 fail`, while CI on the same commit reported `pass 219 / fail 2
+/ cancelled 4`. Any count, any "all X pass", any "N findings" —
+  wherever it appears in the report — names its command, and where a gate
+  produces the identical figure for the same commit, the report quotes the
+  gate's number, not a local run's: a local run that passes reliably while
+  CI's does not are two different instruments, and citing the local one is
+  citing the wrong one, not lying.
 
 ## Rules
 
