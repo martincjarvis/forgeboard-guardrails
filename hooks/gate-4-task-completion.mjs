@@ -57,9 +57,35 @@ function classOf(file) {
 // punishes tests teaches the author to write fewer of them.
 const COUNTED = new Set(["production", "configuration", "tooling"]);
 
+// A generated file — declared through its own `guardrail-generated`
+// attribute, never a sixth guardrail-class (file-classes.md: "a separate
+// attribute, not a sixth class" — a lockfile keeps its `guardrail-class` for
+// every other check; only change size and the length limit read this one).
+// `git check-attr` always prints a line, even for a path no .gitattributes
+// mentions — verified directly, not assumed: `unspecified` (never declared)
+// and `unset` (`-guardrail-generated`) both read `<marker><value>` the same
+// as `set` does, so the fail-safe direction is "only `set` counts as
+// generated", the same shape classOf() already uses for guardrail-class.
+function isGenerated(file) {
+  const r = git(["check-attr", "guardrail-generated", "--", file]);
+  if (r.status !== 0) return false;
+  const marker = "guardrail-generated:";
+  const idx = r.stdout.indexOf(marker);
+  if (idx < 0) return false;
+  const value = r.stdout
+    .slice(idx + marker.length)
+    .trim()
+    .split("\n")[0];
+  return value === "set";
+}
+
 // Check 1 — change size (thresholds.md, gate-4-task-completion.md row 1).
 // Counted files together count as one number; the override marker clears
-// this check only.
+// this check only. A generated file — a lock file, `*.g.cs`, any output no
+// author can meaningfully edit because the next generation run discards it —
+// contributes nothing here (file-classes.md: "a generated file counts toward
+// neither change size nor the length limit"); its `guardrail-class` still
+// governs every other check.
 function measureChangeSize(base, findings, warnings) {
   const numstat = git(["diff", "--numstat", `${base}...HEAD`]);
   if (numstat.status !== 0) return;
@@ -69,6 +95,7 @@ function measureChangeSize(base, findings, warnings) {
     const [added, deleted, file] = line.split("\t");
     if (!file || added === "-") continue;
     if (!COUNTED.has(classOf(file))) continue;
+    if (isGenerated(file)) continue;
     counted += Number(added) + Number(deleted);
   }
 
@@ -77,7 +104,9 @@ function measureChangeSize(base, findings, warnings) {
     if (!log.stdout.includes(OVERRIDE)) {
       findings.push(
         `change size ${counted} lines exceeds the error threshold (${CHANGE_ERROR}). ` +
-          `Split it, or amend a commit on this branch to carry the ${OVERRIDE} marker.`,
+          `Split it, or report the size and what is driving it — accepting it with the ` +
+          `${OVERRIDE} marker is a human's decision, not one this check, or the agent ` +
+          `that tripped it, may make on its own (fix 74).`,
       );
     }
   } else if (counted > CHANGE_WARN) {
@@ -97,13 +126,16 @@ function changedFileNames(base) {
 // Check 2 — file length (thresholds.md, gate-4-task-completion.md row 2).
 // Production and test files only; production over the error band blocks,
 // test over it warns (its own warn band) — a long test file is usually
-// repetitive rather than badly designed.
+// repetitive rather than badly designed. A generated production file (a
+// `*.g.cs`, say) carries the same "no remedy" property a generated lock
+// file does, so it is exempt from this limit too (file-classes.md).
 function measureFileLength(names, findings, warnings) {
   if (names.status !== 0) return;
   for (const file of names.stdout.split("\n")) {
     if (!file || !existsSync(file) || !statSync(file).isFile()) continue;
     const cls = classOf(file);
     if (cls !== "production" && cls !== "test") continue;
+    if (isGenerated(file)) continue;
     const lines = readFileSync(file, "utf8").split("\n").length;
     if (lines <= FILE_LENGTH_ERROR) continue;
     const msg = `${file} is ${lines} lines (> ${FILE_LENGTH_ERROR}); split it into smaller units.`;

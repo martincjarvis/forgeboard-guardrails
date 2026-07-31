@@ -262,9 +262,22 @@ request unless the gate-6 surface, run as one command, is clean.** The one
 exception is a finding reserved for a human — a decision record or register
 row accepting a risk, a licence, a suppression or an opt-out
 ([registers.md](guardrails/registers.md#a-register-row-or-a-decision-record)),
+a change-size override recorded in [the change-size override
+register](guardrails/registers.md#the-change-size-override-register)
+([fix 74](guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)),
 or a conflict between two standing directives, reserved the same way by a
 repository's own root instruction file — named in the pull request body
 with the command that produced it. Full rule:
+[cross-gate-rules.md](guardrails/cross-gate-rules.md#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
+
+**Fix 75 — the precondition is resolvability; the enumeration above is its
+consequence.** A pull request opens when every finding an implementer could
+resolve has been resolved; what remains is what only a human can decide, and
+those do not block the pull request — the pull request is how they reach the
+person who decides. The list above is not an arbitrary set to extend on
+finding a new case; it is what this corpus has found, so far, to be
+genuinely unresolvable by an implementer, each provable by a record with a
+blank approver rather than by a claim in prose. Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
 
 **Fix 66 — the bootstrap report, and any session report that raises a pull
@@ -281,6 +294,30 @@ notice a missing register row. Where the local run reported no gap because
 it was never raised until it was clean (fix 65), the section says exactly
 that — an empty section with the reason is still the section, not an
 omission.
+
+**Fix 74 — an override is not a fix.** A report once described its own
+largest anomaly — a branch 18.7 times the change-size error threshold — as
+"fixed during the bootstrap," when what actually happened was an unapproved
+`[large-pr]` marker. An override answers a push back; it does not resolve
+the finding the push back was about. A report names it as what it is —
+outstanding, disclosed, reserved for a human — under the same heading every
+other reserved-class finding uses, never folded into a narrative of what was
+fixed. Full rule:
+[cross-gate-rules.md](guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
+
+**Fix 76 — a report's gate output is provisional until CI has produced its
+own.** A commit whose subject read "record gate 6 output verbatim in the
+bootstrap report" quoted the _local_ run, where osv-scanner had correctly
+skipped; CI, on that same commit, failed the check with six CVEs the report
+never named, while the report's own header claimed the block was "copied
+from gate 6's own output." Once CI's job log exists, reconcile the report
+against it — `node scripts/check-report-ci-reconciliation.mjs <report> <job
+log>` is the mechanical form, reading the job log directly rather than the
+capped annotations API (fix 64) — and record any gap CI's log carries that
+the report does not, categorised per fix 66's four kinds, before the pull
+request is presented as ready. This is a step after the pipeline runs, not a
+stricter precondition on opening it. Full rule:
+[cross-gate-rules.md](guardrails/cross-gate-rules.md#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own).
 
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
@@ -585,6 +622,14 @@ requirement it stands in for.
       the local run did not, each categorised against one of the four gap
       kinds — present and empty with a reason where the branch was not
       raised until the local run was clean, never simply absent.
+- [ ] An unresolved change-size override is reported as outstanding and
+      reserved for a human, under the same heading every other reserved-class
+      finding uses — never described as fixed.
+- [ ] Once CI has produced its own job log, the report is reconciled against
+      it — `node scripts/check-report-ci-reconciliation.mjs` run against the
+      report and the job log — and any finding CI produced that the report
+      does not mention is added, categorised, before the pull request is
+      presented as ready.
 - [ ] Every numeric claim anywhere in the report — not only its
       outstanding-work section — names the command whose output produced
       it, and where a gate produces the same figure for the same commit,

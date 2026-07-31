@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The three checked-in registers — suppression, dependency licence and test quarantine — their columns, and the rules common to all of them.
+summary: The four checked-in registers — suppression, dependency licence, test quarantine and change size override — their columns, and the rules common to all of them.
 read_when: Adding an accepted finding, auditing what a repository has accepted, or deciding whether something is a register row or a decision record.
 ---
 
@@ -17,13 +17,14 @@ than as a silent change in behaviour.
 searching, not important enough to sit at the top of the documentation tree
 beside the standards a reader actually reads through. One file per register.
 
-| Register           | Records                                         | One row per          | Enforced by                                       |
-| ------------------ | ----------------------------------------------- | -------------------- | ------------------------------------------------- |
-| Suppression        | Accepted findings a check would otherwise raise | One rule at one path | Commit gate                                       |
-| Dependency licence | Every resolved dependency and its licence       | One dependency       | Commit gate for completeness, pipeline for policy |
-| Test quarantine    | Known-flaky tests not currently blocking        | One test             | Push gate and pipeline                            |
+| Register             | Records                                                        | One row per          | Enforced by                                                                              |
+| -------------------- | -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------- |
+| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path | Commit gate                                                                              |
+| Dependency licence   | Every resolved dependency and its licence                      | One dependency       | Commit gate for completeness, pipeline for policy                                        |
+| Test quarantine      | Known-flaky tests not currently blocking                       | One test             | Push gate and pipeline                                                                   |
+| Change size override | Branches accepted over the change-size error band, and by whom | One branch           | Pipeline ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
 
-## Rules common to all three
+## Rules common to all four
 
 - **Each has a gate.** A register nobody can fail is decoration; the gate is what
   makes the row a precondition rather than a courtesy.
@@ -247,6 +248,30 @@ an upgrade is invisible in a manifest diff and unremarkable in a lock file diff
 of four hundred lines. As a missing register row it is a blocked commit with a
 name attached.
 
+## The change-size override register
+
+The row [fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)
+requires before `[large-pr]` clears the merge gate. Identified by branch, not
+by rule and path — a change-size override is a decision about one branch's
+own size, not about a rule silenced at a location.
+
+| Column         | Holds                                                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch         | The branch (or pull request) the override applies to                                                                                           |
+| Counted lines  | The measured change size the override answers, at the time filed                                                                               |
+| Composition    | What is driving the bulk — named, not merely totalled                                                                                          |
+| Justification  | Why this size is accepted rather than the change split                                                                                         |
+| Removable when | What would let the row go — normally "the change is split" or "the ported tooling is customised enough that its size no longer needs excusing" |
+| Approved by    | The human who accepted it                                                                                                                      |
+
+An agent fills in every column except Approved by — it reports the counted
+size and what makes up the bulk (gate 4 already does this); it does not add
+`[large-pr]` on its own authority, and does not fill in its own approver.
+This register is read by branch, not by any other identity: an approved row
+for one branch does not authorise a different one, so a stale acceptance
+elsewhere in the register's history cannot silently cover a branch it was
+never filed for.
+
 ## Running it by hand
 
 Resolving what is actually installed, to compare against the register:
@@ -380,3 +405,7 @@ table.
 - [Bypass and exceptions](bypass-and-exceptions.md) — when a decision record is
   required instead of a row.
 - [Suppression register](../../registers/suppression-register.md) — this repository's own instance.
+- [Change size override register](../../registers/change-size-override-register.md) —
+  this repository's own instance.
+- [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
+  fix 74, the rule this register exists to answer.

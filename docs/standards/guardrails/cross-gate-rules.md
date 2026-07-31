@@ -191,14 +191,17 @@ for a human cannot be resolved by the implementer, and the pull request is
 how it is put to them.** The reserved classes are not invented for this
 rule — they are the ones this corpus already reserves elsewhere: a decision
 record or register row accepting a risk, a licence, a suppression or an
-opt-out ([registers.md](registers.md#a-register-row-or-a-decision-record)),
-and a conflict between two standing directives, which a repository's own
-root instruction file names as reserved the same way (this toolkit's own
-`AGENTS.md` is the worked example). A pull request may be opened with
-findings outstanding **only** where every remaining finding is one of
-those — named in the pull request body, with the command that produced
-them. A finding the implementer could have fixed is a reason not to open
-yet, not a line item to disclose and open anyway.
+opt-out ([registers.md](registers.md#a-register-row-or-a-decision-record)), a
+change-size override recorded in [the change-size override
+register](registers.md#the-change-size-override-register)
+([fix 74](#an-override-answers-a-push-back-it-is-not-a-fix)), and a conflict
+between two standing directives, which a repository's own root instruction
+file names as reserved the same way (this toolkit's own `AGENTS.md` is the
+worked example). A pull request may be opened with findings outstanding
+**only** where every remaining finding is one of those — named in the pull
+request body, with the command that produced them. A finding the implementer
+could have fixed is a reason not to open yet, not a line item to disclose
+and open anyway.
 
 **Fix 68 — a definition with no check is a suggestion.** Audit 17 found a
 pull request that opened anyway, under a heading it invented: "One tool
@@ -217,6 +220,84 @@ disclosing sentence is honest — that is the prose-honesty check this corpus
 already refuses to build — only whether the artefact it points at exists. A
 finding with no such artefact blocks the pull request rather than appearing
 in its body.
+
+**Fix 75 — the precondition is resolvability; the reserved classes above are
+its consequence, not its definition.** Stating the rule as an enumeration
+invites a sixth being invented to fit through it — audit 17's own pull
+request did exactly that, naming the very fix it declined to apply in the
+same body it called "one tool limitation, documented rather than hidden."
+Restated in the terms that actually decide it:
+
+**A pull request opens when every finding an implementer could resolve has
+been resolved.** What remains is what only a human can decide: an approval,
+an acceptance, or a suppression. Those do not block the pull request — the
+pull request is how they reach the person who decides. The classes above are
+not an arbitrary list to extend; they are what this corpus has found, so
+far, to be genuinely unresolvable by an implementer.
+
+**Do not weaken fix 68's own check to match this restatement.** Resolvability
+is a judgement and cannot be checked mechanically; artefact citation can be,
+and it is how resolvability is _proved_. A finding only a human can settle
+has a record with a blank approver — a register row, a Proposed ADR, a
+change-size override record. A finding the implementer simply chose not to
+fix has nothing to cite, because no record exists for "I decided this was
+hard." That is why the citation test catches an invented sixth class and
+lets a genuine one through: the citation is not bureaucracy, it is the
+evidence that the finding is genuinely reserved. **The reverse also holds:**
+creating a record in order to make a finding look reserved is the forgery
+[registers.md's approval-provenance
+rule](registers.md#approval-is-an-event-not-a-field) already addresses, and
+it applies here the same way — a record and its approval never arrive in the
+same commit.
+
+## An override answers a push back; it is not a fix
+
+**Fix 74 — `[large-pr]` is a human decision an agent may propose and never
+take.** [Gate 4](gate-4-task-completion.md)'s change-size check reports the
+counted size and names what makes up the bulk; it does not add the override
+marker on its own authority. The marker is applied by, or on the explicit
+instruction of, the human who decides the branch is large enough to justify
+without splitting it — the same shape [the suppression
+register](registers.md) already carries for every other accepted finding: an
+agent fills in every column except the approver, and a blank approver pushes
+back at the commit gate, then blocks at the merge gate.
+
+**The distinguishing property is who, not which commit.** A branch whose
+marker sits in a commit distinct from the diff it excuses has not thereby
+proven a human decided anything — a single actor, working alone, produces
+that shape trivially, and audit 18's own case had exactly that separation
+already (the marker landed in `ccd9d67`, two commits after the oversized
+diff in `53f4bed`) while still being an agent's own unreviewed decision.
+Requiring commit separation adds nothing that was not already true. What the
+[change-size override
+register](registers.md#the-change-size-override-register) adds instead is a
+row identified by branch, with a blank Approver cell until a human fills it
+in, protected by the same approval-provenance rule that already governs
+every other register in this repository
+([registers.md](registers.md#approval-is-an-event-not-a-field)): a row that
+arrives already approved, in the commit that files it, is refused — so the
+only row that clears the merge gate is one where the approval genuinely
+happened in a separate, later commit. `scripts/check-change-size-override.mjs`
+is the mechanical form, wired blocking at [gate
+6](gate-6-pull-request.md#61-revalidation).
+
+**Locally, the bare marker still clears gate 4** — an author working
+interactively, or resuming a branch a human has already blessed, is not
+blocked by a check that cannot tell who typed a commit. The register
+requirement is the unattended half, the same split
+[registers.md](registers.md#approval-is-an-event-not-a-field) already draws
+between gate 2's push back and gate 6's block for a row missing only its
+approver: **push back in an unattended run** becomes, server-side, a check
+for the resolved answer, and no answer on record is a failure there.
+
+**An override is not a fix, and a report must not read as though it were.**
+A pull request whose largest anomaly is an unresolved change-size override
+is not "fixed during the bootstrap" — it is outstanding, disclosed, and
+reserved for a human, the same as any other finding this section names. A
+report that folds an override into "what was done" alongside the findings
+it actually resolved is making the same claim [never claim more than was
+checked](#never-claim-more-than-was-checked) already forbids: a completion
+claim broader than the check performed.
 
 **A skip is not a pass.** Where a check genuinely cannot run locally — a
 network-bound scanner, a platform-specific resolution, a host the developer
@@ -269,6 +350,52 @@ and in any session report that raises a pull request — see
 [docs-style.md: standards in a consuming
 repository](../docs-style.md#standards-in-a-consuming-repository) for where
 that section lives in the report.
+
+## A report's gate output is provisional until CI has produced its own
+
+**Fix 76 — "verbatim" was the local run's output, and CI disagreed.** A
+commit whose subject read "record gate 6 output verbatim in the bootstrap
+report" quoted a twelve-line block with zero osv-scanner mentions — the
+_local_ run's, where osv-scanner correctly skipped (not on `PATH`). CI, on
+that exact commit, reported:
+
+```text
+gate 6: FAIL cross-stack dependency scan (osv-scanner)
+        CVE-2026-2327, CVE-2026-59869, CVE-2026-48988, CVE-2026-53550, CVE-2025-64718, CVE-2026-14257
+```
+
+Six real CVEs the report never named, while its own header read "what
+remains open (copied from gate 6's own output)" — true of the local run,
+false against the live state once CI ran. The implementer was honest about
+what it could see; the gap is that nothing brought the report back once CI
+saw more. [Fix 65](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)
+and [fix 69](#never-claim-more-than-was-checked) govern the moment a pull
+request is _opened_; [the gap between a local pass and a CI
+finding](#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding)
+above states the four categories a CI-only finding falls into but never says
+_when_ to go looking for one.
+
+> **A report's gate output is provisional until the pipeline that produces
+> the blocking verdict has run.** Where a check skipped locally, the report
+> says so and the claim is reconciled against the pipeline's own log once it
+> completes — the difference categorised per the four gap kinds above, in the
+> report, before the pull request is presented as ready.
+
+**The instrument is the job log, never the annotations API** — [fix
+64](#never-claim-more-than-was-checked)'s own rule, restated for this case:
+the annotations endpoint caps at ten findings and truncates silently, so a
+reconciliation built from it can undercount exactly the way a report built
+from it already has. `scripts/check-report-ci-reconciliation.mjs` is the
+mechanical form: it reads a gate's own `FAIL` lines straight out of a job
+log and flags any line the report text never mentions, wherever in the
+report it is mentioned — the same structural, not prose-honesty, restraint
+[fix 68](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)
+already states for `check-pr-body-artefacts.mjs`.
+
+**This is a step after, not a stricter precondition.** It cannot run before
+the pipeline that produces the blocking verdict has completed, so it is
+never wired into gate 6 itself — run it by hand, or as a follow-up CI step
+reading the prior job's own log, once CI exists to reconcile against.
 
 ## A check that skips on every surface it runs on has not been skipped
 
@@ -630,9 +757,9 @@ choice is reported, not guessed.
 - [ ] A pull request is not opened while the gate-6 surface, run as one
       command against the branch, reports a finding the implementer could
       have fixed — only findings reserved for a human (a risk, a licence, a
-      suppression or an opt-out; a conflict between two standing
-      directives) remain outstanding, named in the pull request body with
-      the command that produced them.
+      suppression or an opt-out; a change-size override; a conflict between
+      two standing directives) remain outstanding, named in the pull
+      request body with the command that produced them.
 - [ ] A blocking check skipped in the local run is named in the pull
       request body with its reason — a skip is disclosed as uncertainty
       about CI, not treated as a pass.
@@ -640,12 +767,33 @@ choice is reported, not guessed.
       the Proposed/Accepted ADR or the directive-conflict record that
       reserves it — `scripts/check-pr-body-artefacts.mjs`
       (`findUncitedFindings`) is the mechanical form. A finding with no
-      such artefact is a finding of its own, and the five reserved classes
-      are the complete list — a sixth invented in prose has nothing to
-      cite.
+      such artefact is a finding of its own, and the six reserved classes
+      are the complete list — a sixth (now seventh) invented in prose has
+      nothing to cite.
+- [ ] An agent that meets the change-size error band reports the counted
+      size and what makes up the bulk, and does not apply `[large-pr]` on
+      its own authority.
+- [ ] `[large-pr]` with no matching, human-approved row in [the change-size
+      override register](registers.md#the-change-size-override-register)
+      does not satisfy gate 6 — `scripts/check-change-size-override.mjs` is
+      the mechanical form, and a marker sitting in a commit distinct from
+      the diff it excuses is not, on its own, evidence a human decided
+      anything.
+- [ ] A pull request disclosing an unapproved change-size override is not
+      reported as an uncited finding by `check-pr-body-artefacts.mjs` — the
+      register row it names is a citation the same way any other register
+      row is.
+- [ ] A report never describes an unresolved override as a fix.
 - [ ] Every finding CI produced that the local run did not is categorised
       against one of the four gap kinds, with the local gate that should
       have caught it named, before the underlying defect is fixed.
+- [ ] A check that skipped locally is reconciled against CI's own job log
+      once the pipeline completes, before the pull request is presented as
+      ready — `scripts/check-report-ci-reconciliation.mjs` is the
+      mechanical form, run against the report and the job log once both
+      exist.
+- [ ] No report claims a block is "copied from gate output" while the
+      pipeline's own job log shows a finding the report omits.
 - [ ] A check that cannot run locally at all is named as such in the
       standard, at the gate it belongs to — not discovered fresh by each
       repository that adopts it.
@@ -692,7 +840,7 @@ choice is reported, not guessed.
 - [ ] A report quotes gate 6's own output — named explicitly, not left as
       "the gate" — in the same fenced, one-line-per-finding form it quotes
       gate 7's; a paraphrase, or another gate's count (gate 0's `pass=N
-  fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
+fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
       omission this checks for.
 - [ ] No summary sentence about a gate's result contradicts the fenced block
       beneath it — a sentence claiming "no findings" or "unaffected" is
@@ -747,3 +895,7 @@ choice is reported, not guessed.
 - [Components](components.md) — the changed-component rule.
 - [Branch protection](branch-protection.md) — what makes "a named required
   status check" actually block a merge, not merely run.
+- [Registers](registers.md#the-change-size-override-register) — the
+  change-size override register fix 74 checks against.
+- [Gate 4 — Task completion](gate-4-task-completion.md) — where the
+  change-size check itself lives, and its own override marker.

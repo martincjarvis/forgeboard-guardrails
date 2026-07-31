@@ -427,6 +427,8 @@ specific here:
 | Inspect required status checks                                                                                                                       | `gh api repos/:owner/:repo/branches/main/protection`                                          |
 | Inspect branch protection, ADO                                                                                                                       | `az repos policy list --branch main`                                                          |
 | Check a pull request's finding citations (fix 68, cross-gate-rules.md's reserved-class exception) — a reviewer, against an already-open pull request | `node scripts/check-pr-body-artefacts.mjs [pr-number]`                                        |
+| Check a `[large-pr]` marker is backed by an approved register row (fix 74)                                                                           | `node scripts/check-change-size-override.mjs [base..HEAD]`                                    |
+| Reconcile a report's claims against a completed CI run's own job log (fix 76) — a step after the run, never before                                   | `node scripts/check-report-ci-reconciliation.mjs <report.md> <job-log.txt>`                   |
 
 The falsifiable test for check 3 is worth running once at adoption: remove the
 local hooks entirely, break one check deliberately, push, and confirm the
@@ -557,6 +559,12 @@ pipeline refuses the merge.
 - [ ] `scripts/check-branch-protection.mjs` reports a pass, not a finding or a
       skip standing in for one — see [branch protection](branch-protection.md)
       for the three states and what each one means.
+- [ ] A branch carrying `[large-pr]` with no matching, human-approved row in
+      the change-size override register is refused here, even though the
+      bare marker already cleared gate 4 locally
+      ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
+- [ ] A row approved for a different branch does not clear this check for the
+      one under review.
 
 ## References
 

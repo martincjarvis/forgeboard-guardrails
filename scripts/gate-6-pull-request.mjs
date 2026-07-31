@@ -54,6 +54,7 @@ import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
 import { checkAdrApprover } from "./check-adr-approver.mjs";
 import { checkApprovalProvenanceRange } from "./check-approval-provenance.mjs";
+import { checkChangeSizeOverride } from "./check-change-size-override.mjs";
 import { normalizeSarifPaths, filterSuppressedSarif } from "./lib.mjs";
 
 /** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
@@ -560,10 +561,20 @@ if (!existsSync(COBERTURA_REPORT)) {
       "gate 4 — change size / file length",
       undefined,
       (g4.stdout || "") + (g4.stderr || ""),
-      "split the change, or carry the [large-pr] marker with a stated reason",
+      "split the change, or report the size and ask a human to accept the override",
     );
   }
 }
+
+// --- Fix 74 — [large-pr] is a human decision, checked here rather than
+// trusted from the marker's bare presence. Gate 4 above still clears the
+// local, author-present block on the string alone (an agent may propose the
+// override by reporting it, never apply it — the report is what reaches the
+// human); this is the unattended half, the same split registers.md already
+// draws between gate 2's push back and gate 6's block for a row missing only
+// its approver. See scripts/check-change-size-override.mjs for the "who, not
+// which commit" reasoning.
+for (const f of checkChangeSizeOverride(logRange)) findings.push(f);
 
 // Complexity, function length and parameter count (gate-4-task-completion.md
 // row 4) are gap-fill measures with no stack analyser configured for this

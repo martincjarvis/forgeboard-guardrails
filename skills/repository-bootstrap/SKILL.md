@@ -105,6 +105,27 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    before reaching for a marker; a change that only moves a finding without
    changing the risk is evasion, not a fix.
 
+   **Change size, and what to do when this bootstrap itself trips it.** Port
+   `hooks/gate-4-task-completion.mjs`,
+   `scripts/check-change-size-override.mjs` and
+   `docs/registers/change-size-override-register.md` alongside gate 6 above —
+   the register is the artefact
+   `docs/standards/guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix`
+   (fix 74) requires before `[large-pr]` clears the merge gate. A ported
+   corpus is large by nature (tooling, standards and configuration copied
+   wholesale), and this bootstrap's own branch may itself cross the
+   change-size error threshold. **Report the counted size and what makes up
+   the bulk — do not apply `[large-pr]` on your own authority.** Accepting a
+   branch at this size is a human decision, not a plugin default or a
+   decision an agent takes for itself; in an interactive session, ask; in an
+   autonomous run there is nobody to ask, so the pull request carries the
+   request — the measured size and its composition, named in the body as a
+   change-size override awaiting approval — and a human answers by filling in
+   the register row's Approved by cell or by asking for the change to be
+   split. `docs/standards/guardrails/gate-4-task-completion.md`'s own output
+   already names the counted size and, for a mixed change, which class
+   dominates it — quote it, do not re-derive it by hand.
+
 8. **Licence recommendation**, once step 7 has left the repository with a
    populated dependency-licence register — only when the repository itself
    declares no licence (`package.json`'s `license` field absent or blank; this
@@ -255,13 +276,17 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    **Fix 65 — do not open the bootstrap's pull request until that same
    command is clean.** Run the gate-6 surface itself against the branch,
    not a hand-picked subset of its checks, and raise the pull request only
-   once it reports nothing an implementer could still fix. The one
-   exception is a finding this corpus already reserves for a human — a
-   risk, a licence, a suppression or an opt-out
+   once it reports nothing an implementer could still fix. The precondition
+   is resolvability, not the list that follows (fix 75): what remains is
+   what only a human can decide, and this corpus currently reserves a risk,
+   a licence, a suppression or an opt-out
    ([registers.md](../../docs/standards/guardrails/registers.md#a-register-row-or-a-decision-record)),
-   or a conflict between two standing directives this repository's own
-   `AGENTS.md` reserves the same way — named in the pull request body with
-   the command that produced it. A blocking check this host cannot run at
+   a change-size override recorded in [the change-size override
+   register](../../docs/standards/guardrails/registers.md#the-change-size-override-register)
+   (fix 74 — see this step's own change-size paragraph above), or a conflict
+   between two standing directives this repository's own `AGENTS.md`
+   reserves the same way — named in the pull request body with the command
+   that produced it. A blocking check this host cannot run at
    all is a named, visible skip in the same output, not silence; say so in
    the pull request body too, because a local run with a blocking check
    skipped is raised knowing CI may still find something there. Full rule:
@@ -291,6 +316,21 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    names. Add that as its own section in the bootstrap report, generated
    the same way step 9's own checkpoint above generates the outstanding-work
    list — from the gate's own output, not from memory.
+
+   **Fix 76 — a "verbatim" quote of the local run is not evidence about
+   CI.** One bootstrap report quoted the local gate-6 run, where
+   osv-scanner correctly skipped, under a header claiming the block was
+   "copied from gate 6's own output" — CI, on the same commit, failed the
+   check with six CVEs the report never named. A report's gate output is
+   provisional until the pipeline that produces the blocking verdict has
+   run; once it has, reconcile the report against **its own job log**, never
+   the annotations API (fix 64 — it caps at ten and truncates silently):
+   `node <tooling-dir>/check-report-ci-reconciliation.mjs <report-path>
+<job-log-path>` names any `gate 6: FAIL` line the job log carries that
+   the report never mentions. This is a step after the pipeline runs, not a
+   stricter precondition on opening the pull request — run it once CI has
+   produced a log to reconcile against, and fold any gap it finds into the
+   fix-66 section above before calling the report ready.
 
 ## What done looks like
 

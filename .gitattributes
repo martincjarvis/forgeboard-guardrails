@@ -29,3 +29,10 @@ docs/**           guardrail-class=documentation
 .claude-plugin/** guardrail-class=configuration
 hooks/**          guardrail-class=production
 hooks/test/**     guardrail-class=test
+
+# Generated files — a separate attribute, not a sixth guardrail-class
+# (file-classes.md, fix 73/ADR-0005): package-lock.json keeps its
+# guardrail-class=configuration above for every other check; only change
+# size and the length limit read this one. Query with:
+# git check-attr guardrail-generated -- <path>
+package-lock.json guardrail-generated

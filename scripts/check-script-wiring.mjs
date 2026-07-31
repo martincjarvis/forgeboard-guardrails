@@ -142,6 +142,8 @@ const SCRIPT_FILE_ON_DEMAND = {
     "licence-table re-validation against each entry's own external reference — the file's own header: invoked by hand when adding a licence or confirming the table is current, deliberately not folded into gate 7's default sweep because it depends on external hosts staying reachable, a slower and less reliable failure mode than the rest of that sweep",
   "check-pr-body-artefacts.mjs":
     "fix 68's reserved-class citation check: `--file <draft>` reads a draft body off disk before a pull request exists (invoked from skills/repository-bootstrap/SKILL.md, beside fix 65's precondition); with no `--file` it falls back to `gh pr view` for a reviewer checking one already open (gate-6-pull-request.md, \"Running it by hand\"). Neither caller is gate 6 itself, so this stays on-demand rather than wired into the blocking run.",
+  "check-report-ci-reconciliation.mjs":
+    "fix 76's report-versus-CI-log check: it cannot run before the pipeline that produces the blocking verdict has completed, so it is a step after gate 6 rather than a stricter precondition on it — run by hand, or as a follow-up CI step reading its own prior job's log, against the report before presenting a pull request as ready (gate-6-pull-request.md, \"Running it by hand\"; skills/repository-bootstrap/SKILL.md's fix-66 paragraph).",
 };
 
 /** { wired, onDemand, unwired } for `check-*.mjs` files in scripts/ itself,

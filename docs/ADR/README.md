@@ -73,3 +73,17 @@ account in its own repository.
   tools; the consuming repository installs them.
 - [0003](0003-derive-configuration.md) — the gates derive what they need from
   what a repository already declares, rather than from a configuration file.
+- [0004](0004-development-scope-licence-acceptances.md) — four licences
+  outside the table's decision rule, accepted for development scope only.
+- [0005](0005-generated-files-discounted-from-change-size.md) — a file
+  declared `guardrail-generated` counts toward neither change size nor the
+  length limit.
+- [0006](0006-change-size-override-is-a-human-decision.md) — an agent
+  reports a change-size finding; a human, not the agent, applies
+  `[large-pr]`.
+- [0007](0007-pull-request-precondition-is-resolvability.md) — a pull
+  request opens when every finding an implementer could resolve has been
+  resolved; the reserved classes are a consequence, not the definition.
+- [0008](0008-tooling-complexity-band.md) — `Proposed`. Tooling has no
+  complexity or length band; two options are named for a human to choose
+  between.

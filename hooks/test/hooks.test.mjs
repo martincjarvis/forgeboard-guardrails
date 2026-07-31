@@ -116,6 +116,18 @@ import {
   findUncitedFindings,
   readPrBody,
 } from "../../scripts/check-pr-body-artefacts.mjs";
+import {
+  usesOverrideMarker,
+  approvedOverrideRowsForBranch,
+  findChangeSizeOverrideFindings,
+  checkChangeSizeOverride,
+  REGISTER_PATH as CHANGE_SIZE_OVERRIDE_REGISTER_PATH,
+} from "../../scripts/check-change-size-override.mjs";
+import {
+  extractGateFailLabels,
+  findUnreconciledCiFindings,
+  checkReportCiReconciliation,
+} from "../../scripts/check-report-ci-reconciliation.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -409,6 +421,235 @@ test("the override marker does not clear file length", () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+// --- Fix 74. gate-4-task-completion.mjs's own OVERRIDE check (above) only
+// ever asked whether the [large-pr] string appears anywhere in the branch's
+// commit log — satisfied by any author, with no reason and no approver, and
+// unaffected by which commit carries it. check-change-size-override.mjs is
+// the server-side check that makes the override answerable only by a human:
+// the marker must be backed by an approved row in the change-size override
+// register, identified by branch. These tests exercise that module's pure
+// functions directly, plus one real, end-to-end reproduction of audit 18's
+// own shape below.
+
+test("usesOverrideMarker is true only when the marker string is present", () => {
+  assert.equal(usesOverrideMarker("chore: accepted [large-pr]\n"), true);
+  assert.equal(usesOverrideMarker("chore: a normal commit\n"), false);
+  assert.equal(usesOverrideMarker(""), false);
+  assert.equal(usesOverrideMarker(undefined), false);
+});
+
+test("findChangeSizeOverrideFindings reports nothing when the branch never used the marker", () => {
+  // No marker, no register row anywhere — a completely ordinary branch must
+  // not be asked about a register it never touched.
+  assert.deepEqual(
+    findChangeSizeOverrideFindings({
+      logText: "chore: a normal commit\n",
+      registerText: "",
+      branch: "feature/ordinary",
+    }),
+    [],
+  );
+});
+
+test("findChangeSizeOverrideFindings blocks a marker with no register row at all — audit 18's own case", () => {
+  // The exact shape audit 18 found: [large-pr] present, in a commit distinct
+  // from the oversized diff (that distinction is not modelled here — it does
+  // not matter to this check, which is the point: "which commit" was never
+  // the missing property). No row exists anywhere for this branch.
+  const findings = findChangeSizeOverrideFindings({
+    logText: "chore: bootstrap\n\nchore: accepted [large-pr]\n",
+    registerText: "",
+    branch: "feature/bootstrap",
+  });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /no.*row for branch 'feature\/bootstrap'/);
+  assert.equal(findings[0].path, CHANGE_SIZE_OVERRIDE_REGISTER_PATH);
+});
+
+test("findChangeSizeOverrideFindings blocks a row with a blank approver — not yet a resolved decision", () => {
+  const registerText = [
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| feature/bootstrap | 14959 | ported tooling | needed for parity |  split next time | |",
+  ].join("\n");
+  const findings = findChangeSizeOverrideFindings({
+    logText: "chore: accepted [large-pr]\n",
+    registerText,
+    branch: "feature/bootstrap",
+  });
+  assert.equal(
+    findings.length,
+    1,
+    "a row missing only its approver is not a resolved override",
+  );
+});
+
+test("findChangeSizeOverrideFindings blocks an approver that reads as a team label, not a person", () => {
+  const registerText = [
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| feature/bootstrap | 14959 | ported tooling | needed for parity | split next time | Platform team |",
+  ].join("\n");
+  const findings = findChangeSizeOverrideFindings({
+    logText: "chore: accepted [large-pr]\n",
+    registerText,
+    branch: "feature/bootstrap",
+  });
+  assert.equal(findings.length, 1);
+});
+
+test("findChangeSizeOverrideFindings passes once a human-approved row for this branch exists", () => {
+  const registerText = [
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| feature/bootstrap | 14959 | ported tooling | needed for parity | split next time | Martin Jarvis |",
+  ].join("\n");
+  assert.deepEqual(
+    findChangeSizeOverrideFindings({
+      logText: "chore: accepted [large-pr]\n",
+      registerText,
+      branch: "feature/bootstrap",
+    }),
+    [],
+  );
+});
+
+test("findChangeSizeOverrideFindings does not let a row approved for a different branch cover this one", () => {
+  // Decisive: an approved row exists in the register, but for someone else's
+  // branch. A stale acceptance elsewhere must not silently authorise this one.
+  const registerText = [
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| feature/other | 900 | vendored data | one-off import | n/a | Martin Jarvis |",
+  ].join("\n");
+  const findings = findChangeSizeOverrideFindings({
+    logText: "chore: accepted [large-pr]\n",
+    registerText,
+    branch: "feature/bootstrap",
+  });
+  assert.equal(findings.length, 1);
+});
+
+test("findChangeSizeOverrideFindings reports the branch itself as unresolved rather than silently passing", () => {
+  const findings = findChangeSizeOverrideFindings({
+    logText: "chore: accepted [large-pr]\n",
+    registerText: "",
+    branch: "",
+  });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /own name could/);
+});
+
+test("approvedOverrideRowsForBranch matches by branch, case-insensitively, ignoring the counted-lines cell", () => {
+  const registerText = [
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| Feature/Bootstrap | 14959 | ported tooling | needed for parity | split next time | Martin Jarvis |",
+  ].join("\n");
+  assert.equal(
+    approvedOverrideRowsForBranch(registerText, "feature/bootstrap").length,
+    1,
+  );
+  assert.equal(
+    approvedOverrideRowsForBranch(registerText, "feature/unrelated").length,
+    0,
+  );
+});
+
+test("checkChangeSizeOverride wires the log read, the register read and the branch together — injected, no real repository needed", () => {
+  const registerText = [
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| feature/bootstrap | 14959 | ported tooling | needed for parity | split next time | Martin Jarvis |",
+  ].join("\n");
+  /** @type {(cmd: string, args: readonly string[]) => import("node:child_process").SpawnSyncReturns<string>} */
+  const fakeLog = () => ({
+    status: 0,
+    stdout: "chore: accepted [large-pr]\n",
+    stderr: "",
+    pid: 0,
+    output: [],
+    signal: null,
+  });
+  const passing = checkChangeSizeOverride("origin/main..HEAD", {
+    branch: "feature/bootstrap",
+    runGit: fakeLog,
+    readFile: (p) =>
+      p === CHANGE_SIZE_OVERRIDE_REGISTER_PATH ? registerText : "",
+  });
+  assert.deepEqual(passing, []);
+
+  const blocked = checkChangeSizeOverride("origin/main..HEAD", {
+    branch: "feature/unrelated",
+    runGit: fakeLog,
+    readFile: (p) =>
+      p === CHANGE_SIZE_OVERRIDE_REGISTER_PATH ? registerText : "",
+  });
+  assert.equal(blocked.length, 1);
+});
+
+test("regression guard: check-change-size-override.mjs run for real, against a scratch branch shaped exactly like audit 18's — marker in a later, distinct commit from the oversized diff, no register row — refuses", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature/bootstrap"]);
+  for (let i = 0; i < 5; i++)
+    writeFileSync(join(dir, `part${i}.ts`), lines(200));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: bootstrap greet against the standards"]);
+  // The marker, in its own later commit — the exact separation audit 18's
+  // branch already had, and which a naive "different commit" rule would have
+  // accepted.
+  git(dir, [
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "chore: tune ported corpus [large-pr]",
+  ]);
+  const r = runScript("scripts/check-change-size-override.mjs", dir, [
+    "origin/main..HEAD",
+  ]);
+  assert.equal(
+    r.status,
+    2,
+    "the marker sat in its own commit already — that alone must not clear it",
+  );
+  assert.match(r.stderr, /change size override/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("regression guard: check-change-size-override.mjs run for real, passes once the register carries a human-approved row for this branch", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature/bootstrap"]);
+  for (let i = 0; i < 5; i++)
+    writeFileSync(join(dir, `part${i}.ts`), lines(200));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: bootstrap greet against the standards"]);
+  git(dir, [
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "chore: tune ported corpus [large-pr]",
+  ]);
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, CHANGE_SIZE_OVERRIDE_REGISTER_PATH),
+    [
+      "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+      "| --- | --- | --- | --- | --- | --- |",
+      "| feature/bootstrap | 1000 | ported tooling | needed for parity | split next time | Martin Jarvis |",
+      "",
+    ].join("\n"),
+  );
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "docs: record the change-size override"]);
+  const r = runScript("scripts/check-change-size-override.mjs", dir, [
+    "origin/main..HEAD",
+  ]);
+  assert.equal(r.status, 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test("gate 4 does not count files classed as test or documentation toward change size", () => {
   // Classification is derived from .gitattributes through guardrail-class
   // (file-classes.md, ADR-0003), so the scratch repo must declare the classes
@@ -494,6 +735,116 @@ test("a file classed as tooling counts toward change size but has no length limi
     /split it into smaller units/,
     "tooling has no length limit",
   );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// --- Fix 73. A generated file has no remedy: nobody can meaningfully split
+// or shrink a lock file, and any hand edit to one is discarded by the next
+// `npm install`. file-classes.md: "A generated file counts toward neither
+// change size nor the length limit" — declared through its own
+// `guardrail-generated` attribute, a separate boolean git already resolves
+// (`git check-attr guardrail-generated -- <path>`), never a sixth
+// guardrail-class. The file's own `guardrail-class` is untouched by any of
+// these — file-classes.md's own checkpoint: "keeps its guardrail-class for
+// every other check."
+
+test("a file marked guardrail-generated does not count toward change size", () => {
+  // A configuration-classed lock file — the worked example — well past the
+  // change-size error threshold on its own, discounted entirely once marked.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(
+    join(dir, ".gitattributes"),
+    "*.lock guardrail-class=configuration\n" + "big.lock guardrail-generated\n",
+  );
+  writeFileSync(join(dir, "big.lock"), lines(900));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: regenerate the lock file"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(
+    r.status,
+    0,
+    "a generated file contributes nothing to change size",
+  );
+  assert.doesNotMatch(r.stderr, /change size/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("a hand-written configuration file of the same size still counts toward change size — the distinction is the marker, not the extension", () => {
+  // Decisive contrast with the case above: same class, same size, same
+  // extension even — the only difference is the absence of the
+  // guardrail-generated attribute, and that alone is what change size reads.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(
+    join(dir, ".gitattributes"),
+    "*.lock guardrail-class=configuration\n",
+  );
+  writeFileSync(join(dir, "big.lock"), lines(900));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: hand-edit a large lock-shaped file"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(
+    r.status,
+    2,
+    "an unmarked file counts toward change size regardless of its name",
+  );
+  assert.match(r.stderr, /change size/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("a code-generated production file (*.g.cs) is discounted from change size the same as a lock file", () => {
+  // Fix 73's own point: generated code, not only a lock file, carries the
+  // same "no remedy" property. Unclassified .cs falls out to production
+  // (file-classes.md's fail-safe default), so this also proves the
+  // discount applies independently of guardrail-class.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, ".gitattributes"), "*.g.cs guardrail-generated\n");
+  writeFileSync(join(dir, "Widget.g.cs"), lines(900));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: regenerate the designer file"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(r.status, 0, "generated production code is discounted too");
+  assert.doesNotMatch(r.stderr, /change size/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("a generated production file is also exempt from the length limit, not only change size", () => {
+  // file-classes.md: "A generated file counts toward neither change size nor
+  // the length limit." A single generated file below the change-size error
+  // threshold isolates the length-limit half of the claim.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(join(dir, ".gitattributes"), "*.g.cs guardrail-generated\n");
+  writeFileSync(join(dir, "Widget.g.cs"), lines(500));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: regenerate one designer file"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(r.status, 0, "a generated file is exempt from the length limit");
+  assert.doesNotMatch(r.stderr, /split it into smaller units/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("guardrail-generated absent (unspecified) is not treated as generated — the fail-safe direction", () => {
+  // Negative fixture, per the brief: git check-attr reports every path,
+  // `unspecified` for one no .gitattributes pattern ever names. Only `set`
+  // may discount a file; absence must count it, the same fail-safe direction
+  // classOf() already takes for guardrail-class.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  // No .gitattributes at all: guardrail-generated is unspecified for every
+  // path, and the file is unclassified production by the existing default.
+  writeFileSync(join(dir, "big.lock"), lines(900));
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "chore: add an unclassified large file"]);
+  const r = runHook("gate-4-task-completion.mjs", dir);
+  assert.equal(
+    r.status,
+    2,
+    "no .gitattributes declares guardrail-generated, so nothing is discounted",
+  );
+  assert.match(r.stderr, /change size/);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -5137,4 +5488,87 @@ test("readPrBody: gh unavailable is a named skip, not a crash — the pre-PR pat
   const { body, skip } = readPrBody([], { have: () => false });
   assert.equal(body, null);
   assert.match(skip, /gh not on PATH/);
+});
+
+// --- Fix 76. "Verbatim" was the local run's output, and CI disagreed. Audit
+// 18's own reproduction: the report quoted 12 lines of the local gate-6 run,
+// osv-scanner correctly skipped there, and the report's own header claimed
+// this was gate 6's output "copied ... verbatim". CI's job log, on the same
+// commit, actually failed the check with six CVEs the report never
+// mentioned. extractGateFailLabels reads a gate's own FAIL lines straight
+// from a job log (fix 64's own instrument, never the capped annotations
+// API); findUnreconciledCiFindings is the reconciliation itself.
+
+test("extractGateFailLabels reads a gate's own FAIL lines, scoped to the named gate", () => {
+  const log = [
+    "gate 6: base origin/main, range origin/main...HEAD",
+    "gate 6: FAIL cross-stack dependency scan (osv-scanner)",
+    "        CVE-2026-2327, CVE-2026-59869",
+    "gate 6: FAIL lint (eslint)",
+    "gate 7: FAIL something unrelated",
+  ].join("\n");
+  assert.deepEqual(extractGateFailLabels(log, "gate 6"), [
+    "cross-stack dependency scan (osv-scanner)",
+    "lint (eslint)",
+  ]);
+  assert.deepEqual(extractGateFailLabels(log, "gate 7"), [
+    "something unrelated",
+  ]);
+});
+
+test("extractGateFailLabels finds nothing in a clean log", () => {
+  assert.deepEqual(
+    extractGateFailLabels("gate 6: base origin/main, range x\n", "gate 6"),
+    [],
+  );
+});
+
+test("findUnreconciledCiFindings reproduces audit 18's own case: a report with zero osv-scanner mentions, CI reporting a FAIL for it", () => {
+  const reportText = [
+    "## What remains open (copied from gate 6's own output)",
+    "",
+    "```",
+    "gate 6: base origin/main, range origin/main...HEAD",
+    "gate 6: FAIL lint (eslint)",
+    "```",
+  ].join("\n");
+  const ciLog = [
+    "gate 6: FAIL cross-stack dependency scan (osv-scanner)",
+    "        CVE-2026-2327, CVE-2026-59869, CVE-2026-48988, CVE-2026-53550, CVE-2025-64718, CVE-2026-14257",
+  ].join("\n");
+  const findings = findUnreconciledCiFindings(reportText, ciLog);
+  assert.equal(findings.length, 1);
+  assert.match(
+    findings[0].problem,
+    /cross-stack dependency scan \(osv-scanner\)/,
+  );
+});
+
+test("findUnreconciledCiFindings raises nothing once the report names the CI finding, wherever in the report it appears", () => {
+  const reportText = [
+    "## CI-only findings (fix 66)",
+    "",
+    "- cross-stack dependency scan (osv-scanner) — category 3: could not run locally, osv-scanner not installed; six CVEs found in CI, addressed in a follow-up commit.",
+  ].join("\n");
+  const ciLog = "gate 6: FAIL cross-stack dependency scan (osv-scanner)\n";
+  assert.deepEqual(findUnreconciledCiFindings(reportText, ciLog), []);
+});
+
+test("findUnreconciledCiFindings raises nothing for a clean CI log, whatever the report says", () => {
+  assert.deepEqual(
+    findUnreconciledCiFindings("anything at all", "gate 6: base x\n"),
+    [],
+  );
+});
+
+test("checkReportCiReconciliation reads both files by path, injected for testing", () => {
+  const files = {
+    "report.md": "no mention of anything here",
+    "ci.log": "gate 6: FAIL lint (eslint)\n",
+  };
+  const findings = checkReportCiReconciliation("report.md", "ci.log", {
+    readFile: (p) => files[p],
+  });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /lint \(eslint\)/);
 });

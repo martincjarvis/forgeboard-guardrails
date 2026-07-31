@@ -62,10 +62,60 @@ from a hunch about the path.
   to cross-wire precisely because both are called the fail-safe direction.
 
 - **Configuration and tooling count toward change size but carry no length
-  limit.** A generated lock file or a long infrastructure definition is not a
-  design smell; the same holds for a long gate script — a 900-line change to
-  how the system is built, or to how the repository checks itself, still needs
-  a human to look at it.
+  limit.** A long infrastructure definition is not a design smell; the same
+  holds for a long gate script — a 900-line change to how the system is
+  built, or to how the repository checks itself, still needs a human to look
+  at it.
+- **A generated file counts toward neither change size nor the length
+  limit.** Change size's remedy is "split the change" or "justify its size";
+  neither is available for a file no author can meaningfully edit, because the
+  next generation run discards whatever was written. `package-lock.json` is
+  the recurring case — one file, regenerated wholesale by a routine dependency
+  bump — but the property is not confined to lock files: `*.g.cs`, designer
+  files, protobuf and gRPC output, and OpenAPI clients all share it. A
+  blocking check whose remedy cannot be performed is not a gate, it is a toll
+  payable only in overrides, and an override that fires on every dependency
+  bump stops being read
+  ([bypass-and-exceptions.md](bypass-and-exceptions.md) makes the same
+  argument about routine exceptions generally).
+
+  **Declared through its own `guardrail-generated` attribute — a separate
+  boolean, never a sixth `guardrail-class`.** A lockfile keeps its
+  `guardrail-class` (`configuration`) for every other check that reads it —
+  secret scanning, licence policy and the advisory scan must still see it;
+  it is the change-size remedy that is impossible, not the file that is
+  uninteresting. Folding this into `guardrail-class=generated` would strip
+  the file of its class instead, and those checks would stop seeing it as
+  configuration — the same "an exemption hides a code path" failure an
+  earlier cycle shipped once already. Query independently:
+  `git check-attr guardrail-generated -- <path>`.
+
+  ```gitattributes
+  package-lock.json  guardrail-generated
+  **/*.g.cs          guardrail-generated
+  ```
+
+  `git check-attr` always prints a line for a queried path, even one no
+  `.gitattributes` pattern ever names — `unspecified`, not silence — the same
+  as `guardrail-class`. Only `set` counts as generated; `unspecified` and an
+  explicit `-guardrail-generated` (`unset`) both count as not-generated, the
+  fail-safe direction, and the one a negative fixture proves.
+
+  Reused deliberately, not GitHub's own `linguist-generated`: that attribute
+  means something only where Linguist runs, a platform tool this toolkit does
+  not control ([ADR-0002](../../ADR/0002-analysis-tool-distribution.md)'s own
+  reasoning about depending on a host's behaviour rather than on `PATH` and
+  declared attributes, applied here to a second host feature). A per-path git
+  attribute this toolkit names itself works identically everywhere git runs.
+
+  Do not hardcode a list of generated filenames in a check — `package-lock.json`
+  today, `yarn.lock`, `Cargo.lock` and `packages.lock.json` tomorrow, and the
+  next one after that. A bootstrap declares `guardrail-generated` for whatever
+  its own stack actually generates, derived from the manifests and build
+  configuration already present (a `package.json` implies a `package-lock.json`;
+  a `.csproj` referencing a code generator implies its own `*.g.cs` pattern),
+  never a fixed list carried from repository to repository.
+
 - **Tooling is never deployed, and packaging excludes it by class.** Packaging
   and release select what ships by `guardrail-class` — the same declaration
   that already classifies the file for the gates — never a hand-maintained
@@ -77,6 +127,14 @@ from a hunch about the path.
   and counting them pressures the floor downward for a number that no longer
   means what it claims. See [Testing strategy](../testing-strategy.md#coverage)
   for the rule.
+- **Tooling has no complexity or length band, and whether it should is an
+  open decision, not a settled one.** The code that decides what merges is,
+  by this omission, the least examined code in the repository — a gap an
+  audit found real rather than a distortion of scope creeping in from
+  elsewhere. [ADR-0008](../../ADR/0008-tooling-complexity-band.md) names the
+  two ways to close it and is left `Proposed` on purpose: this is a standing
+  policy decision for a human, not a default this standard or an
+  implementer may pick unilaterally.
 - **The class is per repository, not per filename.** In a repository that
   consumes this standard, gate scripts and other development automation are
   `tooling`: excluded from coverage, never deployed. In a repository whose
@@ -124,6 +182,23 @@ from a hunch about the path.
       rather than agent instructions in its body.
 - [ ] A file classed `tooling` counts toward change size but is not held to a
       length limit.
+- [ ] A file marked `guardrail-generated` in `.gitattributes` contributes zero
+      to change size, and keeps its `guardrail-class` for every other check.
+- [ ] A code-generated source file — `*.g.cs` is the worked example — is
+      discounted on the same grounds as a lock file, whatever its
+      `guardrail-class`.
+- [ ] The same generated file is also exempt from the length limit — no
+      regression on the rule that already exempted configuration and tooling.
+- [ ] A hand-written configuration or tooling file of the same size still
+      counts toward change size. The distinction is the `guardrail-generated`
+      marker, not the file's name or extension.
+- [ ] A path no `.gitattributes` pattern marks `guardrail-generated` is
+      treated as not generated — the fail-safe direction — proved with a
+      negative fixture, not assumed from the attribute's absence.
+- [ ] A bootstrap declares `guardrail-generated` for the lock files and
+      generated sources its own stack actually produces, derived from the
+      manifests present rather than a fixed list carried from repository to
+      repository.
 - [ ] A file classed `tooling` is absent from a packaged or deployed
       artefact — checked by inspecting the artefact's contents, not the source
       tree.
@@ -166,3 +241,8 @@ from a hunch about the path.
 - [Agent integration](agent-integration.md#the-root-instruction-file) — the
   canonical-file-and-pointers rule for multiple _harnesses_, a different
   question from whether a _directory_ needs an instruction file at all.
+- [ADR-0005](../../ADR/0005-generated-files-discounted-from-change-size.md) —
+  why a generated file is discounted rather than left counted with the
+  `[large-pr]` override as its only remedy.
+- [ADR-0008](../../ADR/0008-tooling-complexity-band.md) — the open decision
+  on whether tooling gets its own complexity and length band.

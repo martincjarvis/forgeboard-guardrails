@@ -81,10 +81,20 @@ worker to write fewer of them.
 
 **Push back in an unattended run.** [Gate 6](gate-6-pull-request.md) has nobody
 to ask. A finding that pushes back locally becomes, server-side, a check for the
-recorded answer: the override marker for change size, a resolved decision record
-or a register row for anything else. No answer on record is a failure there,
-which is what stops push back from degrading into a warning the moment the
-author is not watching.
+recorded answer: for change size, a human-approved row in [the change-size
+override register](registers.md#the-change-size-override-register), matched by
+branch — the bare `[large-pr]` string is not enough on its own
+([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix));
+a resolved decision record or a register row for anything else. No answer on
+record is a failure there, which is what stops push back from degrading into a
+warning the moment the author is not watching.
+
+**An agent never applies the override marker on its own authority.** It
+reports the counted size and what makes up the bulk — this check's own output
+already does that — and the marker is applied by, or on the explicit
+instruction of, the human who also fills in the register row's Approved by
+cell. Locally, the bare marker still clears this check for an author present
+to have typed it; the register requirement above is the unattended half.
 
 ## Agent-facing documents
 
@@ -117,14 +127,14 @@ Two rules the gate cannot check, which the reviewer must:
 
 ## Running it by hand
 
-| Check                 | Command                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------ |
-| Change size           | `git diff --shortstat origin/main...HEAD -- <production, config and tooling paths>`  |
-| Per-file line counts  | `git ls-files -- <paths> \| xargs wc -l \| sort -n`                                  |
-| Complexity            | The stack's own analyser — `npx eslint --rule '{"complexity":["error",15]}' <paths>` |
-| Agent-document length | `wc -l <agent context paths>`                                                        |
-| Agent frontmatter     | `npx skills-ref validate ./<skill directory>`                                        |
-| Override marker       | `git log origin/main..HEAD --format=%B \| grep '\[large-pr\]'`                       |
+| Check                 | Command                                                                                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change size           | `git diff --shortstat origin/main...HEAD -- <production, config and tooling paths>`                                                                                                           |
+| Per-file line counts  | `git ls-files -- <paths> \| xargs wc -l \| sort -n`                                                                                                                                           |
+| Complexity            | The stack's own analyser — `npx eslint --rule '{"complexity":["error",15]}' <paths>`                                                                                                          |
+| Agent-document length | `wc -l <agent context paths>`                                                                                                                                                                 |
+| Agent frontmatter     | `npx skills-ref validate ./<skill directory>`                                                                                                                                                 |
+| Override marker       | `git log origin/main..HEAD --format=%B \| grep '\[large-pr\]'` (clears this check locally; gate 6 additionally requires a human-approved row — `node scripts/check-change-size-override.mjs`) |
 
 This gate runs the stack's own analyser, which is fast and already installed.
 `lizard` — which covers the languages a single linter does not, and reports
@@ -138,7 +148,13 @@ is a separate question, answered by [Thresholds](thresholds.md).
 
 ## Verification
 
-- [ ] A branch over the error threshold is blocked, and the override marker unblocks it.
+- [ ] A branch over the error threshold is blocked, and the override marker
+      unblocks it locally — for an author present to have typed it.
+- [ ] The bare marker does not unblock the merge at gate 6 without a
+      human-approved row in the change-size override register, matched by
+      branch ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
+- [ ] An agent reports the counted size and what makes up the bulk; it does
+      not apply the override marker on its own authority.
 - [ ] A branch whose size comes entirely from `tooling` files still pushes
       back in the warn band — change size does not exempt any counted class
       from the question.
@@ -166,6 +182,10 @@ is a separate question, answered by [Thresholds](thresholds.md).
 - [File classes](file-classes.md) — which class a file is in, and therefore its verdict.
 - [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — where an unanswered
   push back is caught.
+- [Registers](registers.md#the-change-size-override-register) — the
+  change-size override register the merge gate checks.
+- [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
+  fix 74, why the marker alone is not enough server-side.
 - Agent Skills specification (<https://agentskills.io/specification>) — the
   frontmatter fields and the progressive-disclosure recommendation.
 - Agent Skills authoring guidance
