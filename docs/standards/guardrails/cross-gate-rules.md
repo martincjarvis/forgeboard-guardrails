@@ -163,6 +163,95 @@ reads the protected branch's actual configuration and reports every check
 this toolkit runs that is not in the required list — as a finding, not a
 silent skip.
 
+## A pull request is not opened until the gate-6 surface is clean locally
+
+Every gate above runs on the author's machine before it runs on the server,
+and [gate 6's own check 3](gate-6-pull-request.md#61-revalidation) is the
+same local checks re-run against the pull request's range instead of the
+index — nothing about the gate-6 surface needs a pull request to already
+exist. Raising one to find out what it says spends a run, puts a red pull
+request in front of a reviewer, and loses the one piece of information that
+actually mattered: [which local gate should have caught it and did
+not](#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding).
+One iteration ran three of gate 6's checks locally, called the branch ready,
+and CI reported sixteen findings.
+
+**Fix 65 — do not open a pull request unless you are certain it will pass
+CI.** Run the gate-6 surface against the branch first — the gate itself, not
+a selection of checks, [the same rule fix 61 already holds for a report's
+outstanding-work
+list](../docs-style.md#standards-in-a-consuming-repository) — and raise the
+pull request only when that command is clean. Choosing which of gate 6's
+checks to run by hand and calling the result "ready" is the same defect fix
+61 closed for a report's finding list, one step earlier: the set is
+assembled by running the gate, not by picking checks that seemed relevant.
+
+**The one exception, stated so the rule is not circular: a finding reserved
+for a human cannot be resolved by the implementer, and the pull request is
+how it is put to them.** The reserved classes are not invented for this
+rule — they are the ones this corpus already reserves elsewhere: a decision
+record or register row accepting a risk, a licence, a suppression or an
+opt-out ([registers.md](registers.md#a-register-row-or-a-decision-record)),
+and a conflict between two standing directives, which a repository's own
+root instruction file names as reserved the same way (this toolkit's own
+`AGENTS.md` is the worked example). A pull request may be opened with
+findings outstanding **only** where every remaining finding is one of
+those — named in the pull request body, with the command that produced
+them. A finding the implementer could have fixed is a reason not to open
+yet, not a line item to disclose and open anyway.
+
+**A skip is not a pass.** Where a check genuinely cannot run locally — a
+network-bound scanner, a platform-specific resolution, a host the developer
+does not have — [gate 5](gate-5-push.md) and
+[gate 6](gate-6-pull-request.md) already require it to be a named, visible
+skip. A branch whose local run skipped a blocking check is raised in the
+knowledge that CI may still find something there; the pull request body
+names which checks were skipped and why, plainly enough that a reviewer
+does not read a green local run as more certain than it was.
+
+## The gap between a local pass and a CI finding is itself a finding
+
+**Fix 66 — when CI finds something the local gates did not, that
+difference is a finding, and it is worth more than the defect underneath
+it.** A defect fixed without asking why the local run missed it recurs
+through a different door the next time nobody runs the same command.
+Before fixing what CI found, establish which local gate should have caught
+it and why it did not, and record the answer in the same report the
+defect's own fix is recorded in.
+
+Four categories, because the remedy differs:
+
+1. **The local gate exists and was not run.** A process failure — the
+   remedy is [fix 65](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally):
+   run the gate, not a selection.
+2. **The local gate exists and is scoped more narrowly than CI's.** A real
+   gap: [every blocking local check has a named server-side
+   equivalent](#local-gates-are-a-fast-copy-the-server-gate-is-the-authority)
+   already; a finding here means the two disagree, and either the local
+   scope widens to match or the difference is recorded with its reason.
+3. **The check cannot run locally at all** — a platform-specific optional
+   dependency, a network-bound scanner, a host-only capability. The local
+   output already says so, as a named skip
+   ([bypass and exceptions](bypass-and-exceptions.md)); this corpus also
+   names which checks these are at the gate they belong to (gate 5's and
+   gate 6's own cross-stack dependency scan when `osv-scanner` is not on
+   `PATH`, gate 6's Code Quality rendering on a plan that does not carry
+   it), so an implementer meets the gap as a known property of the
+   toolkit, not a surprise discovered per repository.
+   [`@esbuild/linux-x64`](registers.md#platform-specific-optional-dependencies)
+   is the worked example: a Windows host cannot resolve a Linux-only
+   optional dependency, so a locally generated dependency register is
+   incomplete by construction, whatever the register otherwise looks like.
+4. **CI is checking something the local gates do not model at all.** A
+   missing check, not a scoping difference — add it locally, or record why
+   it stays server-side only.
+
+Record each CI-only finding against its category, in the bootstrap report
+and in any session report that raises a pull request — see
+[docs-style.md: standards in a consuming
+repository](../docs-style.md#standards-in-a-consuming-repository) for where
+that section lives in the report.
+
 ## Decisions live in decision records; documents state the current position
 
 Every artefact this standard asks for falls into one of three kinds, and mixing
@@ -451,6 +540,21 @@ choice is reported, not guessed.
       server-side — verified by `scripts/check-branch-protection.mjs`
       ([branch protection](branch-protection.md)), not merely listed in a
       workflow file.
+- [ ] A pull request is not opened while the gate-6 surface, run as one
+      command against the branch, reports a finding the implementer could
+      have fixed — only findings reserved for a human (a risk, a licence, a
+      suppression or an opt-out; a conflict between two standing
+      directives) remain outstanding, named in the pull request body with
+      the command that produced them.
+- [ ] A blocking check skipped in the local run is named in the pull
+      request body with its reason — a skip is disclosed as uncertainty
+      about CI, not treated as a pass.
+- [ ] Every finding CI produced that the local run did not is categorised
+      against one of the four gap kinds, with the local gate that should
+      have caught it named, before the underlying defect is fixed.
+- [ ] A check that cannot run locally at all is named as such in the
+      standard, at the gate it belongs to — not discovered fresh by each
+      repository that adopts it.
 - [ ] No gate emits a warning it does not treat as a failure.
 - [ ] A rule configured at a linter's or compiler's own `warn` severity still
       fails the run — the tool is invoked with `--max-warnings 0` or the

@@ -253,6 +253,35 @@ independently can drift from the first the moment either one is edited; a
 document that only points at the report cannot, because there is nothing
 left in it to get wrong.
 
+**Fix 65 — a report's outstanding-work list is what decides whether the
+pull request should exist yet, not only what it says once it does.** Every
+iteration in this series raised a pull request and then discovered what CI
+thought — three findings cited locally, sixteen from CI, because _some_ of
+the gate-6 surface ran rather than the gate itself. **Do not open a pull
+request unless the gate-6 surface, run as one command, is clean.** The one
+exception is a finding reserved for a human — a decision record or register
+row accepting a risk, a licence, a suppression or an opt-out
+([registers.md](guardrails/registers.md#a-register-row-or-a-decision-record)),
+or a conflict between two standing directives, reserved the same way by a
+repository's own root instruction file — named in the pull request body
+with the command that produced it. Full rule:
+[cross-gate-rules.md](guardrails/cross-gate-rules.md#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
+
+**Fix 66 — the bootstrap report, and any session report that raises a pull
+request, carries a section recording every finding CI produced that the
+local run did not**, each categorised against the four gap kinds
+[cross-gate-rules.md
+names](guardrails/cross-gate-rules.md#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding) —
+the local gate was not run, the local gate is scoped narrower than CI's,
+the check cannot run locally at all, or CI models something the local gates
+do not. This is the small artefact that would have surfaced fix 63
+organically (a locally generated dependency register incomplete for a
+platform-specific optional dependency) rather than waiting for an audit to
+notice a missing register row. Where the local run reported no gap because
+it was never raised until it was clean (fix 65), the section says exactly
+that — an empty section with the reason is still the section, not an
+omission.
+
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
 not stack-specific or component-specific content — they are a property of
@@ -519,6 +548,14 @@ requirement it stands in for.
       unavailable, never as an omission nobody can see.
 - [ ] A second artefact — an enforcement map, a status note — describing
       what remains cites the report rather than recomputing its own set.
+- [ ] The pull request this report accompanies was not opened while the
+      gate-6 surface reported a finding the implementer could have fixed —
+      only findings reserved for a human remain, named in the pull request
+      body with the command that produced them.
+- [ ] The report carries a section recording every finding CI produced that
+      the local run did not, each categorised against one of the four gap
+      kinds — present and empty with a reason where the branch was not
+      raised until the local run was clean, never simply absent.
 - [ ] Every numeric claim anywhere in the report — not only its
       outstanding-work section — names the command whose output produced
       it, and where a gate produces the same figure for the same commit,

@@ -252,6 +252,31 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    never as an absence nobody can see. A finding present in the gate's own
    output and absent from the report is a defect in the report.
 
+   **Fix 65 — do not open the bootstrap's pull request until that same
+   command is clean.** Run the gate-6 surface itself against the branch,
+   not a hand-picked subset of its checks, and raise the pull request only
+   once it reports nothing an implementer could still fix. The one
+   exception is a finding this corpus already reserves for a human — a
+   risk, a licence, a suppression or an opt-out
+   ([registers.md](../../docs/standards/guardrails/registers.md#a-register-row-or-a-decision-record)),
+   or a conflict between two standing directives this repository's own
+   `AGENTS.md` reserves the same way — named in the pull request body with
+   the command that produced it. A blocking check this host cannot run at
+   all is a named, visible skip in the same output, not silence; say so in
+   the pull request body too, because a local run with a blocking check
+   skipped is raised knowing CI may still find something there. Full rule:
+   [cross-gate-rules.md](../../docs/standards/guardrails/cross-gate-rules.md#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
+
+   **Fix 66 — once CI runs, its own findings are compared against the
+   local run, not only fixed.** Where CI found something the gate-6 surface
+   did not report locally, that gap is itself a finding, worth recording
+   before the underlying defect is: which local gate should have caught it,
+   and why it did not — one of the four categories
+   [cross-gate-rules.md](../../docs/standards/guardrails/cross-gate-rules.md#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding)
+   names. Add that as its own section in the bootstrap report, generated
+   the same way step 9's own checkpoint above generates the outstanding-work
+   list — from the gate's own output, not from memory.
+
 ## What done looks like
 
 - Every step above has evidence, not configuration alone.
