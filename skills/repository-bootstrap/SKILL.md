@@ -208,6 +208,27 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    [never claim more than was checked](../../docs/standards/guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)
    forbids.
 
+   **Generate the bootstrap report's own "what remains" section from gate
+   output — never write it from memory.** Run gate 6 (or gate 7 where the
+   repository cannot yet run gate 6 — no pipeline wired yet, say), and
+   record each finding line it prints verbatim, naming the check that
+   produced it. One bootstrap report claimed gate 6 was red on four licence
+   rows; the gate's own output carried four licences, nine advisories and an
+   osv-scanner finding naming seven CVEs — fourteen finding lines, and a
+   correction commit that fixed the advisory undercount still never
+   mentioned the osv-scanner failure, because the correction was written
+   from memory the same as the original. Prose explaining or grouping the
+   findings is the implementer's own; the list of findings is the gate's —
+   copied, not recalled
+   ([docs-style.md: report
+   guidance](../../docs/standards/docs-style.md#standards-in-a-consuming-repository),
+   [cross-gate-rules.md: a claim about a set names the command whose output
+   produced it](../../docs/standards/guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)).
+   **Checkpoint, answerable by looking:** the report's outstanding-work list
+   matches the gate output it names, finding for finding — a finding present
+   in the gate's own output and absent from the report is a defect in the
+   report.
+
 ## What done looks like
 
 - Every step above has evidence, not configuration alone.

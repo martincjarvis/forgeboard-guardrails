@@ -189,6 +189,26 @@ removals heading in a report-shaped document with no matching heading or
 finding — it does not judge whether the removal's stated reason is honest,
 only where it was written down.
 
+**Fix 56 — a bootstrap report's "what remains" section is generated from
+gate output, not written from memory.** Nothing in this toolkit reads the
+report — `git grep -il "IMPLEMENTATION-REPORT" scripts/ hooks/ .github/`
+returns nothing, so every claim in it stands or falls on whoever wrote it
+getting the count right by hand. One report claimed gate 6 was red on four
+licence rows; the actual gate output carried four licences, nine advisories
+and an osv-scanner finding naming seven CVEs — fourteen finding lines. A
+correction commit fixed the advisory undercount and still never mentioned
+the osv-scanner failure. The fix is not a checker that reads the report's
+prose and scores its honesty — that is the decorative evidence this corpus
+already refuses (["never claim more than was
+checked"](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)).
+It is that the list itself has one legitimate source: the implementer runs
+the gate and records what it said, verbatim, one line per finding, each with
+the check that produced it — run gate 6, or gate 7 where the repository
+cannot yet run gate 6. Prose explaining or grouping the findings is the
+implementer's own; the list of findings is not something prose summarises
+from memory. A list assembled this way cannot understate what the gate
+found, because it is the gate's own output, not a recollection of it.
+
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
 not stack-specific or component-specific content — they are a property of
@@ -391,13 +411,19 @@ requirement it stands in for.
       actually records that procedure, or dropped — never left broken and
       never satisfied by a replacement sentence that asserts a location
       that, checked, does not contain the thing.
-      The seven checks below always apply to an instantiated repository's copy —
-      they verify that tuning happened, so they are never among the content tuning
-      removes. Run them at adoption and unconditionally at
-      [gate 7](guardrails/gate-7-on-demand.md), the same as the rest of this
-      section — and, for the two mechanical checks above, additionally blocking at
-      [gate 6](guardrails/gate-6-pull-request.md) whenever the change touches
-      `docs/standards/`:
+- [ ] A bootstrap report's outstanding-work list matches the gate output it
+      names, finding for finding — answerable by anyone with both artefacts
+      in front of them. A finding present in the gate's own output and
+      absent from the report is a defect in the report, not a smaller
+      version of the truth.
+
+The seven checks below always apply to an instantiated repository's copy —
+they verify that tuning happened, so they are never among the content tuning
+removes. Run them at adoption and unconditionally at
+[gate 7](guardrails/gate-7-on-demand.md), the same as the rest of this
+section — and, for the two mechanical checks above, additionally blocking at
+[gate 6](guardrails/gate-6-pull-request.md) whenever the change touches
+`docs/standards/`:
 
 - [ ] Every instantiated standard applies only to the stacks the
       repository's own manifests declare — a language, package manager or

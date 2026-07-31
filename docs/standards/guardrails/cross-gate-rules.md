@@ -261,6 +261,23 @@ coverage check exists to close, reproduced inside the check itself. Read the
 tool's own count of what it measured — not only whether it exited 0 — and
 treat zero as unavailable, the same as a check that could not run.
 
+**A claim about a set names the command whose output produced that set.**
+"The only blockers are…", "all checks pass except…" — a claim naming several
+findings is where undercounting actually happens; a claim about one fact
+rarely goes wrong, because there is nothing to lose count of. A bootstrap
+report once claimed gate 6 was red on four licence rows; the gate's own
+output carried four licences, nine advisories and an osv-scanner finding
+naming seven CVEs — fourteen finding lines, not four. A correction commit
+fixed the advisory undercount and still never mentioned the osv-scanner
+failure, because the correction was also written from memory rather than
+read from the gate. Naming the command ("`node scripts/gate-6-pull-request.mjs`
+reported these") turns the claim into something a reader can rerun; a set
+recalled by whoever wrote the report is exactly the shape that loses a line
+silently. [docs-style.md's own rule for a bootstrap
+report](../docs-style.md#standards-in-a-consuming-repository) is this
+principle applied to one recurring case: the outstanding-work section is
+generated from gate output, not written from memory.
+
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
 The same principle, one level more specific: a suppression's own verification
@@ -407,6 +424,11 @@ choice is reported, not guessed.
       that supports it, and a claim of completeness for a document names that
       document's own check reporting zero findings — not that the document was
       edited, or read as correct.
+- [ ] A claim about a set — "the only blockers are…", "all checks pass
+      except…" — names the command whose output produced that set, and the
+      set named matches that output finding for finding. A bootstrap
+      report's outstanding-work section is the recurring case: generated
+      from the gate's own output, not recalled from memory.
 - [ ] A suppression's verification claim ("N findings before, 0 after") cites a
       repository-scope run — gate 7's own sweep, or an equivalent `semgrep
 --config auto --error .` at the repository root — never a check scoped
