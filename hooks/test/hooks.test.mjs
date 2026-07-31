@@ -67,6 +67,8 @@ import {
   checkAdrApprover,
   acceptsRiskLicenceSuppressionOrOptOut,
   looksLikeTeamLabel,
+  citedAdrNumbers,
+  adrNumbersCitedByRegisters,
 } from "../../scripts/check-adr-approver.mjs";
 import {
   checkScriptWiring,
@@ -1405,6 +1407,146 @@ test("looksLikeTeamLabel: a plausible individual name is not flagged as a team l
   assert.ok(!looksLikeTeamLabel("Jane Rivera"));
   assert.ok(looksLikeTeamLabel(""));
   assert.ok(looksLikeTeamLabel("Platform team"));
+});
+
+// --- fix 54 — the reserved-class detector keys on vocabulary instead of
+// structure. Audit 14 tested acceptsRiskLicenceSuppressionOrOptOut against
+// the real ADR-0004, which accepts four licences and never uses the literal
+// phrase "allow list" its ALLOW_LIST_RE requires alongside LICENCE_RE:
+// dormant only because the ADR was Proposed, and refusing nothing the
+// moment someone accepted it without an approver. Derived instead of typed:
+// a register row citing an ADR in its Decision record column IS that ADR
+// being used to accept something (registers.md), located by the column's
+// header name rather than a fixed index or an assumed word list.
+
+test("citedAdrNumbers: an ADR named in the Decision record column is found, however many digits or however it is padded", () => {
+  const text =
+    "| Dependency | Version | Licence | Decision record | Approver |\n" +
+    "| --- | --- | --- | --- | --- |\n" +
+    "| some-pkg | 1.0.0 | WTFPL | ADR-0004 | Jane Rivera |\n" +
+    "| other-pkg | 2.0.0 | MIT | | |\n";
+  const numbers = citedAdrNumbers(text);
+  assert.ok(numbers.has("0004"));
+  assert.equal(numbers.size, 1, "a row with no citation contributes nothing");
+});
+
+test("citedAdrNumbers: a register with no Decision record column contributes nothing — the suppression register's own shape", () => {
+  const text =
+    "| Code | Scope | Justification | Removable when | Approved by |\n" +
+    "| --- | --- | --- | --- | --- |\n" +
+    "| my-rule | src/x.mjs | because | never true | Jane Rivera |\n";
+  assert.equal(citedAdrNumbers(text).size, 0);
+});
+
+test("adrNumbersCitedByRegisters: reads across every register file in the directory, skipping README", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adr-citations-"));
+  writeFileSync(
+    join(dir, "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Decision record | Approver |\n" +
+      "| --- | --- | --- | --- | --- |\n" +
+      "| some-pkg | 1.0.0 | WTFPL | ADR-0011 | |\n",
+  );
+  writeFileSync(join(dir, "README.md"), "Decision record\nADR-9999\n");
+  const numbers = adrNumbersCitedByRegisters(dir);
+  assert.ok(numbers.has("0011"));
+  assert.ok(!numbers.has("9999"), "README is not a register");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("adrNumbersCitedByRegisters: a missing registers directory contributes nothing rather than throwing", () => {
+  assert.equal(
+    adrNumbersCitedByRegisters(join(tmpdir(), "does-not-exist-xyz")).size,
+    0,
+  );
+});
+
+test("checkAdrApprover: an ADR cited by a register row's Decision record column is reserved-class even though its own prose uses none of the vocabulary the fallback requires (fix 54)", () => {
+  const adrDir = mkdtempSync(join(tmpdir(), "adr-approver-adr-"));
+  const registersDir = mkdtempSync(join(tmpdir(), "adr-approver-reg-"));
+  const text =
+    "---\nstatus: Accepted\n---\n\n" +
+    "Four licences are accepted for development scope, each on its own grounds.\n";
+  assert.ok(
+    !acceptsRiskLicenceSuppressionOrOptOut(text),
+    "sanity check: the vocabulary fallback alone would not catch this text",
+  );
+  writeFileSync(join(adrDir, "0011-accept-a-licence.md"), text);
+  writeFileSync(
+    join(registersDir, "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Decision record | Approver |\n" +
+      "| --- | --- | --- | --- | --- |\n" +
+      "| some-pkg | 1.0.0 | WTFPL | ADR-0011 | |\n",
+  );
+  const findings = checkAdrApprover(adrDir, registersDir);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].problem, /no approver field/);
+  rmSync(adrDir, { recursive: true, force: true });
+  rmSync(registersDir, { recursive: true, force: true });
+});
+
+test("checkAdrApprover: an ADR no register row cites yet falls back to the vocabulary check, and stays silent when neither signal fires (fix 54)", () => {
+  const adrDir = mkdtempSync(join(tmpdir(), "adr-approver-adr-"));
+  const registersDir = mkdtempSync(join(tmpdir(), "adr-approver-reg-"));
+  writeFileSync(
+    join(adrDir, "0012-design-choice.md"),
+    "---\nstatus: Accepted\n---\n\nVersions are derived per component.\n",
+  );
+  writeFileSync(
+    join(registersDir, "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Decision record | Approver |\n" +
+      "| --- | --- | --- | --- | --- |\n" +
+      "| some-pkg | 1.0.0 | MIT | | |\n",
+  );
+  assert.deepEqual(checkAdrApprover(adrDir, registersDir), []);
+  rmSync(adrDir, { recursive: true, force: true });
+  rmSync(registersDir, { recursive: true, force: true });
+});
+
+test("regression guard: check-adr-approver.mjs run for real, against the real ADR-0004 text with its approver removed and cited by a register row exactly as the real register cites it, refuses and names it (fix 54)", () => {
+  // The exact case audit 14 named: ADR-0004 accepts four licences and never
+  // uses the phrase "allow list" ALLOW_LIST_RE requires alongside LICENCE_RE.
+  // Before fix 54 this case passed clean whenever the ADR was Accepted with
+  // no approver — the regression this test guards.
+  const realText = readFileSync(
+    join(ROOT, "docs", "ADR", "0004-development-scope-licence-acceptances.md"),
+    "utf8",
+  );
+  assert.ok(
+    /status:\s*Accepted/.test(realText),
+    "sanity check: the real ADR is Accepted",
+  );
+  assert.ok(
+    !/allow[- ]list/i.test(realText),
+    "sanity check: the vocabulary gap is real — the real text never uses the phrase",
+  );
+  const noApprover = realText.replace(/^approver:.*\r?\n/m, "");
+  assert.ok(
+    !/^approver:/m.test(noApprover),
+    "sanity check: the approver line was actually removed",
+  );
+
+  const dir = scratchRepo();
+  mkdirSync(join(dir, "docs", "ADR"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "ADR", "0004-development-scope-licence-acceptances.md"),
+    noApprover,
+  );
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "registers", "dependency-licence-register.md"),
+    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
+      "| @azu/style-format | 1.0.1 | WTFPL | Transitive | Development | tooling | example | ADR-0004 | none | none | |\n",
+  );
+  const r = runScript("scripts/check-adr-approver.mjs", dir);
+  assert.equal(r.status, 2);
+  assert.match(
+    r.stderr,
+    /0004-development-scope-licence-acceptances\.md/,
+    "the finding names the ADR",
+  );
+  assert.match(r.stderr, /no approver field/);
+  rmSync(dir, { recursive: true, force: true });
 });
 
 // --- scripts/check-links.mjs — resolveTarget's branches (link/anchor

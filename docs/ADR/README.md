@@ -48,6 +48,15 @@ wins when the two disagree.
   `status: Accepted` on a record it reads as accepting one of the four classes
   above when `approver` is empty or reads as a team label rather than a
   person, at commit time and again at the pull request pipeline.
+- **A record any register row cites in its Decision record column is one of
+  the four classes, whatever words the record itself uses.** A register row
+  pointing at an ADR is that ADR being used to accept something — structural
+  evidence, not vocabulary, and it cannot be evaded by wording a decision
+  differently than the last one. The vocabulary check above still applies on
+  its own for a record no row cites yet — an accepted risk with nothing
+  pointing at it. `scripts/check-adr-approver.mjs` follows the citation
+  first and falls back to reading the prose only when no row cites the
+  record.
 
 ## Numbering
 

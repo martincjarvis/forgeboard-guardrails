@@ -49,7 +49,13 @@ const SUPPRESSION_MARKER_STRINGS = [
  *  bypass-and-exceptions.md already reserve for a human, regardless of
  *  which artefact records the decision. An ordinary design ADR — this
  *  toolkit's own 0001-0003 among them — mentions none of this vocabulary
- *  and is correctly left alone. */
+ *  and is correctly left alone.
+ *
+ *  Fix 54: this is a vocabulary fallback, not the primary signal — kept for
+ *  an ADR no register row cites yet. The next ADR will use different words,
+ *  and a detector that must anticipate an author's vocabulary is one that
+ *  fails silently; see `citedAdrNumbers` below for the structural signal
+ *  `checkAdrApprover` checks first. */
 export function acceptsRiskLicenceSuppressionOrOptOut(text) {
   return (
     GHSA_RE.test(text) ||
@@ -58,6 +64,76 @@ export function acceptsRiskLicenceSuppressionOrOptOut(text) {
     SUPPRESSION_MARKER_STRINGS.some((marker) => text.includes(marker)) ||
     OPT_OUT_RE.test(text)
   );
+}
+
+const REGISTERS_DIR = "docs/registers";
+
+function cellsOf(line) {
+  return line
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+}
+
+// Fix 54 — a register row citing an ADR in its Decision record column IS
+// that ADR being used to accept a risk, licence, suppression or opt-out
+// (registers.md: "names the ADR carrying the reasoning"). Following that
+// pointer needs no vocabulary and cannot be evaded by rewording; extending
+// the keyword list above instead would only ever cover the words already
+// seen.
+
+/** ADR numbers ("0004") cited in one register table's Decision record
+ *  column — located by header name, not a fixed index, since only the
+ *  dependency licence register carries this column today (registers.md)
+ *  and another register's column order is not this function's business. A
+ *  register with no such column contributes nothing. */
+export function citedAdrNumbers(registerText) {
+  const numbers = new Set();
+  if (!registerText) return numbers;
+  let decisionCol = -1;
+  for (const line of registerText.split(/\r?\n/)) {
+    if (!line.startsWith("|")) continue;
+    const cells = cellsOf(line);
+    if (decisionCol === -1) {
+      const idx = cells.findIndex((c) => /^decision record$/i.test(c));
+      if (idx !== -1) decisionCol = idx;
+      continue; // the header row itself never carries a citation
+    }
+    if (cells.every((c) => /^:?-+:?$/.test(c))) continue; // separator row
+    for (const m of (cells[decisionCol] ?? "").matchAll(/ADR-0*(\d+)/gi)) {
+      numbers.add(m[1].padStart(4, "0"));
+    }
+  }
+  return numbers;
+}
+
+/** Every ADR number cited by any register row's Decision record column,
+ *  across every register file in `registersDir` (excluding its README, the
+ *  same exclusion `checkAdrApprover` already applies to `adrDir`). Missing
+ *  or unreadable registers contribute nothing rather than failing the scan
+ *  — the same fail-open shape `checkAdrApprover` already uses for a missing
+ *  ADR directory. */
+export function adrNumbersCitedByRegisters(registersDir = REGISTERS_DIR) {
+  const numbers = new Set();
+  let files;
+  try {
+    files = readdirSync(registersDir).filter(
+      (f) => f.endsWith(".md") && f !== "README.md",
+    );
+  } catch {
+    return numbers;
+  }
+  for (const f of files) {
+    let text;
+    try {
+      text = readFileSync(`${registersDir}/${f}`, "utf8");
+    } catch {
+      continue;
+    }
+    for (const n of citedAdrNumbers(text)) numbers.add(n);
+  }
+  return numbers;
 }
 
 // A hardcoded pattern applied per line, not a per-field RegExp built from
@@ -100,9 +176,18 @@ export function looksLikeTeamLabel(name) {
 
 /** Every finding: an Accepted ADR that accepts a risk, licence, suppression
  *  or opt-out, with no non-empty, non-team-label `approver` in its own
- *  frontmatter. `adrDir` is injectable for testing, the same shape
- *  acceptedAdvisoryIds already takes. */
-export function checkAdrApprover(adrDir = "docs/ADR") {
+ *  frontmatter. `adrDir` and `registersDir` are injectable for testing, the
+ *  same shape acceptedAdvisoryIds already takes.
+ *
+ *  Reserved-class is derived two ways, citation first: an ADR any register
+ *  row cites in its Decision record column is reserved-class regardless of
+ *  its wording (fix 54); an ADR no row cites yet falls back to the
+ *  vocabulary check, for the case a risk is accepted in an ADR before any
+ *  row exists to point at it. */
+export function checkAdrApprover(
+  adrDir = "docs/ADR",
+  registersDir = REGISTERS_DIR,
+) {
   const findings = [];
   let files;
   try {
@@ -112,6 +197,7 @@ export function checkAdrApprover(adrDir = "docs/ADR") {
   } catch {
     return findings;
   }
+  const citedNumbers = adrNumbersCitedByRegisters(registersDir);
   for (const f of files) {
     const path = `${adrDir}/${f}`;
     let text;
@@ -122,7 +208,10 @@ export function checkAdrApprover(adrDir = "docs/ADR") {
     }
     const status = frontmatterField(text, "status");
     if (!/^Accepted$/i.test(status)) continue; // Proposed stays freely editable — ADR/README.md
-    if (!acceptsRiskLicenceSuppressionOrOptOut(text)) continue;
+    const number = /^(\d+)-/.exec(f)?.[1]?.padStart(4, "0");
+    const citedByRegister = Boolean(number) && citedNumbers.has(number);
+    if (!citedByRegister && !acceptsRiskLicenceSuppressionOrOptOut(text))
+      continue;
 
     const approver = frontmatterField(text, "approver");
     if (!approver || looksLikeTeamLabel(approver)) {

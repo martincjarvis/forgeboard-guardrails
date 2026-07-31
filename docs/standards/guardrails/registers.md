@@ -307,6 +307,15 @@ table.
       approver, and an instantiated register row arrives with an empty
       approver cell — copying a rule is right, copying an acceptance of a
       risk made in a different repository is not.
+- [ ] An ADR any register row cites in its Decision record column is treated
+      as a reserved-class decision regardless of the ADR's own wording — an
+      `Accepted` ADR cited this way with no `approver` is refused whether or
+      not its prose uses the vocabulary the fallback check looks for
+      (`scripts/check-adr-approver.mjs`, [ADR
+      README](../../ADR/README.md)). The real ADR-0004 — four licences
+      accepted, no use of the phrase "allow list" — with status flipped to
+      `Accepted` and no approver is the regression case: it passed before
+      this checkpoint existed and must be refused now.
 - [ ] Every row has a removal condition, and none of them is "never".
 - [ ] A row covers exactly one rule at one path (or one dependency, or one
       test) — never more than the one it names. A marker naming several rules
