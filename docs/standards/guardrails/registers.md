@@ -263,6 +263,31 @@ The .NET commands report advisories natively; licences there come from the
 package metadata, so a licence inventory needs a tool that reads it — prefer the
 host's own dependency graph where it offers one.
 
+### Platform-specific optional dependencies
+
+**A register generated on one host is incomplete by construction wherever
+the resolved tree includes an optional, per-platform package.** `npm ls --all
+--json` (or the equivalent for any package manager) reports what the current
+host actually resolved — and a package published as one tarball per OS,
+`@esbuild/linux-x64` and `@esbuild/win32-x64` being the recurring case,
+ships each platform's binary as its own optional dependency, so `npm install`
+fetches only the one matching the host it runs on. A Windows implementer
+generating the register locally cannot see the Linux row at all; it exists
+only once an ubuntu leg resolves the tree and nobody has reason to look there
+unless they already know the package is platform-split.
+
+Fix 63: `@esbuild/win32-x64@0.28.1` had a register row and
+`@esbuild/linux-x64@0.28.1`, resolved on the same lock file, did not — not
+because anyone skipped a row, but because the register was built once, on
+one host, and `npm ls --all --json` on that host had nothing to say about
+the other platform's package.
+
+**Generate the register per platform and union the rows, or generate it on
+the CI matrix that already runs every platform.** A register that ran the
+resolve command on only one host names that limitation next to the rows it
+produced, so a reader knows the set is partial rather than assuming a single
+run was enough.
+
 ### Advisories, per stack
 
 The dependency advisory question (gate-6-pull-request.md check 6, and its
@@ -337,6 +362,13 @@ table.
       read the full resolved set, not the direct one.
 - [ ] Every commercial acceptance names its obligations and carries an expiry,
       and no expiry has passed.
+- [ ] The dependency register covers every platform the repository's CI
+      targets — a package published one optional tarball per OS
+      (`@esbuild/linux-x64` and `@esbuild/win32-x64` being the recurring
+      case) has a row for each platform CI actually runs, not only the host
+      the register happened to be generated on.
+- [ ] A register generated on a single host states that limitation, or its
+      generation runs across the platform matrix instead of once.
 
 ## References
 
