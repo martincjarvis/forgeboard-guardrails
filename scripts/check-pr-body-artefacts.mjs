@@ -26,6 +26,16 @@
 // conflict, because none of those exist for it yet; that is what "the five
 // reserved classes are the complete list" means mechanically — anything
 // outside them has nothing to point at.
+//
+// Two ways to reach the body it checks, so the check is not stuck reading
+// a mistake after it has already shipped: `--file <path>` reads a draft
+// body straight off disk, for the implementer's own pre-`gh pr create`
+// check (skills/repository-bootstrap/SKILL.md, beside fix 65's own
+// precondition); no `--file` falls back to `gh pr view` against an
+// already-open pull request, for a reviewer checking one that exists
+// (docs/standards/guardrails/gate-6-pull-request.md, "Running it by
+// hand"). Same function either way — `findUncitedFindings` does not know
+// or care which source supplied its text.
 import { readdirSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { have, run, report } from "./lib.mjs";
@@ -185,27 +195,58 @@ export function findUncitedFindings(body, artefacts = {}) {
     }));
 }
 
+/** The pull request body text to check: `--file <path>` reads a draft body
+ *  straight off disk — no `gh`, no pull request required, so the
+ *  implementer's own draft can be checked before `gh pr create` ever sees
+ *  it (a check that can only run after the mistake has been made cannot
+ *  prevent it). With no `--file`, falls back to `gh pr view` against an
+ *  already-open pull request (`argv[1]`, if given, is the PR number) — the
+ *  reviewer-facing path, for a body that already exists live. Returns
+ *  `null` on a real failure to read either source; the caller reports that
+ *  as a skip, never as zero findings.
+ *  @param {readonly string[]} args
+ *  @param {{
+ *    have?: (command: string, args?: readonly string[]) => boolean,
+ *    run?: (command: string, args: readonly string[], options?: object) => {status: number|null, stdout?: string, stderr?: string},
+ *  }} [deps]
+ */
+export function readPrBody(
+  args,
+  { have: haveFn = have, run: runFn = run } = {},
+) {
+  const fileIdx = args.indexOf("--file");
+  if (fileIdx !== -1) {
+    const path = args[fileIdx + 1];
+    try {
+      return { body: readFileSync(path, "utf8"), skip: null };
+    } catch (err) {
+      return { body: null, skip: `could not read ${path}: ${err.message}` };
+    }
+  }
+  if (!haveFn("gh", ["--version"])) {
+    return { body: null, skip: "gh not on PATH" };
+  }
+  const ghArgs = args[0] ? ["pr", "view", args[0]] : ["pr", "view"];
+  const view = runFn("gh", [...ghArgs, "--json", "body", "-q", ".body"]);
+  if (view.status !== 0) {
+    return {
+      body: null,
+      skip: `gh pr view failed: ${(view.stderr || "").trim().split("\n")[0]}`,
+    };
+  }
+  return { body: view.stdout || "", skip: null };
+}
+
 const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
-  if (!have("gh", ["--version"])) {
+  const { body, skip } = readPrBody(process.argv.slice(2));
+  if (skip) {
     process.stderr.write(
-      "gate 6: SKIP pull request finding citation — gh not on PATH\n",
+      `gate 6: SKIP pull request finding citation — ${skip}\n`,
     );
     process.exit(0);
   }
-  const args = process.argv[2]
-    ? ["pr", "view", process.argv[2]]
-    : ["pr", "view"];
-  const view = run("gh", [...args, "--json", "body", "-q", ".body"]);
-  if (view.status !== 0) {
-    process.stderr.write(
-      `gate 6: SKIP pull request finding citation — gh pr view failed: ${
-        (view.stderr || "").trim().split("\n")[0]
-      }\n`,
-    );
-    process.exit(0);
-  }
-  const findings = findUncitedFindings(view.stdout || "", {
+  const findings = findUncitedFindings(body, {
     adrNumbers: adrNumbersProposedOrAccepted(),
     registerIdentities: registerRowIdentities(),
   });

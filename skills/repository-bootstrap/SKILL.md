@@ -3,7 +3,7 @@ name: repository-bootstrap
 description: Use when setting up a new repository to comply with the guardrail standards, or bringing an existing repository into compliance for the first time. States the order to declare vocabulary, wire the root instruction file, and adopt each content standard and the gates — naming which reference to open at each step, so an agent does not read the whole corpus before starting.
 ---
 
-<!-- cspell:ignore pyproject -->
+<!-- cspell:ignore pyproject uncited -->
 
 # Repository bootstrap
 
@@ -266,6 +266,21 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    the pull request body too, because a local run with a blocking check
    skipped is raised knowing CI may still find something there. Full rule:
    [cross-gate-rules.md](../../docs/standards/guardrails/cross-gate-rules.md#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
+
+   **Fix 68 — before raising the pull request, check that every finding the
+   draft body still discloses actually cites one of those reserved
+   artefacts.** A definition with no check is a suggestion: one iteration
+   opened a pull request under an invented sixth heading ("One tool
+   limitation, documented rather than hidden") with no register row or ADR
+   behind it, and six dependency advisories beside it cited none either —
+   while the licence and suppression items in the same body did carry real,
+   blank-approver register rows. Run
+   `node <tooling-dir>/check-pr-body-artefacts.mjs --file <draft-body-path>`
+   against the draft body **before** `gh pr create` ever sees it — the
+   `--file` form reads the draft straight off disk, so this runs at the same
+   point as fix 65's own precondition, not after the pull request already
+   exists. A finding it reports uncited is not reserved; fix it, or find the
+   artefact that actually reserves it, before opening.
 
    **Fix 66 — once CI runs, its own findings are compared against the
    local run, not only fixed.** Where CI found something the gate-6 surface

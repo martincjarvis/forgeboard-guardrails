@@ -114,6 +114,7 @@ import {
   citesReservedArtefact,
   disclosedFindingLines,
   findUncitedFindings,
+  readPrBody,
 } from "../../scripts/check-pr-body-artefacts.mjs";
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -5070,4 +5071,70 @@ test("regression guard: adrNumbersProposedOrAccepted and registerRowIdentities r
     Array.isArray(identities),
     "an empty or populated register both return an array, never throw",
   );
+});
+
+// --- readPrBody — the check must be runnable before a pull request exists,
+// not only after (skills/repository-bootstrap/SKILL.md's own precondition,
+// beside fix 65): `--file` reads a draft body straight off disk, with no
+// `gh` call and no open pull request anywhere in the picture.
+
+test("readPrBody: --file reads a draft body from disk, with no gh call and no pull request in existence", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pr-body-draft-"));
+  const draft = join(dir, "draft-body.md");
+  writeFileSync(
+    draft,
+    "## Outstanding\n\n- a licence exception, see ADR-0004\n",
+  );
+  let ghWasCalled = false;
+  const { body, skip } = readPrBody(["--file", draft], {
+    have: () => {
+      ghWasCalled = true;
+      return true;
+    },
+    run: () => {
+      ghWasCalled = true;
+      return { status: 0, stdout: "" };
+    },
+  });
+  assert.equal(skip, null);
+  assert.match(body, /ADR-0004/);
+  assert.ok(!ghWasCalled, "--file must never touch gh, live or not");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("readPrBody: a missing --file path is a named skip, never a silent empty body", () => {
+  const { body, skip } = readPrBody([
+    "--file",
+    join(tmpdir(), "does-not-exist-xyz.md"),
+  ]);
+  assert.equal(body, null);
+  assert.match(skip, /could not read/);
+});
+
+test("readPrBody: with no --file, falls back to gh pr view for an already-open pull request", () => {
+  let calledArgs = null;
+  const { body, skip } = readPrBody(["42"], {
+    have: () => true,
+    run: (cmd, args) => {
+      calledArgs = args;
+      return { status: 0, stdout: "## Outstanding\n\n- cites nothing\n" };
+    },
+  });
+  assert.equal(skip, null);
+  assert.deepEqual(calledArgs, [
+    "pr",
+    "view",
+    "42",
+    "--json",
+    "body",
+    "-q",
+    ".body",
+  ]);
+  assert.match(body, /cites nothing/);
+});
+
+test("readPrBody: gh unavailable is a named skip, not a crash — the pre-PR path (--file) is unaffected by this", () => {
+  const { body, skip } = readPrBody([], { have: () => false });
+  assert.equal(body, null);
+  assert.match(skip, /gh not on PATH/);
 });

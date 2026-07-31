@@ -419,13 +419,14 @@ Most of this gate is platform configuration rather than a command, but the
 checks themselves are the local ones re-run — see each gate's own page. What is
 specific here:
 
-| Purpose                        | Command                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------- |
-| Build the merge result locally | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main`                          |
-| Reproduce a clean checkout     | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`                                       |
-| Changed-line coverage          | `npx diff-cover coverage/cobertura-coverage.xml --compare-branch origin/main --fail-under 80` |
-| Inspect required status checks | `gh api repos/:owner/:repo/branches/main/protection`                                          |
-| Inspect branch protection, ADO | `az repos policy list --branch main`                                                          |
+| Purpose                                                                                                                                              | Command                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Build the merge result locally                                                                                                                       | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main`                          |
+| Reproduce a clean checkout                                                                                                                           | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`                                       |
+| Changed-line coverage                                                                                                                                | `npx diff-cover coverage/cobertura-coverage.xml --compare-branch origin/main --fail-under 80` |
+| Inspect required status checks                                                                                                                       | `gh api repos/:owner/:repo/branches/main/protection`                                          |
+| Inspect branch protection, ADO                                                                                                                       | `az repos policy list --branch main`                                                          |
+| Check a pull request's finding citations (fix 68, cross-gate-rules.md's reserved-class exception) — a reviewer, against an already-open pull request | `node scripts/check-pr-body-artefacts.mjs [pr-number]`                                        |
 
 The falsifiable test for check 3 is worth running once at adoption: remove the
 local hooks entirely, break one check deliberately, push, and confirm the

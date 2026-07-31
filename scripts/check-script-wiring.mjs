@@ -141,7 +141,7 @@ const SCRIPT_FILE_ON_DEMAND = {
   "check-licence-table.mjs":
     "licence-table re-validation against each entry's own external reference — the file's own header: invoked by hand when adding a licence or confirming the table is current, deliberately not folded into gate 7's default sweep because it depends on external hosts staying reachable, a slower and less reliable failure mode than the rest of that sweep",
   "check-pr-body-artefacts.mjs":
-    "fix 68's reserved-class citation check: it reads an already-open pull request's own body via `gh pr view`, which has nothing to read before a pull request exists — a chicken-and-egg gate 6 cannot resolve by running earlier. Invoked by hand, or from a reviewer session, against the pull request under review; the file's own header records the same reasoning.",
+    "fix 68's reserved-class citation check: `--file <draft>` reads a draft body off disk before a pull request exists (invoked from skills/repository-bootstrap/SKILL.md, beside fix 65's precondition); with no `--file` it falls back to `gh pr view` for a reviewer checking one already open (gate-6-pull-request.md, \"Running it by hand\"). Neither caller is gate 6 itself, so this stays on-demand rather than wired into the blocking run.",
 };
 
 /** { wired, onDemand, unwired } for `check-*.mjs` files in scripts/ itself,
