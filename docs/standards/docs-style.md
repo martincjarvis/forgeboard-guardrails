@@ -335,6 +335,58 @@ outside the derived list — an unused word alone is not, because plenty of
 legitimate vocabulary appears once and is later edited away, and a checker
 that flags every unused word gets turned off.
 
+**Fix 59 — the "used elsewhere" corpus must exclude the checker's own
+fixtures.** Once this module (and, following the porting instruction below,
+its test file) is copied into the repository it inspects, "every tracked
+file" now includes this checker's own source and test fixtures — which
+necessarily contain the literal dead-stack words as fixtures (`Roslynator`,
+`Meziantou`, `xunit`, `warnaserror` are exactly fix 55's demonstrated case).
+Those fixtures then vote the words "used elsewhere" and the checker never
+flags them in the one repository it exists to protect. This toolkit's own
+test suite never caught it: this repository is exempt outright
+(`isToolkit()`), so the corpus-composition path never ran here at all — a
+bug in a path an exemption always skips is invisible to any test that only
+ever exercises the exempt repository. `checkCspellResidue` now builds its
+corpus from files **not** classed `tooling` ([file-classes.md](guardrails/file-classes.md)),
+the same attribute `check-tooling-class.mjs` already derives, applied to one
+more consumer of it — a word's own checker and its own fixtures no longer
+get a vote on whether the word is legitimate product vocabulary.
+
+**The general rule, for the next "does this appear elsewhere" check**: a
+corpus built from "everything tracked" will include the check's own source
+and fixtures once that check is itself ported into the repository it
+inspects, and an exemption that correctly lets the canonical toolkit skip
+the check entirely also means the toolkit's own tests can never exercise the
+non-exempt path where a corpus-composition bug like this one actually
+lives. Derive such a corpus from file class, excluding `tooling`, and prove
+it by exercising the non-exempt path directly — a scratch repository that
+has ported the checker — not only by re-checking this toolkit's own, exempt
+repository.
+
+**Fix 60 — instantiation tunes code as well as prose.** An implementer
+removed, by hand, two toolkit self-checks that had made it into a ported
+test file: one reading this toolkit's own commit SHA, one asserting this
+toolkit's own ADR-0004 was `Accepted` with a named approver. Both would have
+failed deterministically on every consuming repository's first CI run — a
+consumer's history does not, and cannot, contain another repository's
+commits — and nothing mechanical caught it, because the checks above read
+`docs/standards/**` and `cspell.json`, never test files. A ported test
+asserting the source repository's own state is the same defect class as a
+ported standard naming a stack the consumer lacks: instantiation residue,
+just in code rather than prose. `checkHardcodedCommitSha` (same module)
+adds the narrow, mechanical proxy: a full 40-character hex commit SHA
+hard-coded in a file classed `test` is a finding. Deliberately narrow —
+detecting "this assertion tests the upstream repository's state"
+semantically would false-positive on legitimate fixtures, so the check
+looks for nothing but the SHA shape itself, scoped to `test`-classed files
+so a `configuration`-classed CI workflow pinning a third-party GitHub Action
+to its commit SHA (a security practice, not this defect) is never in scope.
+The same `isToolkit()` exemption as `checkCspellResidue`, and the same fix
+59 lesson applied to it: this repository's own real history
+(`daa59d0c…`, fix 49's hazard 3) is exactly the recursive case an exemption
+could hide from its own tests, so the exemption is verified against this
+repository directly rather than assumed to hold.
+
 Porting the module is three steps, not one:
 
 1. Copy it into the consuming repository's own tooling directory.

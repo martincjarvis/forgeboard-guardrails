@@ -70,7 +70,7 @@
 // does and leaves it non-clean does not merge that way.
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { trackedFiles, isText, deriveComponent } from "./lib.mjs";
+import { trackedFiles, isText, deriveComponent, classOf } from "./lib.mjs";
 
 /** Manifest that, if present, means the stack is genuinely in use. */
 const STACK_MARKERS = {
@@ -209,11 +209,28 @@ export function findCspellResidue(words, corpusText, presentStacks) {
  *  absence means a consuming repository): this corpus's `cspell.json`
  *  legitimately lists every stack it documents, in prose this same check
  *  would otherwise have to read to rule out. `files` and `readFile` are
- *  injectable for testing, the same shape the rest of this module uses. */
+ *  injectable for testing, the same shape the rest of this module uses.
+ *
+ *  Fix 59: the "is this word used elsewhere" corpus is built from files
+ *  NOT classed `tooling` (file-classes.md), not from every tracked file.
+ *  Once this module (and its ported test file, docs-style.md's own
+ *  instruction) live inside the repository they inspect, "every tracked
+ *  file" includes this checker's own source and test fixtures — which
+ *  necessarily contain the literal dead-stack words as fixtures
+ *  (`Roslynator`, `Meziantou`, `xunit`, `warnaserror` are exactly fix 55's
+ *  demonstrated case). Those fixtures then vote the words "used elsewhere"
+ *  and the checker never flags them in the one repository it exists to
+ *  protect. This toolkit's own tests never caught it: `isToolkit()` above
+ *  means the corpus-composition path never runs here at all, so a bug in it
+ *  is invisible to any test that only exercises this toolkit's own,
+ *  exempt repository — the general lesson is in docs-style.md, and the
+ *  next "does this appear elsewhere" check should read it before making the
+ *  same mistake. */
 export function checkCspellResidue({
   cspellPath = "cspell.json",
   files = trackedFiles(),
   readFile = (f) => readFileSync(f, "utf8"),
+  classify = classOf,
   isToolkit = () => deriveComponent() !== null,
 } = {}) {
   if (isToolkit()) return [];
@@ -227,7 +244,7 @@ export function checkCspellResidue({
   if (words.length === 0) return [];
   const stacks = deriveStackList(files);
   const corpus = files
-    .filter((f) => f !== cspellPath && isText(f))
+    .filter((f) => f !== cspellPath && isText(f) && classify(f) !== "tooling")
     .map((f) => {
       try {
         return readFile(f);
@@ -244,6 +261,79 @@ export function checkCspellResidue({
       `stack outside this repository's derived list (${[...stacks].join(", ") || "none"})`,
     remedy: `remove '${word}' from ${cspellPath}'s word list, or add the manifest that shows the ${stack} stack is actually present`,
   }));
+}
+
+// Fix 60 — instantiation residue is not confined to prose or configuration
+// either: a PORTED TEST can carry it too. An implementer removed, by hand,
+// two toolkit self-checks that had made it into a ported test file — one
+// reading this toolkit's own commit `daa59d0c…`, one asserting this
+// toolkit's own ADR-0004 was `Accepted` with a named approver. Both would
+// fail deterministically on every consuming repository's first CI run: a
+// consumer's history does not, and cannot, contain another repository's
+// commits. Nothing mechanical caught it — the instantiation checks above
+// read `docs/standards/**` and `cspell.json`, never test files — and only
+// the implementer noticing by hand closed the gap that time.
+
+/** A full 40-character hex commit SHA in `text`. Returns [{ line, sha }],
+ *  1-indexed. Deliberately the only signal: detecting "this assertion tests
+ *  the upstream repository's state" semantically is exactly the kind of
+ *  heuristic that false-positives on legitimate fixtures (a hash used as
+ *  arbitrary test data, a content-addressed id) — a full 40-hex-character
+ *  token is precise, mechanical, and has no judgement in it. A 40-hex-char
+ *  SUBSTRING of a longer hash (a sha256 hex digest, for instance) does not
+ *  match: `\b` requires a transition out of a hex/word character on both
+ *  sides, which a longer unbroken hex run never offers in its middle. */
+export function findHardcodedCommitSha(text) {
+  const findings = [];
+  const re = /\b[0-9a-f]{40}\b/gi;
+  text.split("\n").forEach((line, i) => {
+    re.lastIndex = 0;
+    const m = re.exec(line);
+    if (m) findings.push({ line: i + 1, sha: m[0] });
+  });
+  return findings;
+}
+
+/** Fix 60: scoped to files classed `test` (file-classes.md), not every
+ *  tracked file — the same file-class scoping fix 59 applied to the cspell
+ *  corpus, applied again. A blanket tree-wide search would false-positive
+ *  on a `configuration`-classed CI workflow pinning a third-party GitHub
+ *  Action to its commit SHA, which is the opposite of this defect: a
+ *  security practice, not a ported assertion about upstream history. This
+ *  toolkit's own repository is exempt outright, the same `isToolkit`
+ *  reasoning as `checkCspellResidue` above — its own test suite legitimately
+ *  asserts its own real history (fix 49, hazard 3: `daa59d0c…`), which is a
+ *  fact about this canonical repository, not residue to flag. */
+export function checkHardcodedCommitSha({
+  files = trackedFiles(),
+  readFile = (f) => readFileSync(f, "utf8"),
+  classify = classOf,
+  isToolkit = () => deriveComponent() !== null,
+} = {}) {
+  if (isToolkit()) return [];
+  const findings = [];
+  for (const f of files) {
+    if (classify(f) !== "test" || !isText(f)) continue;
+    let text;
+    try {
+      text = readFile(f);
+    } catch {
+      continue;
+    }
+    for (const { line, sha } of findHardcodedCommitSha(text)) {
+      findings.push({
+        path: f,
+        problem:
+          `${f}:${line}: hard-codes a full 40-character commit SHA ` +
+          `(${sha}) — a consuming repository's history does not, and ` +
+          "cannot, contain another repository's commits, so an assertion " +
+          "against it fails deterministically on the first CI run",
+        remedy:
+          "replace the SHA with a synthetic fixture, or delete the assertion if it tests the source repository's own state rather than this one",
+      });
+    }
+  }
+  return findings;
 }
 
 /** Multi-component section headings in `text`, when `componentCount` is 1.
@@ -330,6 +420,18 @@ function reportCspellResidue(files) {
   return count;
 }
 
+/** isMain's fix-60 leg, the same reason reportCspellResidue above is its own
+ *  function rather than an inline loop. Returns the number of findings
+ *  printed. */
+function reportHardcodedCommitSha(files) {
+  let count = 0;
+  for (const f of checkHardcodedCommitSha({ files })) {
+    count++;
+    process.stderr.write(`${f.problem}\n`);
+  }
+  return count;
+}
+
 const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   // ponytail: component count taken from argv rather than derived from a
@@ -361,6 +463,12 @@ if (isMain) {
   // Fix 55 — the same residue, outside docs/standards/**: cspell.json's own
   // word list, copied wholesale, keeping a stack's dead vocabulary alive.
   findingCount += reportCspellResidue(files);
+
+  // Fix 60 — instantiation tunes code as well as prose: a ported test
+  // hard-coding a full 40-character commit SHA is asserting the SOURCE
+  // repository's own history, which fails deterministically on this
+  // repository's first CI run.
+  findingCount += reportHardcodedCommitSha(files);
 
   // Fix 53 — a removal recorded only in a one-time session report, not in
   // the enforcement map or a PROVENANCE note. "Report-shaped" is a filename

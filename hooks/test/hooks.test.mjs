@@ -83,6 +83,8 @@ import {
   findRemovalsOutsideEnforcementMap,
   findCspellResidue,
   checkCspellResidue,
+  findHardcodedCommitSha,
+  checkHardcodedCommitSha,
 } from "../../scripts/check-standards-instantiation.mjs";
 import { run, have } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
@@ -3797,6 +3799,56 @@ test("checkCspellResidue: run for real against this toolkit's own repository, ex
   );
 });
 
+test("checkCspellResidue: an occurrence only in a file classed `tooling` does not count as 'used elsewhere' (fix 59) — the ported checker's own fixtures must not vote for their own vocabulary", () => {
+  // Audit 15's structural finding: checkCspellResidue's original corpus was
+  // every tracked text file, which — once this module and its test file are
+  // themselves ported into the repository they inspect — includes this
+  // checker's own source and fixtures containing the literal dead-stack
+  // words. The corpus must be built from files NOT classed `tooling`
+  // (file-classes.md), so a word's own checker cannot vouch for it.
+  const files = [
+    "cspell.json",
+    "package.json",
+    "scripts/check-standards-instantiation.mjs",
+  ];
+  const contents = {
+    "cspell.json": JSON.stringify({ words: ["Roslynator"] }),
+    "package.json": JSON.stringify({ name: "x" }),
+    "scripts/check-standards-instantiation.mjs":
+      "// fixture word used in this ported checker's own tests: Roslynator\n",
+  };
+  const classes = {
+    "scripts/check-standards-instantiation.mjs": "tooling",
+  };
+  const findingsWithClassExcluded = checkCspellResidue({
+    files,
+    readFile: (f) => contents[f],
+    classify: (f) => classes[f] ?? "production",
+    isToolkit: () => false,
+  });
+  assert.equal(
+    findingsWithClassExcluded.length,
+    1,
+    "a word appearing only in a tooling-classed file is still residue",
+  );
+  assert.match(findingsWithClassExcluded[0].problem, /'Roslynator'.*dotnet/);
+
+  // The same corpus, with the tooling file left unclassified (every file
+  // reads as production) — this is the pre-fix-59 shape, and it must NOT
+  // flag the word, because the ported checker's own source now "uses" it.
+  const findingsWithoutClassExcluded = checkCspellResidue({
+    files,
+    readFile: (f) => contents[f],
+    classify: () => "production",
+    isToolkit: () => false,
+  });
+  assert.deepEqual(
+    findingsWithoutClassExcluded,
+    [],
+    "unclassified, the ported checker's own fixture registers as 'used elsewhere' and hides the residue — this is the bug fix 59 closes",
+  );
+});
+
 test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose cspell.json carries dead .NET vocabulary with zero other occurrences, refuses and names it (fix 55)", () => {
   const dir = scratchRepo();
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
@@ -3834,6 +3886,183 @@ test("regression guard: check-standards-instantiation.mjs run for real, the same
   const r = runScript("scripts/check-standards-instantiation.mjs", dir);
   assert.equal(r.status, 0);
   assert.doesNotMatch(r.stderr, /cspell\.json/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree that has ported the checker itself into its tooling directory, still refuses on the real four words (fix 59) — the non-exempt path, exercised directly", () => {
+  // The exact shape audit 15 found: a Node-only consuming repository whose
+  // own tooling directory carries this checker (and a test file exercising
+  // it), so the tree tracks a copy of scripts/check-standards-instantiation.mjs
+  // containing the literal fixture words this test's own cspell.json also
+  // lists — deriveComponent() finds no .claude-plugin/plugin.json under
+  // `dir`, so isToolkit() is false here and this check's real, non-exempt
+  // path runs — the path fix 59's lesson says must be exercised directly,
+  // not assumed clean because the canonical toolkit's own run is exempt.
+  const dir = scratchRepo();
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+  writeFileSync(
+    join(dir, "cspell.json"),
+    JSON.stringify({
+      words: ["Roslynator", "Meziantou", "xunit", "warnaserror"],
+    }),
+  );
+  mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "standards", "testing-strategy.md"),
+    "# Testing\n\nRun `npm test` before merging.\n",
+  );
+  mkdirSync(join(dir, "scripts", "test"), { recursive: true });
+  writeFileSync(
+    join(dir, "scripts", "check-standards-instantiation.mjs"),
+    "// ported checker; its own fixtures name Roslynator, Meziantou, xunit, warnaserror\n",
+  );
+  writeFileSync(
+    join(dir, "scripts", "test", "check-standards-instantiation.test.mjs"),
+    "// exercises the ported checker with the same fixtures: Roslynator, Meziantou, xunit, warnaserror\n",
+  );
+  writeFileSync(
+    join(dir, ".gitattributes"),
+    "scripts/** guardrail-class=tooling\n",
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+  assert.equal(
+    r.status,
+    2,
+    "the ported checker's own fixtures must not vote their dead vocabulary 'used elsewhere'",
+  );
+  assert.match(r.stderr, /cspell\.json.*'Roslynator'.*dotnet/);
+  assert.match(r.stderr, /cspell\.json.*'Meziantou'.*dotnet/);
+  assert.match(r.stderr, /cspell\.json.*'xunit'.*dotnet/);
+  assert.match(r.stderr, /cspell\.json.*'warnaserror'.*dotnet/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// --- scripts/check-standards-instantiation.mjs — fix 60. An implementer
+// removed, by hand, two toolkit self-checks that had made it into a ported
+// test file: one reading this toolkit's own commit daa59d0c…, one asserting
+// this toolkit's own ADR-0004 was Accepted with a named approver. Both would
+// fail deterministically on every consuming repository's first CI run —
+// nothing mechanical caught it, since the checks above read
+// docs/standards/** and cspell.json, never test files. The narrow, mechanical
+// proxy: a full 40-character commit SHA hard-coded in a file classed `test`.
+
+test("findHardcodedCommitSha: a full 40-character commit SHA is found, naming the line", () => {
+  const text =
+    'line one\nconst sha = "daa59d0cf1d039b997b830eb1029a49d2aa7d099";\n';
+  const findings = findHardcodedCommitSha(text);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].line, 2);
+  assert.equal(findings[0].sha, "daa59d0cf1d039b997b830eb1029a49d2aa7d099");
+});
+
+test("findHardcodedCommitSha: a short-form SHA (8 characters) is not a finding — only a full 40-character one is precise enough to be mechanical", () => {
+  const findings = findHardcodedCommitSha(
+    "commit daa59d0c approved the risk\n",
+  );
+  assert.deepEqual(findings, []);
+});
+
+test("findHardcodedCommitSha: a 40-character run embedded inside a longer hex string (a sha256 digest, say) is not a finding — a word boundary never falls in the middle of an unbroken hex run", () => {
+  const longHex = "a".repeat(64);
+  const findings = findHardcodedCommitSha(`digest: ${longHex}\n`);
+  assert.deepEqual(findings, []);
+});
+
+test("checkHardcodedCommitSha: a full SHA in a file classed `test` is a finding, naming the file, line and SHA (fix 60)", () => {
+  const files = ["hooks/test/x.test.mjs"];
+  const contents = {
+    "hooks/test/x.test.mjs":
+      'const sha = "daa59d0cf1d039b997b830eb1029a49d2aa7d099";\n',
+  };
+  const findings = checkHardcodedCommitSha({
+    files,
+    readFile: (f) => contents[f],
+    classify: () => "test",
+    isToolkit: () => false,
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].path, "hooks/test/x.test.mjs");
+  assert.match(findings[0].problem, /daa59d0cf1d039b997b830eb1029a49d2aa7d099/);
+  assert.match(findings[0].problem, /consuming repository's history does not/);
+});
+
+test("checkHardcodedCommitSha: the identical SHA in a file NOT classed `test` is out of scope — a configuration-classed CI workflow pinning a GitHub Action to its commit SHA is a security practice, not this defect", () => {
+  const files = [".github/workflows/pull-request.yml"];
+  const contents = {
+    ".github/workflows/pull-request.yml":
+      "uses: actions/checkout@daa59d0cf1d039b997b830eb1029a49d2aa7d099\n",
+  };
+  const findings = checkHardcodedCommitSha({
+    files,
+    readFile: (f) => contents[f],
+    classify: () => "configuration",
+    isToolkit: () => false,
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("checkHardcodedCommitSha: this toolkit's own repository is exempt outright, whatever its test files carry", () => {
+  const findings = checkHardcodedCommitSha({
+    files: ["hooks/test/x.test.mjs"],
+    readFile: () => 'const sha = "daa59d0cf1d039b997b830eb1029a49d2aa7d099";\n',
+    classify: () => "test",
+    isToolkit: () => true,
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("checkHardcodedCommitSha: run for real against this toolkit's own repository, the exemption verified rather than assumed (fix 60, hazard 4)", () => {
+  // hooks/test/hooks.test.mjs itself legitimately carries a full 40-character
+  // SHA (fix 49, hazard 3: daa59d0cf1d039b997b830eb1029a49d2aa7d099, this
+  // repository's own real history) — the exact recursion the brief warns
+  // about. isToolkit() defaults to true here (this repository carries
+  // .claude-plugin/plugin.json), so the check must return no findings.
+  const withExemption = checkHardcodedCommitSha();
+  assert.deepEqual(
+    withExemption,
+    [],
+    "the toolkit exemption keeps this repository's own real SHA from being flagged",
+  );
+
+  // Fix 59's lesson applied here: an exemption that hides a path from a
+  // check also hides it from every test that only ever runs under that
+  // exemption. Forcing the exemption off exercises the non-exempt path for
+  // real, against this repository's own tree, rather than assuming it would
+  // have worked.
+  const withoutExemption = checkHardcodedCommitSha({ isToolkit: () => false });
+  assert.ok(
+    withoutExemption.some((f) =>
+      f.problem.includes("daa59d0cf1d039b997b830eb1029a49d2aa7d099"),
+    ),
+    "with the exemption forced off, this repository's own real SHA in hooks/test/hooks.test.mjs must be found — proof the non-exempt path actually runs, not only that the exemption hides it",
+  );
+});
+
+test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose ported test file hard-codes a full commit SHA, refuses and names the file, line and SHA (fix 60)", () => {
+  const dir = scratchRepo();
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
+  mkdirSync(join(dir, "docs", "standards"), { recursive: true });
+  writeFileSync(
+    join(dir, "docs", "standards", "testing-strategy.md"),
+    "# Testing\n\nRun `npm test` before merging.\n",
+  );
+  mkdirSync(join(dir, "hooks", "test"), { recursive: true });
+  writeFileSync(
+    join(dir, "hooks", "test", "hooks.test.mjs"),
+    'test("regression guard: the source repository\'s own history (commit daa59d0cf1d039b997b830eb1029a49d2aa7d099)", () => {});\n',
+  );
+  writeFileSync(
+    join(dir, ".gitattributes"),
+    "hooks/test/** guardrail-class=test\n",
+  );
+  git(dir, ["add", "-A"]);
+  const r = runScript("scripts/check-standards-instantiation.mjs", dir);
+  assert.equal(r.status, 2);
+  assert.match(
+    r.stderr,
+    /hooks\/test\/hooks\.test\.mjs:1: hard-codes a full 40-character commit SHA \(daa59d0cf1d039b997b830eb1029a49d2aa7d099\)/,
+  );
   rmSync(dir, { recursive: true, force: true });
 });
 
