@@ -37,6 +37,35 @@ consumes this toolkit.
 
 ## test
 
-| File             | What it is for                                                                                                                                                                                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `hooks.test.mjs` | The test suite for every check in this directory and in `scripts/` — they share `lib/run.mjs`, so one suite covers both. Run with `npm test`. Builds a throwaway git repository per case, because the behaviour under test is a function of git state and cannot be exercised without one. |
+The test suite for every check in this directory and in `scripts/` — they
+share `lib/run.mjs`, so one suite covers both. Run with `npm test`, which
+invokes `hooks.test.mjs` alone; every other file here is loaded by it. Builds
+a throwaway git repository per case, because the behaviour under test is a
+function of git state and cannot be exercised without one.
+
+**Split by subject area (fix 79), not carried as one file.** A single file
+this size reached the point where lizard's function-span detection merges
+adjacent functions into one over-length block — a tool artefact, not a real
+finding — and gate 6 (unlike gate 7's identical, report-only invocation of
+the same scan) hard-blocks on it with no suppression path. See
+[ADR-0009](../docs/ADR/0009-split-hooks-test-suite.md). Each file below stays
+well under the size where that recurs; adding tests to one is fine, adding a
+new subject area is a new file, imported by `hooks.test.mjs` alongside the
+others.
+
+| File                                                       | What it is for                                                                                                                                                                                                          |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hooks.test.mjs`                                           | The suite's entry point. Imports every file below for its side effect of registering tests with `node:test`; carries no tests itself.                                                                                   |
+| `support.mjs`                                              | Shared, non-test helpers every subject-area file uses: the throwaway git-repository builder, process wrappers, and the suppression-marker constants built by concatenation so they do not flag this suite's own source. |
+| `gate-1-4-task-completion.test.mjs`                        | Gate 1 (edit) and gate 4 (task completion): change size, the override marker, file classes, complexity warn vs. block.                                                                                                  |
+| `gate-2-commit.test.mjs`                                   | Gate 2 (commit): machine-id, staged-tree checks, lint wiring, the protected-branch check, `resolveBase()`.                                                                                                              |
+| `gate-6-dependency-advisories-and-licence-policy.test.mjs` | Gate 6: dependency advisories, the licence table and licence-policy decision rule, licence completeness.                                                                                                                |
+| `gate-6-licence-register-row-decisions.test.mjs`           | Gate 6: a register row accepting a licence the policy alone would refuse, and accepted-advisory ids.                                                                                                                    |
+| `adr-approver-and-citations.test.mjs`                      | `check-adr-approver.mjs`: the human-approver requirement and the register-citation fallback.                                                                                                                            |
+| `links-and-suppressions.test.mjs`                          | `check-links.mjs` and `check-suppressions.mjs`: link/anchor integrity and the suppression-register contract.                                                                                                            |
+| `gate-5-push-and-scans.test.mjs`                           | SARIF filtering, the refusal-proof contract, coverage/diff-cover classification, `check-osv-scanner.mjs`.                                                                                                               |
+| `branch-and-repository-policy.test.mjs`                    | `check-branch-behind-base.mjs`, `check-branch-protection.mjs`, `check-repository-features.mjs`.                                                                                                                         |
+| `gate-7-wiring-audits.test.mjs`                            | `check-script-wiring.mjs` and `check-licence-table.mjs`'s on-demand re-validation.                                                                                                                                      |
+| `standards-instantiation.test.mjs`                         | `check-standards-instantiation.mjs`: stack references, multi-component contradictions, cspell/SHA residue.                                                                                                              |
+| `tooling-class.test.mjs`                                   | `check-tooling-class.mjs`: the `tooling` class declaration and its coverage-leakage checks.                                                                                                                             |
+| `approval-provenance-and-pr-body.test.mjs`                 | `check-approval-provenance.mjs`, `check-pr-body-artefacts.mjs`, `check-report-ci-reconciliation.mjs`.                                                                                                                   |

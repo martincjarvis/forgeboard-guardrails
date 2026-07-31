@@ -149,6 +149,13 @@ if (have("semgrep", ["--version"])) {
 // hidden the two true findings, which is the worse trade. Confirm a span against
 // the source before splitting a function to satisfy it.
 //
+// This gate's report-only tolerance for that artefact is not automatically
+// gate 6's: gate 6 reuses this same invocation against changed files but
+// hard-blocks, and `hooks/test/hooks.test.mjs` was the file that proved the
+// gap — split by subject area rather than left to trip every future
+// bootstrap's first commit (ADR-0009, cross-gate-rules.md: "a check reused
+// across gates carries its severity model with it").
+//
 // Fix 45 — this used to hand lizard "." unfiltered, scanning every tracked
 // file regardless of class. That had no visible effect here only because
 // every file in this toolkit's own repository is `production`

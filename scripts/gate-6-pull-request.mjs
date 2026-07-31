@@ -584,6 +584,17 @@ for (const f of checkChangeSizeOverride(logRange)) findings.push(f);
 // same thresholds; reused directly here rather than invented twice, scoped to
 // this range's changed production and test files rather than the whole
 // repository.
+//
+// The consequence is not reused unchanged, and that difference is stated
+// rather than left implicit (cross-gate-rules.md: "a check reused across
+// gates carries its severity model with it"): gate 7 is report-only for this
+// scan; gate 6 hard-blocks. That was correct to state once ADR-0009 named
+// it — a hard-blocking file-length/complexity gate on changed code is the
+// right default for a pull request pipeline — but it also means a lizard
+// parser artefact (function-span merging on a large-enough file; see gate 7's
+// own comment on `lizard -C 15 -L 100 -a 7`) has no report-only tier to land
+// in here the way it does at gate 7. Keep any ported file this scope
+// includes away from the size where that recurs (ADR-0009).
 {
   const codeFiles = changed.filter((f) => {
     if (!existsSync(f)) return false;

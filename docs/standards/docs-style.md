@@ -319,6 +319,22 @@ request is presented as ready. This is a step after the pipeline runs, not a
 stricter precondition on opening it. Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own).
 
+**Fix 80 — reconciled at label level is not reconciled at value level.** A
+report named every CI finding correctly but quoted one's detail stale — its
+quote of a finding read `(anonymous)@1594-2939` where live CI read
+`(anonymous)@1602-2947`, because a later commit shifted the file after the
+reconciliation pass had already captured the earlier span.
+`check-report-ci-reconciliation.mjs` matches the `<gate>: FAIL <label>`
+string by design, never the indented detail beneath it, so this was never
+within the check's own scope to catch — the defect is the report's claim,
+not the check. A report states which level it reconciled at: confirming
+every finding is named proves nothing is missing; it does not prove a
+quoted finding's detail is current, and a report that quotes a tool's output
+verbatim is making the stronger claim. The remedy is sequencing — reconcile,
+and capture any quote, after the last commit that changes anything quoted,
+not before it. Full rule:
+[cross-gate-rules.md](guardrails/cross-gate-rules.md#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own).
+
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
 not stack-specific or component-specific content — they are a property of

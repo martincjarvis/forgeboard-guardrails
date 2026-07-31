@@ -60,6 +60,42 @@ scan. A type checker is not a complexity analyser: a repository whose only
 specialised analyser is a type checker has no complexity measurement at all if
 the general-purpose complexity tool is also excluded from that stack.
 
+## A check reused across gates carries its severity model with it
+
+Two gates invoking the same underlying tool is not two decisions that
+happen to agree — it is one decision, made once, and the second gate's
+choice is whether to keep it or state why it differs. Reusing a check's
+_invocation_ without also carrying its _consequence_ — what happens when it
+fails — silently makes a second decision no record shows was made.
+
+Gate 7's repository-wide size scan (`lizard -C 15 -L 100 -a 7`,
+[gate-7-on-demand.md](gate-7-on-demand.md)) is report-only by design: it
+runs before trusting the incremental gates, and the caller decides the
+consequence. Gate 6 reused the identical invocation against a pull
+request's changed files — deliberately, the comment beside it says "reused
+directly here rather than invented twice" — but gate 6 hard-blocks on a
+non-zero exit, with no suppression path for a finding that has no line to
+mark. Gate 7's own comment already documents a known lizard failure mode
+this exact reuse inherited without noticing: the tool's function-span
+detection misattributes a long run of adjacent functions to one, and when it
+does, a file gate 7 would only ever report on became a file gate 6 refused
+outright — a false block on every repository that ported the ordinary test
+file large enough to trip it
+([ADR-0009](../../ADR/0009-split-hooks-test-suite.md)).
+
+**State the difference when a check's consequence changes across gates, the
+same way a threshold change is stated
+([thresholds.md](thresholds.md#rules): "changing a threshold is a decision,
+recorded").** Silence is not evidence the difference was considered — it is
+the shape every version of this defect has taken so far: a comment
+justifying the reuse of the _check_, and nothing beside it justifying the
+reuse, narrowing, or widening of what happens when the check fails.
+
+**Checkpoint:** every check invoked at more than one gate has, beside each
+invocation (or in the decision record either one cites), a stated reason its
+consequence at that gate is the same as, or different from, its consequence
+everywhere else it runs.
+
 ## Build and test only what changed
 
 Stated in full as
@@ -396,6 +432,37 @@ already states for `check-pr-body-artefacts.mjs`.
 the pipeline that produces the blocking verdict has completed, so it is
 never wired into gate 6 itself — run it by hand, or as a follow-up CI step
 reading the prior job's own log, once CI exists to reconcile against.
+
+**Fix 80 — reconciled at label level is not reconciled at value level.**
+Fix 76 above closed the case where a report never mentioned a CI finding at
+all. An audit then found the narrower gap fix 76's own fix left open: a
+report that named every CI finding correctly could still quote one's
+_detail_ stale. Its quote of a finding read `(anonymous)@1594-2939`; live CI
+read `(anonymous)@1602-2947` — the same finding, the same label, a span the
+tool had already reported differently by the time the report claimed to
+quote it verbatim, because a later commit shifted the file by eight lines
+after the report's reconciliation pass had already run.
+
+`scripts/check-report-ci-reconciliation.mjs` cannot catch this by its own
+documented design: it matches the `<gate>: FAIL <label>` string and never
+the indented detail lines beneath. That scope is deliberate and correct —
+matching prose, not a tool's raw output, is [fix 68](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)'s
+own restraint applied here too. The defect is the report's **claim**, not a
+gap in the check.
+
+**A report states which level it reconciled at.** Confirming every CI
+finding is _named_ — label-level reconciliation — proves no finding is
+missing. It does not prove any finding's _detail_ is current. A report that
+quotes a tool's output verbatim is making the stronger, value-level claim,
+and that claim is only true if the tool was re-run at the commit the report
+is reporting on — never a capture carried forward from an earlier one, even
+one the report's own history shows was accurate when taken.
+
+**The remedy is sequencing, not new machinery.** Reconcile — and take any
+quoted capture — **after** the last commit that changes anything the report
+quotes. A reconciliation pass that runs and is then followed by a further
+commit touching the quoted file is stale the moment that commit lands, no
+matter how carefully it was captured the first time.
 
 ## A check that skips on every surface it runs on has not been skipped
 
@@ -794,6 +861,14 @@ choice is reported, not guessed.
       exist.
 - [ ] No report claims a block is "copied from gate output" while the
       pipeline's own job log shows a finding the report omits.
+- [ ] A report states which level it reconciled at — every CI finding named
+      (label level) does not by itself mean a quoted finding's detail is
+      current (value level). A report that quotes a tool's output verbatim
+      re-ran that tool at the commit it reports on, rather than carrying a
+      capture forward from an earlier one.
+- [ ] Reconciliation, and any capture it quotes, happens after the last
+      commit that changes anything the report quotes — not before it, even
+      when the earlier capture was accurate at the time it was taken.
 - [ ] A check that cannot run locally at all is named as such in the
       standard, at the gate it belongs to — not discovered fresh by each
       repository that adopts it.
@@ -869,6 +944,10 @@ fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
       on-demand gate or CI instead, whatever gate its inputs would allow.
 - [ ] A general-purpose analyser runs across every stack, including one with its
       own specialised analyser, rather than being excluded from it.
+- [ ] A check invoked at more than one gate has a stated reason for its
+      consequence at each — reused unchanged, or the difference is named —
+      rather than the reuse of the check standing in for a decision about
+      its severity that was never actually made.
 - [ ] Every run states the components, file classes and thresholds it resolved,
       and where each came from.
 - [ ] The cheapest check that would catch a given defect is the one that catches

@@ -10,14 +10,14 @@ Several checks treat a file differently according to what kind of file it is.
 The classification is therefore load-bearing, and it is declared, not inferred
 from a hunch about the path.
 
-| Class         | Is                                                                                                                | Counted in change size | Length limit          | Warn band     |
-| ------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------------- | ------------- |
-| Production    | Code that ships or runs in the product                                                                            | Yes                    | File length           | **Push back** |
-| Configuration | Build, dependency, pipeline and infrastructure definitions                                                        | Yes                    | None                  | n/a           |
-| Test          | Code that exists to exercise production code                                                                      | No                     | File length           | Warn          |
-| Documentation | Prose for humans                                                                                                  | No                     | None                  | n/a           |
-| Agent context | Prose an agent loads as context, including skill definitions                                                      | No                     | Agent-document limits | Warn          |
-| Tooling       | Code that implements or runs the repository's own gates and other development-only automation — never the product | Yes                    | None                  | n/a           |
+| Class         | Is                                                                                                                | Counted in change size | Length limit               | Warn band     |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------- | -------------------------- | ------------- |
+| Production    | Code that ships or runs in the product                                                                            | Yes                    | File length                | **Push back** |
+| Configuration | Build, dependency, pipeline and infrastructure definitions                                                        | Yes                    | None                       | n/a           |
+| Test          | Code that exists to exercise production code                                                                      | No                     | File length                | Warn          |
+| Documentation | Prose for humans                                                                                                  | No                     | None                       | n/a           |
+| Agent context | Prose an agent loads as context, including skill definitions                                                      | No                     | Agent-document limits      | Warn          |
+| Tooling       | Code that implements or runs the repository's own gates and other development-only automation — never the product | Yes                    | File length (tooling band) | **Push back** |
 
 ## Rules
 
@@ -127,14 +127,19 @@ from a hunch about the path.
   and counting them pressures the floor downward for a number that no longer
   means what it claims. See [Testing strategy](../testing-strategy.md#coverage)
   for the rule.
-- **Tooling has no complexity or length band, and whether it should is an
-  open decision, not a settled one.** The code that decides what merges is,
-  by this omission, the least examined code in the repository — a gap an
-  audit found real rather than a distortion of scope creeping in from
-  elsewhere. [ADR-0008](../../ADR/0008-tooling-complexity-band.md) names the
-  two ways to close it and is left `Proposed` on purpose: this is a standing
-  policy decision for a human, not a default this standard or an
-  implementer may pick unilaterally.
+- **Tooling has its own file-length, cyclomatic-complexity and
+  function-length band — wider than production's, not absent.**
+  [ADR-0008](../../ADR/0008-tooling-complexity-band.md) (`Accepted`) closes
+  the gap an audit found real: the code that decides what merges cannot be
+  the least examined code in the repository, but a gate script also has a
+  different shape than product code and a band copied from production's own
+  numbers would be wrong for it in either direction. [Thresholds](thresholds.md)
+  carries the actual numbers and what they were derived from; this table's
+  `Length limit` and `Warn band` cells above read the same as production's —
+  a real ceiling, enforced the same way — only the numbers behind them
+  differ. Parameter count is not widened: tooling keeps that one measure's
+  existing production/test-only scope, so no parameter-count check applies
+  to it at all, unchanged from before this decision.
 - **The class is per repository, not per filename.** In a repository that
   consumes this standard, gate scripts and other development automation are
   `tooling`: excluded from coverage, never deployed. In a repository whose
@@ -227,6 +232,10 @@ from a hunch about the path.
       rules specific to that directory — a pointer-only file (its entire
       content pointing back to the root instruction file) is reported as a
       finding, not accepted as compliance.
+- [ ] A `tooling`-classed file over [its own file-length, complexity or
+      function-length band](thresholds.md) is a finding; one under it is
+      not, and a production or test file is never measured against the
+      tooling numbers.
 
 ## References
 
@@ -244,5 +253,6 @@ from a hunch about the path.
 - [ADR-0005](../../ADR/0005-generated-files-discounted-from-change-size.md) —
   why a generated file is discounted rather than left counted with the
   `[large-pr]` override as its only remedy.
-- [ADR-0008](../../ADR/0008-tooling-complexity-band.md) — the open decision
-  on whether tooling gets its own complexity and length band.
+- [ADR-0008](../../ADR/0008-tooling-complexity-band.md) — tooling's own
+  complexity and length band, and why the current exemption was not
+  affirmed instead.

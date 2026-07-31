@@ -84,6 +84,10 @@ account in its own repository.
 - [0007](0007-pull-request-precondition-is-resolvability.md) — a pull
   request opens when every finding an implementer could resolve has been
   resolved; the reserved classes are a consequence, not the definition.
-- [0008](0008-tooling-complexity-band.md) — `Proposed`. Tooling has no
-  complexity or length band; two options are named for a human to choose
-  between.
+- [0008](0008-tooling-complexity-band.md) — tooling gets its own file-length,
+  complexity and function-length band, wider than production's; affirming
+  the exemption instead was rejected.
+- [0009](0009-split-hooks-test-suite.md) — `hooks/test/hooks.test.mjs` is
+  split by subject area so lizard's function-span detection stops merging
+  adjacent functions; warn-not-block at gate 6 and a tool-artefact register
+  row were rejected.
