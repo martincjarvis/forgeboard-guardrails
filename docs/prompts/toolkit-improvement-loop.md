@@ -41,6 +41,65 @@ genuine human decisions to a human.
 Hash the prompt at the start of the series and check it every round. A prompt
 that drifts makes every earlier measurement meaningless.
 
+## Setting the harness up
+
+Two things run for the whole series rather than per round. Neither is optional:
+the first is what stops the roles collapsing into one, and the second is what
+lets a human supervise an unattended run.
+
+### The standing goal
+
+Set this once, at the start, and re-state it if the session is ever compacted or
+resumed. It is what a coordinator reads when it is deciding whether a shortcut is
+allowed — and over a long series, it will be tempted.
+
+```markdown
+Use a reviewer/implementer pattern to evolve the toolkit until a fresh repository
+can be bootstrapped by an unattended implementer session — without tuning the test
+prompt and without the implementer asking a clarifying question the skill should
+have answered — in line with the standards the toolkit defines. Have a separate
+session verify compliance by following the toolkit's own checklists.
+
+After each round, present the checkpoint validations by feature.
+
+Failure looks like: having to tune the prompt to get a good result, or the
+implementer asking a question the skill should cover. Any gap the audit finds is
+addressed by a separate session, and the next round starts fresh.
+
+Reset the subject repository each round so no round inherits another's state.
+```
+
+The two failure conditions are the load-bearing part. Without them stated up
+front, a round that "worked after a hint" reads as a success.
+
+### The progress cadence
+
+A round takes one to three hours and produces no output until it finishes. Ask
+for a timestamped status on a fixed interval — ten minutes suited this series —
+covering what has completed, what is running, and whether it has stalled.
+
+This is not only for the human. Being asked "has it stalled?" every ten minutes
+is what turned a vague "the log looks quiet" into the three-signal test in
+[Watching an unattended run](#watching-an-unattended-run): the question has to be
+answered with evidence each time, and a rule that is merely plausible does not
+survive being applied twenty times.
+
+Report the same fields every time so a change is visible without re-reading:
+elapsed step count, file count, the log's last write, the CPU rate, and the count
+of rounds completed against the prompt hash.
+
+### Roles, sessions and cost
+
+The implementer runs in its own harness. The auditor and the fix agent each get a
+fresh session with no memory of the others — an auditor that watched the fix being
+written will confirm it works.
+
+A coordinator that has been running for hours accumulates its own beliefs. Every
+coordinator error in this series was a claim carried forward without re-checking:
+a figure relayed from an earlier audit, a reference imported from a sibling
+repository, a skipped check described as a pass. **Re-derive anything you are
+about to assert, especially if you are confident.**
+
 ## The round
 
 ### 1. Reset the subject to a fresh slate
@@ -108,30 +167,30 @@ and the Verification section of each gate reference under
 [standards/guardrails](../standards/guardrails/). You did not implement any of
 this. Audit it adversarially. Do not fix anything; report.
 
-## The two repositories
+### The two repositories
 
 - **Toolkit** (the standards under test): <path>, branch <branch>, HEAD <sha>.
 - **Subject** (bootstrapped this round): <path>, branch <branch>, PR #<n>.
 
 Read-only on both. Do not commit, push or edit. <Any PATH the analysers need.>
 
-## What the last fix cycle changed
+### What the last fix cycle changed
 
 <One paragraph per fix: what it claimed to do, and where it lives.>
 
-## Established facts — do not re-derive, but challenge if evidence contradicts
+### Established facts — do not re-derive, but challenge if evidence contradicts
 
 <Exit code, commit count, tracked files, whether a clarifying question was asked.
 The CI verdict, read from the raw job log — name the run and job id so the
 auditor can re-fetch it. The previous round's figures, for comparison.>
 
-## The questions, in priority order
+### The questions, in priority order
 
 <Two or three that decide whether the round improved, then the standing
 regressions. For each, say what would count as evidence either way, and which
 outcome would be the serious one.>
 
-## How to report
+### How to report
 
 Lead with the first two. For each question: what you ran, what it output, what it
 means. Quote decisive lines exactly; do not paraphrase a verdict into existence.
@@ -167,7 +226,7 @@ Read the brief first and follow it exactly: <path to brief>
 
 <One line naming each fix, and which to do first if order matters.>
 
-## Before you begin — this is not optional
+### Before you begin — this is not optional
 
 1. <Any PATH the analysers need.>
 2. Confirm a clean tree at <sha>.
@@ -178,7 +237,7 @@ Read the brief first and follow it exactly: <path to brief>
 **Then reproduce each defect before fixing it.** <The exact command, and what it
 must print.> A fix you have not watched fail first is a fix you cannot claim.
 
-## Rules in force
+### Rules in force
 
 Read [AGENTS.md](../../AGENTS.md) — it governs. In particular: never commit to
 `main`; every suppression needs a register row with every column filled except
@@ -189,7 +248,7 @@ not commits.
 
 Do not touch <the subject repository> — an evaluation is reading it.
 
-## When done
+### When done
 
 <What to quote back. Name the specific wording or number that decides whether the
 fix is real.> Include final `npm test` / build / lint results and
