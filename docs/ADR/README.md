@@ -109,3 +109,9 @@ account in its own repository.
 - [0014](0014-one-command-one-transcript.md) — a report's finding list is
   the verbatim output of one command, never an assembly of individually
   chosen checks or a platform's summary of them.
+- [0017](0017-unmodified-plugin-copy-counts-toward-change-size.md) —
+  `Proposed`. A byte-identical copy of the plugin's scripts still counts
+  toward change size; discounting it as generated, or only where verified
+  identical to the plugin reference, was rejected. The copied tooling corpus
+  is measured; a real consuming repository's branch is not, because
+  `.guardrails/` is specified and unimplemented.
