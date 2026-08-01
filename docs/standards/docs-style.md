@@ -57,6 +57,17 @@ Never open with why the document exists, what it deliberately does not cover, or
 which decisions led to it. That material is real, and it belongs at the bottom or
 in the ADR that owns it.
 
+**A document states the current rule, not how it was arrived at.** A reader
+consults it to know what to do now. A section organised around the change that
+produced it — `Fix 56 — a report's outstanding-work section is…` — makes them
+reconstruct the rule from its history, and cites an identifier that means nothing
+outside the process that issued it. The rule is the content; write it as the rule.
+
+Where the reasoning matters enough to keep, it is a decision record and the
+document links to it. Where it does not, it is a commit message. A worked example
+of what a rule prevents is not narrative and belongs where it illustrates —
+naming the failure, not the round that found it.
+
 ## Document types
 
 Naming the type prevents the most common structural error — applying a
@@ -209,182 +220,164 @@ removals heading in a report-shaped document with no matching heading or
 finding — it does not judge whether the removal's stated reason is honest,
 only where it was written down.
 
-**Fix 56 — a bootstrap report's "what remains" section is generated from
-gate output, not written from memory.** Nothing in this toolkit reads a
-bootstrap report — grepping `scripts/`, `hooks/` and `.github/` for its filename
-returns nothing, so every claim in it stands or falls on whoever wrote it
-getting the count right by hand. One report claimed gate 6 was red on four
-licence rows; the actual gate output carried four licences, nine advisories
-and an osv-scanner finding naming seven CVEs — fourteen finding lines. A
-correction commit fixed the advisory undercount and still never mentioned
-the osv-scanner failure. The fix is not a checker that reads the report's
-prose and scores its honesty — that is the decorative evidence this corpus
-already refuses (["never claim more than was
+**A report's statement of what remains is generated from gate output, not
+written from memory.** Nothing in this toolkit reads a bootstrap report —
+grepping `scripts/`, `hooks/` and `.github/` for its filename returns nothing,
+so every claim in it stands or falls on whoever wrote it getting the count
+right by hand. The answer is not a checker that reads the report's prose and
+scores its honesty — that is the decorative evidence this corpus already
+refuses (["never claim more than was
 checked"](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)).
-It is that the list itself has one legitimate source: the implementer runs
-the gate and records what it said, verbatim, one line per finding, each with
-the check that produced it — run gate 6, or gate 7 where the repository
-cannot yet run gate 6. Prose explaining or grouping the findings is the
-implementer's own; the list of findings is not something prose summarises
-from memory. A list assembled this way cannot understate what the gate
-found, because it is the gate's own output, not a recollection of it.
+It is that the list has one legitimate source:
 
-**Fix 57 — the rule above is not scoped to the outstanding-work section; it
-is the report.** Once fix 56 made that one section gate-sourced, the same
-report's "What was done" narrative still stated `node --test … reports 225
-pass, 0 fail` while CI on the same commit reported `pass 219 / fail 2 /
-cancelled 4` — the identical undercount defect, one section over, because
-the fix had targeted the section it was found in rather than the habit that
-produced it. **Any count, any "all X pass", any "N findings" — anywhere in
-the report — names the command whose output produced it, and where a gate
-also produces that figure for the same commit, the report quotes the
-gate's own number, not a local run's.** A local test run that passes
-reliably is not lying when CI's does not; it is the wrong instrument for a
-claim CI has already settled, cited instead of the one that matters.
+- **The outstanding-work list is the verbatim output of one command — the
+  gate itself**, run gate 6, or gate 7 where the repository cannot yet run
+  gate 6. One line per finding, each with the check that produced it. Not an
+  assembly of individually chosen checks: choosing which checks to run and
+  pasting the results together is where a check gets dropped even while every
+  individual number stays honest.
+- **A check that cannot run locally is a line in that command's own output,
+  reported unavailable** — never a line missing because the implementer judged
+  it out of scope.
+- **Prose explaining or grouping the findings is the implementer's own; the
+  list of findings is not something prose summarises from memory.** A list
+  assembled from the gate's own output cannot understate what the gate found.
+- **The rule is not scoped to the outstanding-work section; it is the report.**
+  Any count, any "all X pass", any "N findings" — anywhere in the report —
+  names the command whose output produced it, and where a gate also produces
+  that figure for the same commit, the report quotes the gate's own number,
+  not a local run's. A local test run that passes reliably is not lying when
+  CI's does not; it is the wrong instrument for a claim CI has already settled.
+- **Any other artefact stating what remains — an enforcement map, a status
+  note — derives that statement from the same single command, or cites the
+  report rather than recomputing the set.** A second document that recomputes
+  "what's left" independently can drift from the first the moment either one
+  is edited; a document that only points at the report cannot, because there
+  is nothing left in it to get wrong.
 
-**Fix 61 — the same rule applied to a list still allowed choosing which
-checks to include.** A report cited fix 56's rule almost verbatim — "copied
-from gate output, not recalled" — and still listed 5 of a real 16 findings:
-nine dependency advisories and an osv-scanner finding, from
-`check-dependency-advisories.mjs`, a local Node script run the same way as
-the licence check the report did cite, omitted on the stated reason that the
-tool was "network/PATH-resolved" — false for that script. Fix 56 named the
-source; it did not remove the step where an implementer picks which of
-several checks to run and pastes the results together, and picking is where
-a check gets dropped even while every individual number stays honest. **The
-outstanding-work list is the verbatim output of one command — the gate
-itself — not an assembly of individually chosen checks.** A check that
-cannot run locally is a line in that command's own output, reported
-unavailable, never a line missing because the implementer judged it out of
-scope.
+What these prevent. A report claimed gate 6 was
+red on four licence rows; the gate's own output carried four licences, nine
+advisories and an osv-scanner finding naming seven CVEs — fourteen finding
+lines, and a correction commit fixed the advisory undercount while still
+never mentioning the osv-scanner failure. A report citing the rule above
+almost verbatim — "copied from gate output, not recalled" — still listed 5 of
+a real 16 findings, omitting nine dependency advisories and an osv-scanner
+finding from `check-dependency-advisories.mjs`, a local Node script, on the
+stated reason that the tool was "network/PATH-resolved" — false for that
+script. Another report's "What was done" narrative stated `node --test …
+reports 225 pass, 0 fail` while CI on the same commit reported `pass 219 /
+fail 2 / cancelled 4`. And an enforcement map described a repository's licence
+rows as "the single reserved-decision item the bootstrap leaves for a human,"
+unaware of the nine advisories and the osv-scanner finding the same partial
+run had already missed in the report beside it — one wrong belief about what
+remains, written down twice from the same incomplete recall.
 
-**Fix 62 — the identical belief, restated in a second artefact.** An
-enforcement map once described a repository's licence rows as "the single
-reserved-decision item the bootstrap leaves for a human," unaware of the
-nine advisories and the osv-scanner finding the same partial run had already
-missed in the report beside it — one wrong belief about what remains,
-written down twice from the same incomplete recall. The fix is not a second
-gate-sourced rule for the enforcement map to match fix 56's for the report —
-that would be the identical defect recurring in the very guidance meant to
-close it. **Any artefact stating what remains derives that statement from
-the same single command the report does, or cites the report rather than
-recomputing the set.** A second document that recomputes "what's left"
-independently can drift from the first the moment either one is edited; a
-document that only points at the report cannot, because there is nothing
-left in it to get wrong.
-
-**Fix 65 — a report's outstanding-work list is what decides whether the
-pull request should exist yet, not only what it says once it does.** Every
-iteration in this series raised a pull request and then discovered what CI
-thought — three findings cited locally, sixteen from CI, because _some_ of
-the gate-6 surface ran rather than the gate itself. **Do not open a pull
-request unless the gate-6 surface, run as one command, is clean.** The one
-exception is a finding reserved for a human — a decision record or register
-row accepting a risk, a licence, a suppression or an opt-out
+**The outstanding-work list decides whether the pull request should exist
+yet, not only what it says once it does. Do not open a pull request unless
+the gate-6 surface, run as one command, is clean.** A pull request opens when
+every finding an implementer could resolve has been resolved; what remains is
+what only a human can decide, and those do not block the pull request — the
+pull request is how they reach the person who decides. The reserved classes
+are a decision record or register row accepting a risk, a licence, a
+suppression or an opt-out
 ([registers.md](guardrails/registers.md#a-register-row-or-a-decision-record)),
 a change-size override recorded in [the change-size override
 register](guardrails/registers.md#the-change-size-override-register)
-([fix 74](guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)),
+([an override is not a
+fix](guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)),
 or a conflict between two standing directives, reserved the same way by a
-repository's own root instruction file — named in the pull request body
-with the command that produced it. Full rule:
-[cross-gate-rules.md](guardrails/cross-gate-rules.md#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
-
-**Fix 75 — the precondition is resolvability; the enumeration above is its
-consequence.** A pull request opens when every finding an implementer could
-resolve has been resolved; what remains is what only a human can decide, and
-those do not block the pull request — the pull request is how they reach the
-person who decides. The list above is not an arbitrary set to extend on
-finding a new case; it is what this corpus has found, so far, to be
+repository's own root instruction file — each named in the pull request body
+with the command that produced it. That list is not an arbitrary set to extend
+on finding a new case; it is what this corpus has found, so far, to be
 genuinely unresolvable by an implementer, each provable by a record with a
-blank approver rather than by a claim in prose. Full rule:
+blank approver rather than by a claim in prose. The failure it closes:
+pull requests raised first and reconciled with CI afterwards, three findings
+cited locally against sixteen from CI, because _some_ of the gate-6 surface
+ran rather than the gate itself. Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
 
-**Fix 66 — the bootstrap report, and any session report that raises a pull
-request, carries a section recording every finding CI produced that the
-local run did not**, each categorised against the four gap kinds
+**The bootstrap report, and any session report that raises a pull request,
+carries a section recording every finding CI produced that the local run did
+not**, each categorised against the four gap kinds
 [cross-gate-rules.md
 names](guardrails/cross-gate-rules.md#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding) —
 the local gate was not run, the local gate is scoped narrower than CI's,
 the check cannot run locally at all, or CI models something the local gates
-do not. This is the small artefact that would have surfaced fix 63
-organically (a locally generated dependency register incomplete for a
-platform-specific optional dependency) rather than waiting for an audit to
-notice a missing register row. Where the local run reported no gap because
-it was never raised until it was clean (fix 65), the section says exactly
-that — an empty section with the reason is still the section, not an
-omission.
+do not. This is the small artefact that surfaces a defect like a locally
+generated dependency register left incomplete by a platform-specific optional
+dependency, rather than waiting for an audit to notice a missing register
+row. Where the local run reported no gap because the branch was not raised
+until it was clean, the section says exactly that — an empty section with the
+reason is still the section, not an omission.
 
-**Fix 74 — an override is not a fix.** A report once described its own
-largest anomaly — a branch 18.7 times the change-size error threshold — as
-"fixed during the bootstrap," when what actually happened was an unapproved
-`[large-pr]` marker. An override answers a push back; it does not resolve
-the finding the push back was about. A report names it as what it is —
+**An override is not a fix.** An override answers a push back; it does not
+resolve the finding the push back was about. A report names it as what it is —
 outstanding, disclosed, reserved for a human — under the same heading every
 other reserved-class finding uses, never folded into a narrative of what was
-fixed. Full rule:
+fixed. One report described its own largest anomaly — a branch 18.7 times the
+change-size error threshold — as "fixed during the bootstrap," when what
+actually happened was an unapproved `[large-pr]` marker. Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
 
-**Fix 76 — a report's gate output is provisional until CI has produced its
-own.** A commit whose subject read "record gate 6 output verbatim in the
-bootstrap report" quoted the _local_ run, where osv-scanner had correctly
-skipped; CI, on that same commit, failed the check with six CVEs the report
-never named, while the report's own header claimed the block was "copied
-from gate 6's own output." Once CI's job log exists, reconcile the report
-against it — `node scripts/check-report-ci-reconciliation.mjs <report> <job
-log>` is the mechanical form, reading the job log directly rather than the
-capped annotations API (fix 64) — and record any gap CI's log carries that
-the report does not, categorised per fix 66's four kinds, before the pull
-request is presented as ready. This is a step after the pipeline runs, not a
-stricter precondition on opening it. Full rule:
+**A report's gate output is provisional until CI has produced its own.** Once
+CI's job log exists, reconcile the report against it — `node
+scripts/check-report-ci-reconciliation.mjs <report> <job log>` is the
+mechanical form, reading the job log directly rather than the capped
+annotations API — and record any gap CI's log carries that the report does
+not, categorised against the four gap kinds above, before the pull request is
+presented as ready. This is a step after the pipeline runs, not a stricter
+precondition on opening it. The failure: a commit whose subject read "record
+gate 6 output verbatim in the bootstrap report" quoted the _local_ run, where
+osv-scanner had correctly skipped; CI, on that same commit, failed the check
+with six CVEs the report never named, while the report's own header claimed
+the block was "copied from gate 6's own output." Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own).
 
-**Fix 80 — reconciled at label level is not reconciled at value level.** A
-report named every CI finding correctly but quoted one's detail stale — its
-quote of a finding read `(anonymous)@1594-2939` where live CI read
-`(anonymous)@1602-2947`, because a later commit shifted the file after the
-reconciliation pass had already captured the earlier span.
-`check-report-ci-reconciliation.mjs` matches the `<gate>: FAIL <label>`
-string by design, never the indented detail beneath it, so this was never
-within the check's own scope to catch — the defect is the report's claim,
-not the check. A report states which level it reconciled at: confirming
-every finding is named proves nothing is missing; it does not prove a
-quoted finding's detail is current, and a report that quotes a tool's output
-verbatim is making the stronger claim. The remedy is sequencing — reconcile,
-and capture any quote, after the last commit that changes anything quoted,
-not before it. Full rule:
+**Reconciled at label level is not reconciled at value level.** A report
+states which level it reconciled at: confirming every finding is named proves
+nothing is missing; it does not prove a quoted finding's detail is current,
+and a report that quotes a tool's output verbatim is making the stronger
+claim. The remedy is sequencing — reconcile, and capture any quote, after the
+last commit that changes anything quoted, not before it. One report named
+every CI finding correctly but quoted one's detail stale — its quote read
+`(anonymous)@1594-2939` where live CI read `(anonymous)@1602-2947`, because a
+later commit shifted the file after the reconciliation pass had already
+captured the earlier span. `check-report-ci-reconciliation.mjs` matches the
+`<gate>: FAIL <label>` string by design, never the indented detail beneath it,
+so this was never within the check's own scope to catch — the defect is the
+report's claim, not the check. Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own).
 
-**Fix 88 — a quoted figure is re-captured at the commit it reports on, not
-re-explained.** A `change size` figure was captured once, locally, and never
-re-read against a later commit; CI's own logs showed both platforms had
-agreed throughout, but the report stated they differed and gave a plausible-
-sounding cause ("line-ending accounting") that the implementer invented
-rather than checked. The real gap was local versus CI, not platform versus
-platform — a number never re-read against the commit being reported on. The
-same stale figure sat in the change-size override register's own `Counted
+**A quoted figure is re-captured at the commit it reports on, not
+re-explained.** A figure quoted in a report, a register row or a pull request
+body is re-captured — re-run, not re-explained — after the last commit that
+could change it, the same sequencing a reconciliation quote requires,
+generalised to every quoted number in every artefact a human reads or approves
+from. **A discrepancy with no established cause is reported as unexplained,
+not given one:** a wrong explanation is believed, an unexplained gap gets
+investigated. The failure: a `change size` figure was captured once, locally,
+and never re-read against a later commit; CI's own logs showed both platforms
+had agreed throughout, but the report stated they differed and gave a
+plausible-sounding cause ("line-ending accounting") that the implementer
+invented rather than checked. The real gap was local versus CI, not platform
+versus platform — a number never re-read against the commit being reported on.
+The same stale figure sat in the change-size override register's own `Counted
 lines` cell, and the same habit produced a pull request body claiming zero
-vulnerabilities in one sentence and naming three, dev-only, in the next —
-true only of a commit two earlier. **A figure quoted in a report, a register
-row or a pull request body is re-captured — re-run, not re-explained — after
-the last commit that could change it**, the same sequencing fix 80 requires
-of a reconciliation quote, generalised to every quoted number in every
-artefact a human reads or approves from. **A discrepancy with no established
-cause is reported as unexplained, not given one:** a wrong explanation is
-believed, an unexplained gap gets investigated. Full rule:
+vulnerabilities in one sentence and naming three, dev-only, in the next — true
+only of a commit two earlier. Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked).
 
-**Fix 89 — a tool cited as available is not evidence it ran.** The
-reconciliation tool's own output never appeared anywhere in one session's
-full log, even though a later, independent run of it reported clean — the
-reconciliation was genuinely correct, but nothing in the report let a reader
-tell that from evidence rather than luck. **The report's reconciliation
-section names the command it ran and its exit status** — `node
+**A tool cited as available is not evidence it ran. The report's
+reconciliation section names the command it ran and its exit status** — `node
 scripts/check-report-ci-reconciliation.mjs <report> <job log>` exited 0, or
-exited non-zero naming what it found — the same way every other numeric
-claim above already names the command that produced it. Not a new check:
-the existing citation requirement, applied to the one tool whose use had,
-until now, gone uncited. Full rule:
+exited non-zero naming what it found — the same way every other numeric claim
+above already names the command that produced it. Not a new check: the
+existing citation requirement, applied to the one tool whose use had, until
+now, gone uncited. The failure: the reconciliation tool's own output never
+appeared anywhere in one session's full log, even though a later, independent
+run of it reported clean — the reconciliation was genuinely correct, but
+nothing in the report let a reader tell that from evidence rather than luck.
+Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked).
 
 **Tuning removes content; it never removes the checklist that catches
@@ -499,23 +492,24 @@ one component is a heading search gated on a count. Neither requires reading
 prose for tone or completeness, which is why `scripts/check-standards-instantiation.mjs`
 exists.
 
-**Fix 72 — a heading search cannot see a retained standard's contradiction
-when it lives outside a heading.** Audit 17's case: `deployment-strategy.md`
-retained wholesale, 567 of its 568 lines, in a repository this corpus's own
-component map derives as one component — and the multi-component heading
-search reported clean, because the contradiction was in the document's own
-frontmatter `summary` field ("How a multi-component app is versioned
-per-component…"), never a Markdown heading. The checker was not lying: it
-detects literal dead-stack vocabulary and heading mismatches, and there
-were none. It could not detect the wrong standard retained wholesale, the
-larger version of the same defect. `findComponentCountContradiction` (same
-module) widens exactly that far: a document's own frontmatter or title
-naming "multi-component" while the component map declares one component is
-a finding — structural, not vocabulary-based, since the component count is
+**A heading search cannot see a retained standard's contradiction when it
+lives outside a heading.** `findComponentCountContradiction` (same module)
+widens exactly that far: a document's own frontmatter or title naming
+"multi-component" while the component map declares one component is a
+finding — structural, not vocabulary-based, since the component count is
 already derived and this compares that one fact against the two places a
 document states what it is about. Deliberately narrow to those two
 locations: reading the body for the same phrase would reopen the "was this
-reduced enough" judgement call this section already refuses to automate.
+reduced enough" judgement call this section already refuses to automate. The
+demonstrated case: `deployment-strategy.md` retained wholesale, 567 of its
+568 lines, in a repository this corpus's own component map derives as one
+component — and the multi-component heading search reported clean, because
+the contradiction was in the document's own frontmatter `summary` field
+("How a multi-component app is versioned per-component…"), never a Markdown
+heading. That checker was not lying: it detects literal dead-stack
+vocabulary and heading mismatches, and there were none. It could not detect
+the wrong standard retained wholesale, the larger version of the same
+defect.
 
 **A claim that no residue remains is itself subject to [never claim more
 than was checked](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked).**
@@ -525,11 +519,11 @@ same as any other, and names the check that supports it — the widened
 `check-standards-instantiation.mjs`, run and reporting zero findings — not
 a document that was read and judged clean by eye. A residue claim written
 alongside the map rather than derived from the checker's own output is the
-same defect fix 56 already closed for a report's outstanding-work section,
-one artefact over.
+same defect [the gate-sourced rule above](#standards-in-a-consuming-repository)
+already closes for a report's outstanding-work section, one artefact over.
 
 **The first of those two is not confined to `docs/standards/**` — instantiation
-residue is not confined to prose.** Fix 55: a Node-only repository's
+residue is not confined to prose.** A Node-only repository's
 `cspell.json` carried `Roslynator`, `Meziantou`, `xunit` and `warnaserror`,
 each with zero occurrences anywhere else in the tree, copied wholesale from
 this toolkit's own multi-stack word list, where the same words are not
@@ -542,12 +536,12 @@ outside the derived list — an unused word alone is not, because plenty of
 legitimate vocabulary appears once and is later edited away, and a checker
 that flags every unused word gets turned off.
 
-**Fix 59 — the "used elsewhere" corpus must exclude the checker's own
-fixtures.** Once this module (and, following the porting instruction below,
+**The "used elsewhere" corpus excludes the checker's own fixtures.** Once
+this module (and, following the porting instruction below,
 its test file) is copied into the repository it inspects, "every tracked
 file" now includes this checker's own source and test fixtures — which
 necessarily contain the literal dead-stack words as fixtures (`Roslynator`,
-`Meziantou`, `xunit`, `warnaserror` are exactly fix 55's demonstrated case).
+`Meziantou`, `xunit`, `warnaserror`, the demonstrated case above).
 Those fixtures then vote the words "used elsewhere" and the checker never
 flags them in the one repository it exists to protect. This toolkit's own
 test suite never caught it: this repository is exempt outright
@@ -570,17 +564,17 @@ it by exercising the non-exempt path directly — a scratch repository that
 has ported the checker — not only by re-checking this toolkit's own, exempt
 repository.
 
-**Fix 60 — instantiation tunes code as well as prose.** An implementer
-removed, by hand, two toolkit self-checks that had made it into a ported
-test file: one reading this toolkit's own commit SHA, one asserting this
-toolkit's own ADR-0004 was `Accepted` with a named approver. Both would have
-failed deterministically on every consuming repository's first CI run — a
-consumer's history does not, and cannot, contain another repository's
-commits — and nothing mechanical caught it, because the checks above read
-`docs/standards/**` and `cspell.json`, never test files. A ported test
-asserting the source repository's own state is the same defect class as a
-ported standard naming a stack the consumer lacks: instantiation residue,
-just in code rather than prose. `checkHardcodedCommitSha` (same module)
+**Instantiation tunes code as well as prose.** A ported test asserting the
+source repository's own state is the same defect class as a ported standard
+naming a stack the consumer lacks: instantiation residue, just in code rather
+than prose. Two toolkit self-checks once made it into a ported test file and
+had to be removed by hand — one reading this toolkit's own commit SHA, one
+asserting this toolkit's own ADR-0004 was `Accepted` with a named approver.
+Both would have failed deterministically on every consuming repository's
+first CI run — a consumer's history does not, and cannot, contain another
+repository's commits — and nothing mechanical caught it, because the checks
+above read `docs/standards/**` and `cspell.json`, never test files.
+`checkHardcodedCommitSha` (same module)
 adds the narrow, mechanical proxy: a full 40-character hex commit SHA
 hard-coded in a file classed `test` is a finding. Deliberately narrow —
 detecting "this assertion tests the upstream repository's state"
@@ -588,9 +582,9 @@ semantically would false-positive on legitimate fixtures, so the check
 looks for nothing but the SHA shape itself, scoped to `test`-classed files
 so a `configuration`-classed CI workflow pinning a third-party GitHub Action
 to its commit SHA (a security practice, not this defect) is never in scope.
-The same `isToolkit()` exemption as `checkCspellResidue`, and the same fix
-59 lesson applied to it: this repository's own real history
-(`daa59d0c…`, fix 49's hazard 3) is exactly the recursive case an exemption
+The same `isToolkit()` exemption as `checkCspellResidue`, and the same
+fixture lesson applied to it: this repository's own real history
+(`daa59d0c…`) is exactly the recursive case an exemption
 could hide from its own tests, so the exemption is verified against this
 repository directly rather than assumed to hold.
 
@@ -753,7 +747,7 @@ section — and, for the two mechanical checks above, additionally blocking at
 - [ ] No instantiated standard's own frontmatter or title contradicts the
       same component map either — a document retained wholesale rather than
       tuned can carry the contradiction there instead of in a heading.
-      `findComponentCountContradiction` (fix 72, same script) is the
+      `findComponentCountContradiction` (same script) is the
       mechanical form: `deployment-strategy.md`'s frontmatter reading "a
       multi-component app" at component count 1 is the demonstrated case.
 - [ ] No instantiated standard describes an environment deployment procedure

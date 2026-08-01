@@ -212,15 +212,14 @@ not](#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding).
 One iteration ran three of gate 6's checks locally, called the branch ready,
 and CI reported sixteen findings.
 
-**Fix 65 — do not open a pull request unless you are certain it will pass
-CI.** Run the gate-6 surface against the branch first — the gate itself, not
-a selection of checks, [the same rule fix 61 already holds for a report's
-outstanding-work
-list](../docs-style.md#standards-in-a-consuming-repository) — and raise the
+**Do not open a pull request unless you are certain it will pass CI.** Run
+the gate-6 surface against the branch first — the gate itself, not a
+selection of checks, [the same rule a report's outstanding-work list already
+holds](../docs-style.md#standards-in-a-consuming-repository) — and raise the
 pull request only when that command is clean. Choosing which of gate 6's
-checks to run by hand and calling the result "ready" is the same defect fix
-61 closed for a report's finding list, one step earlier: the set is
-assembled by running the gate, not by picking checks that seemed relevant.
+checks to run by hand and calling the result "ready" is the same defect one
+step earlier: the set is assembled by running the gate, not by picking
+checks that seemed relevant.
 
 **The one exception, stated so the rule is not circular: a finding reserved
 for a human cannot be resolved by the implementer, and the pull request is
@@ -230,7 +229,8 @@ record or register row accepting a risk, a licence, a suppression or an
 opt-out ([registers.md](registers.md#a-register-row-or-a-decision-record)), a
 change-size override recorded in [the change-size override
 register](registers.md#the-change-size-override-register)
-([fix 74](#an-override-answers-a-push-back-it-is-not-a-fix)), and a conflict
+([an override is not a fix](#an-override-answers-a-push-back-it-is-not-a-fix)),
+and a conflict
 between two standing directives, which a repository's own root instruction
 file names as reserved the same way (this toolkit's own `AGENTS.md` is the
 worked example). A pull request may be opened with findings outstanding
@@ -239,13 +239,7 @@ request body, with the command that produced them. A finding the implementer
 could have fixed is a reason not to open yet, not a line item to disclose
 and open anyway.
 
-**Fix 68 — a definition with no check is a suggestion.** Audit 17 found a
-pull request that opened anyway, under a heading it invented: "One tool
-limitation, documented rather than hidden." "Tool limitation" is not one of
-the five, and the same body's six dependency advisories were called "a
-dependency-upgrade decision" with no ADR naming a GHSA id and no advisory
-register row anywhere — while the licence and suppression items beside them
-did carry real, blank-approver register rows. The check is mechanical and
+**A definition with no check is a suggestion.** The check is mechanical and
 carries no judgement: **every finding disclosed in a pull request body
 cites the register row, the Proposed or Accepted ADR, or the named conflict
 record that reserves it — an ADR number that does not resolve to an actual
@@ -255,14 +249,17 @@ invents a sixth class.** `scripts/check-pr-body-artefacts.mjs`
 disclosing sentence is honest — that is the prose-honesty check this corpus
 already refuses to build — only whether the artefact it points at exists. A
 finding with no such artefact blocks the pull request rather than appearing
-in its body.
+in its body. The failure this catches: a pull request opened anyway, under a
+heading it invented — "One tool limitation, documented rather than hidden" —
+where "tool limitation" is not one of the five, and the same body's six
+dependency advisories were called "a dependency-upgrade decision" with no ADR
+naming a GHSA id and no advisory register row anywhere, while the licence and
+suppression items beside them did carry real, blank-approver register rows.
 
-**Fix 75 — the precondition is resolvability; the reserved classes above are
-its consequence, not its definition.** Stating the rule as an enumeration
-invites a sixth being invented to fit through it — audit 17's own pull
-request did exactly that, naming the very fix it declined to apply in the
-same body it called "one tool limitation, documented rather than hidden."
-Restated in the terms that actually decide it:
+**The precondition is resolvability; the reserved classes above are its
+consequence, not its definition.** Stating the rule as an enumeration invites
+a sixth being invented to fit through it — the pull request above did exactly
+that. Restated in the terms that actually decide it:
 
 **A pull request opens when every finding an implementer could resolve has
 been resolved.** What remains is what only a human can decide: an approval,
@@ -271,9 +268,10 @@ pull request is how they reach the person who decides. The classes above are
 not an arbitrary list to extend; they are what this corpus has found, so
 far, to be genuinely unresolvable by an implementer.
 
-**Do not weaken fix 68's own check to match this restatement.** Resolvability
-is a judgement and cannot be checked mechanically; artefact citation can be,
-and it is how resolvability is _proved_. A finding only a human can settle
+**Do not weaken the artefact-citation check above to match this
+restatement.** Resolvability is a judgement and cannot be checked
+mechanically; artefact citation can be, and it is how resolvability is
+_proved_. A finding only a human can settle
 has a record with a blank approver — a register row, a Proposed ADR, a
 change-size override record. A finding the implementer simply chose not to
 fix has nothing to cite, because no record exists for "I decided this was
@@ -288,7 +286,7 @@ same commit.
 
 ## An override answers a push back; it is not a fix
 
-**Fix 74 — `[large-pr]` is a human decision an agent may propose and never
+**`[large-pr]` is a human decision an agent may propose and never
 take.** [Gate 4](gate-4-task-completion.md)'s change-size check reports the
 counted size and names what makes up the bulk; it does not add the override
 marker on its own authority. The marker is applied by, or on the explicit
@@ -301,7 +299,7 @@ back at the commit gate, then blocks at the merge gate.
 **The distinguishing property is who, not which commit.** A branch whose
 marker sits in a commit distinct from the diff it excuses has not thereby
 proven a human decided anything — a single actor, working alone, produces
-that shape trivially, and audit 18's own case had exactly that separation
+that shape trivially, and the case behind this rule had that separation
 already (the marker landed in `ccd9d67`, two commits after the oversized
 diff in `53f4bed`) while still being an agent's own unreviewed decision.
 Requiring commit separation adds nothing that was not already true. What the
@@ -356,9 +354,9 @@ does not read a green local run as more certain than it was.
 
 ## The gap between a local pass and a CI finding is itself a finding
 
-**Fix 66 — when CI finds something the local gates did not, that
-difference is a finding, and it is worth more than the defect underneath
-it.** A defect fixed without asking why the local run missed it recurs
+**When CI finds something the local gates did not, that difference is a
+finding, and it is worth more than the defect underneath it.** A defect
+fixed without asking why the local run missed it recurs
 through a different door the next time nobody runs the same command.
 Before fixing what CI found, establish which local gate should have caught
 it and why it did not, and record the answer in the same report the
@@ -367,8 +365,8 @@ defect's own fix is recorded in.
 Four categories, because the remedy differs:
 
 1. **The local gate exists and was not run.** A process failure — the
-   remedy is [fix 65](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally):
-   run the gate, not a selection.
+   remedy is [run the gate, not a
+   selection](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally).
 2. **The local gate exists and is scoped more narrowly than CI's.** A real
    gap: [every blocking local check has a named server-side
    equivalent](#local-gates-are-a-fast-copy-the-server-gate-is-the-authority)
@@ -399,10 +397,42 @@ that section lives in the report.
 
 ## A report's gate output is provisional until CI has produced its own
 
-**Fix 76 — "verbatim" was the local run's output, and CI disagreed.** A
-commit whose subject read "record gate 6 output verbatim in the bootstrap
-report" quoted a twelve-line block with zero osv-scanner mentions — the
-_local_ run's, where osv-scanner correctly skipped (not on `PATH`). CI, on
+[The precondition on opening a pull
+request](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)
+and [the citation requirement](#never-claim-more-than-was-checked) govern the
+moment a pull request is _opened_; [the gap between a local pass and a CI
+finding](#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding)
+above states the four categories a CI-only finding falls into. Neither says
+_when_ to go looking for one.
+
+> **A report's gate output is provisional until the pipeline that produces
+> the blocking verdict has run.** Where a check skipped locally, the report
+> says so and the claim is reconciled against the pipeline's own log once it
+> completes — the difference categorised per the four gap kinds above, in the
+> report, before the pull request is presented as ready.
+
+**The instrument is the job log, never the annotations API** — [read a
+gate's own output, not a platform's summary of
+it](#never-claim-more-than-was-checked), restated for this case:
+the annotations endpoint caps at ten findings and truncates silently, so a
+reconciliation built from it can undercount exactly the way a report built
+from it already has. `scripts/check-report-ci-reconciliation.mjs` is the
+mechanical form: it reads a gate's own `FAIL` lines straight out of a job
+log and flags any line the report text never mentions, wherever in the
+report it is mentioned — the same structural, not prose-honesty, restraint
+[the artefact-citation
+check](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)
+already states for `check-pr-body-artefacts.mjs`.
+
+**This is a step after, not a stricter precondition.** It cannot run before
+the pipeline that produces the blocking verdict has completed, so it is
+never wired into gate 6 itself — run it by hand, or as a follow-up CI step
+reading the prior job's own log, once CI exists to reconcile against.
+
+A report that never mentioned a CI finding at all is the coarse form of this
+defect: a commit whose subject read "record gate 6 output verbatim in the
+bootstrap report" quoted a twelve-line block with zero osv-scanner mentions —
+the _local_ run's, where osv-scanner correctly skipped (not on `PATH`). CI, on
 that exact commit, reported:
 
 ```text
@@ -414,53 +444,10 @@ Six real CVEs the report never named, while its own header read "what
 remains open (copied from gate 6's own output)" — true of the local run,
 false against the live state once CI ran. The implementer was honest about
 what it could see; the gap is that nothing brought the report back once CI
-saw more. [Fix 65](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)
-and [fix 69](#never-claim-more-than-was-checked) govern the moment a pull
-request is _opened_; [the gap between a local pass and a CI
-finding](#the-gap-between-a-local-pass-and-a-ci-finding-is-itself-a-finding)
-above states the four categories a CI-only finding falls into but never says
-_when_ to go looking for one.
+saw more.
 
-> **A report's gate output is provisional until the pipeline that produces
-> the blocking verdict has run.** Where a check skipped locally, the report
-> says so and the claim is reconciled against the pipeline's own log once it
-> completes — the difference categorised per the four gap kinds above, in the
-> report, before the pull request is presented as ready.
-
-**The instrument is the job log, never the annotations API** — [fix
-64](#never-claim-more-than-was-checked)'s own rule, restated for this case:
-the annotations endpoint caps at ten findings and truncates silently, so a
-reconciliation built from it can undercount exactly the way a report built
-from it already has. `scripts/check-report-ci-reconciliation.mjs` is the
-mechanical form: it reads a gate's own `FAIL` lines straight out of a job
-log and flags any line the report text never mentions, wherever in the
-report it is mentioned — the same structural, not prose-honesty, restraint
-[fix 68](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)
-already states for `check-pr-body-artefacts.mjs`.
-
-**This is a step after, not a stricter precondition.** It cannot run before
-the pipeline that produces the blocking verdict has completed, so it is
-never wired into gate 6 itself — run it by hand, or as a follow-up CI step
-reading the prior job's own log, once CI exists to reconcile against.
-
-**Fix 80 — reconciled at label level is not reconciled at value level.**
-Fix 76 above closed the case where a report never mentioned a CI finding at
-all. An audit then found the narrower gap fix 76's own fix left open: a
-report that named every CI finding correctly could still quote one's
-_detail_ stale. Its quote of a finding read `(anonymous)@1594-2939`; live CI
-read `(anonymous)@1602-2947` — the same finding, the same label, a span the
-tool had already reported differently by the time the report claimed to
-quote it verbatim, because a later commit shifted the file by eight lines
-after the report's reconciliation pass had already run.
-
-`scripts/check-report-ci-reconciliation.mjs` cannot catch this by its own
-documented design: it matches the `<gate>: FAIL <label>` string and never
-the indented detail lines beneath. That scope is deliberate and correct —
-matching prose, not a tool's raw output, is [fix 68](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)'s
-own restraint applied here too. The defect is the report's **claim**, not a
-gap in the check.
-
-**A report states which level it reconciled at.** Confirming every CI
+**Reconciled at label level is not reconciled at value level.** A report
+states which level it reconciled at. Confirming every CI
 finding is _named_ — label-level reconciliation — proves no finding is
 missing. It does not prove any finding's _detail_ is current. A report that
 quotes a tool's output verbatim is making the stronger, value-level claim,
@@ -474,10 +461,24 @@ quotes. A reconciliation pass that runs and is then followed by a further
 commit touching the quoted file is stale the moment that commit lands, no
 matter how carefully it was captured the first time.
 
+The narrower failure this catches: a report named every CI finding correctly
+and still quoted one's _detail_ stale. Its quote read `(anonymous)@1594-2939`;
+live CI read `(anonymous)@1602-2947` — the same finding, the same label, a
+span the tool had already reported differently by the time the report claimed
+to quote it verbatim, because a later commit shifted the file by eight lines
+after the report's reconciliation pass had already run.
+`scripts/check-report-ci-reconciliation.mjs` cannot catch this by its own
+documented design: it matches the `<gate>: FAIL <label>` string and never the
+indented detail lines beneath. That scope is deliberate and correct — matching
+prose, not a tool's raw output, is [the artefact-citation
+check](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)'s
+own restraint applied here too. The defect is the report's **claim**, not a
+gap in the check.
+
 ## A check that skips on every surface it runs on has not been skipped
 
-**Fix 71 — a blocking check that skips locally and skips in CI is a
-finding, not a skip, whatever each individual skip message says.** A skip
+**A blocking check that skips locally and skips in CI is a finding, not a
+skip, whatever each individual skip message says.** A skip
 is only acceptable where _some_ surface actually runs the check; a
 precondition unmet everywhere the check is invoked is not a property of one
 run, it is a property of the check, and reads as green at every gate that
@@ -638,15 +639,15 @@ report](../docs-style.md#standards-in-a-consuming-repository) is this
 principle applied to one recurring case: the outstanding-work section is
 generated from gate output, not written from memory.
 
-**The rule is unscoped: every numeric claim in the report, not only the
-section it was first caught in.** Audit 15 found the outstanding-work
-section fixed — generated from gate output, five of seven findings named
-with the right check and the right counts — and a _different_ section of
-the same report still wrong: its "What was done" narrative stated `node
---test … reports 225 pass, 0 fail`, while CI on the same commit reported
-`pass 219 / fail 2 / cancelled 4`. The fix had been applied to the section
-audit 14 had named, not to the habit that produced it, so the identical
-defect surfaced one section over. Any count, any "all X pass", any "N
+**The rule is unscoped: every numeric claim in the report, not only its
+outstanding-work section.** One report had that section right — generated
+from gate output, five of seven findings named with the right check and the
+right counts — and a _different_ section of the same report still wrong: its
+"What was done" narrative stated `node --test … reports 225 pass, 0 fail`,
+while CI on the same commit reported `pass 219 / fail 2 / cancelled 4`. The
+remedy had been applied to the section the defect was found in, not to the
+habit that produced it, so the identical defect surfaced one section over.
+Any count, any "all X pass", any "N
 findings" — anywhere in a bootstrap or session report, not only its
 outstanding-work section — names the command whose output produced it. And
 **where a gate also produces that figure for the same commit, the report
@@ -673,41 +674,37 @@ why: "290/290, `npm test`, local" and "290/290, `npm test`, CI" are different
 claims, and only the second is evidence about what a `pull_request` job will
 find.
 
-**Fix 61 — naming the command is not enough while the set can still be
-assembled check by check.** A report cited the rule above and still lost
-lines: it ran the licence check and the suppression check, called the
-result "copied from gate output," and never ran `check-dependency-advisories.mjs`
-at all — a local Node script it mistakenly reasoned was "network/PATH-resolved"
-the same as osv-scanner, which it also skipped. Two whole categories were
-missing, each honestly sourced to nothing, because the set was built by
-choosing which checks to run rather than by running the one command that
-owns all of them. **The list itself must be the verbatim output of one
-command — the gate — never a concatenation of individually chosen checks'
-output.** A check that cannot run locally is a line in that command's own
-output, reported unavailable, not a line the implementer decided to leave
-out.
+**Naming the command is not enough while the set can still be assembled
+check by check. The list itself must be the verbatim output of one command
+— the gate — never a concatenation of individually chosen checks' output.**
+A check that cannot run locally is a line in that command's own output,
+reported unavailable, not a line the implementer decided to leave out. A
+report that cited the rule above still lost lines: it ran the licence check
+and the suppression check, called the result "copied from gate output," and
+never ran `check-dependency-advisories.mjs` at all — a local Node script it
+mistakenly reasoned was "network/PATH-resolved" the same as osv-scanner,
+which it also skipped. Two whole categories were missing, each honestly
+sourced to nothing, because the set was built by choosing which checks to
+run rather than by running the one command that owns all of them.
 
-**Fix 69 — "the gate" resolved to whichever gate the rule happened to be
-demonstrated on, not to every gate a report quotes.** A report honoured
-fix 61's rule for gate 7 — a fenced block, one line per finding, verbatim —
-and for gate 6 wrote a paraphrase instead: "see the verbatim run below: 246
-tests pass, 100% line coverage, no findings an implementer could still
-fix." `pass=246 fail=0` is gate 0's own test-count format string
+**"The gate" means gate 6 as well, not only whichever gate is easiest to
+quote: a report quotes gate 6's own output — the check names, the FAIL
+lines, the skip lines — in its own fenced block, exactly as it quotes gate
+7's**, whichever gate the report happens to lead with. Naming gate 6
+explicitly is deliberate, not decoration: a rule stated only as "the gate"
+gets applied to whichever section demonstrated it and skipped everywhere
+else the reader would have had to generalise it themselves to reach. One
+report gave gate 7 a fenced block, one line per finding, verbatim — and for
+gate 6 wrote a paraphrase instead: "see the verbatim run below: 246 tests
+pass, 100% line coverage, no findings an implementer could still fix."
+`pass=246 fail=0` is gate 0's own test-count format string
 (`scripts/gate-0-baseline.mjs`), not a gate-6 verdict, and gate 6 never ran
 in that report at all — which is also why its osv-scanner skip line
 (`gate 5: SKIP cross-stack dependency scan — osv-scanner not on PATH;
 install it to enable this check`) never appeared: there was no gate-6
-transcript to find it in. One omission, one remedy, stated so a rule this
-corpus already holds cannot be satisfied by demonstrating it on the easier
-gate: **a report quotes gate 6's own output — the check names, the FAIL
-lines, the skip lines — in its own fenced block, exactly as it quotes gate
-7's**, whichever gate the report happens to lead with. Naming gate 6
-explicitly here is deliberate, not decoration — the previous cycle proved
-that a rule stated only as "the gate" gets applied to whichever section
-demonstrated it and skipped everywhere else the same reader had to
-generalise the rule themselves to reach.
+transcript to find it in.
 
-**Fix 64 — read a gate's own output, not a platform's summary of it.**
+**Read a gate's own output, not a platform's summary of it.**
 `gh api .../check-runs/{id}/annotations` caps the annotations it returns at
 10 per check run and silently drops the rest, no marker that anything was
 cut. A report built from that endpoint against a run with sixteen findings
@@ -718,14 +715,24 @@ only place the true count is visible. **Read a gate's own output — the job
 log, the command's own transcript — not a platform's summary of it.** A
 platform view may paginate, cap or deduplicate; the transcript a gate itself
 wrote does not. Where a report cites CI, it cites the job log. This is also
-why fix 61's rule is "one command, one transcript" rather than "check each
+why the rule above is "one command, one transcript" rather than "check each
 source that has one": there is exactly one authoritative output, and every
 derived view of it — an API summary, a hand-picked subset of checks — can
 lose rows the transcript never did.
 
-**Fix 88 — a quoted figure is re-captured at the commit it reports on, not
-re-explained.** A report's `change size` figure was captured once, locally,
-early in a session, and never re-read against a later commit. CI's own logs
+**A quoted figure is re-captured at the commit it reports on, not
+re-explained.** A figure quoted in a report, a register row or a pull
+request body is re-captured — re-run, not re-explained — after the last
+commit that could change it, the same
+sequencing [reconciliation](#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own)
+already requires of a quoted capture, generalised to every quoted number in
+every artefact a human reads or approves from. **A discrepancy with no
+established cause is reported as unexplained, not given one:** a wrong
+explanation is believed, an unexplained gap gets investigated.
+
+The failure, across all three surfaces at once: a report's `change size`
+figure was captured once, locally, early in a session, and never re-read
+against a later commit. CI's own logs
 showed both platforms had agreed at every run — 9583 at the mid commit, 9584
 at the fix and final commits, ubuntu and windows identical throughout — while
 the report stated: "The change-size count differs by platform (9578 local
@@ -739,33 +746,20 @@ habit reached the pull request body: "`npm audit` reports 0 vulnerabilities;
 the 3 remaining `markdown-it` moderate advisories are dev-only" — self-
 contradictory in one sentence, and true only of a commit two earlier.
 
-**One rule covers all three surfaces:** a figure quoted in a report, a
-register row or a pull request body is re-captured — re-run, not
-re-explained — after the last commit that could change it, the same
-sequencing [fix 80](#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own)
-already requires of a reconciliation quote, generalised to every quoted
-number in every artefact a human reads or approves from. **A discrepancy
-with no established cause is reported as unexplained, not given one:** a
-wrong explanation is believed, an unexplained gap gets investigated.
-
-**Fix 89 — a tool cited as available is not evidence it ran.**
+**A tool cited as available is not evidence it ran. The reconciliation
+section names the command it ran and its exit status** — `node
+scripts/check-report-ci-reconciliation.mjs <report-path> <job-log-path>`
+exited 0, or exited non-zero naming what it found — the same way every other
+claim in this document already names the command that produced it. This is
+not a new check: it is the citation requirement stated above for every other
+claim, applied to the one tool whose own use had, until now, gone uncited.
 `scripts/check-report-ci-reconciliation.mjs` appeared zero times in one
 session's full log, even though its output is exactly what the report's
 reconciliation section needed. Run independently afterwards, the tool
 reported clean — the reconciliation was genuinely correct — but nothing in
 the report let a reader tell that from luck or care rather than from
-evidence: as one audit put it, the report's honesty there was "luck/care,
-not proof," the same shape as a promise made and never checked, just with a
-better outcome this time. A tool this corpus ships and teaches, never
-verified as used, is a tool that will eventually not be used on a run where
-it mattered. **The reconciliation section names the command it ran and its
-exit status** — `node scripts/check-report-ci-reconciliation.mjs
-<report-path> <job-log-path>` exited 0, or exited non-zero naming what it
-found — the same way every other claim in this document already names the
-command that produced it. This is not a new check: it is the citation
-requirement [fix 61 and fix 64](#never-claim-more-than-was-checked) already
-state for every other claim, applied to the one tool whose own use had, until
-now, gone uncited.
+evidence. A tool this corpus ships and teaches, never verified as used, is a
+tool that will eventually not be used on a run where it mattered.
 
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
@@ -950,7 +944,7 @@ choice is reported, not guessed.
       call site can ever succeed on the surface it actually runs on — a
       skip that recurs on every run of that surface is reported as unrun,
       not as a skip. `hooks/gate-4-task-completion.mjs` invoked from
-      `scripts/gate-6-pull-request.mjs` (fix 71) is the mechanical form:
+      `scripts/gate-6-pull-request.mjs` is the mechanical form:
       the subprocess call passes the base gate 6 already resolved rather
       than re-deriving one that fails on every CI checkout.
 - [ ] No gate emits a warning it does not treat as a failure.
@@ -1060,6 +1054,7 @@ fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
 - [Branch protection](branch-protection.md) — what makes "a named required
   status check" actually block a merge, not merely run.
 - [Registers](registers.md#the-change-size-override-register) — the
-  change-size override register fix 74 checks against.
+  change-size override register that [an override is not a
+  fix](#an-override-answers-a-push-back-it-is-not-a-fix) checks against.
 - [Gate 4 — Task completion](gate-4-task-completion.md) — where the
   change-size check itself lives, and its own override marker.
