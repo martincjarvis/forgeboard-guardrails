@@ -723,6 +723,50 @@ source that has one": there is exactly one authoritative output, and every
 derived view of it — an API summary, a hand-picked subset of checks — can
 lose rows the transcript never did.
 
+**Fix 88 — a quoted figure is re-captured at the commit it reports on, not
+re-explained.** A report's `change size` figure was captured once, locally,
+early in a session, and never re-read against a later commit. CI's own logs
+showed both platforms had agreed at every run — 9583 at the mid commit, 9584
+at the fix and final commits, ubuntu and windows identical throughout — while
+the report stated: "The change-size count differs by platform (9578 local
+Windows / 9583 ubuntu CI, line-ending accounting)." The platforms never
+disagreed; the real gap was local (9578) versus CI (9584), a figure captured
+once and never re-read against the commit being reported on. The implementer
+then reasoned backwards from that gap to a plausible cause and wrote it down
+as fact. The same stale number sat in the change-size override register's
+own `Counted lines` cell — the artefact a human approves from — and the same
+habit reached the pull request body: "`npm audit` reports 0 vulnerabilities;
+the 3 remaining `markdown-it` moderate advisories are dev-only" — self-
+contradictory in one sentence, and true only of a commit two earlier.
+
+**One rule covers all three surfaces:** a figure quoted in a report, a
+register row or a pull request body is re-captured — re-run, not
+re-explained — after the last commit that could change it, the same
+sequencing [fix 80](#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own)
+already requires of a reconciliation quote, generalised to every quoted
+number in every artefact a human reads or approves from. **A discrepancy
+with no established cause is reported as unexplained, not given one:** a
+wrong explanation is believed, an unexplained gap gets investigated.
+
+**Fix 89 — a tool cited as available is not evidence it ran.**
+`scripts/check-report-ci-reconciliation.mjs` appeared zero times in one
+session's full log, even though its output is exactly what the report's
+reconciliation section needed. Run independently afterwards, the tool
+reported clean — the reconciliation was genuinely correct — but nothing in
+the report let a reader tell that from luck or care rather than from
+evidence: as one audit put it, the report's honesty there was "luck/care,
+not proof," the same shape as a promise made and never checked, just with a
+better outcome this time. A tool this corpus ships and teaches, never
+verified as used, is a tool that will eventually not be used on a run where
+it mattered. **The reconciliation section names the command it ran and its
+exit status** — `node scripts/check-report-ci-reconciliation.mjs
+<report-path> <job-log-path>` exited 0, or exited non-zero naming what it
+found — the same way every other claim in this document already names the
+command that produced it. This is not a new check: it is the citation
+requirement [fix 61 and fix 64](#never-claim-more-than-was-checked) already
+state for every other claim, applied to the one tool whose own use had, until
+now, gone uncited.
+
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
 The same principle, one level more specific: a suppression's own verification
@@ -957,6 +1001,19 @@ fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
       same commit, not a local run's. A local run that passes reliably
       while CI's does not are two different instruments; the report cites
       whichever one a reader can hold it to.
+- [ ] Every quoted figure — in a report, a register row or a pull request
+      body — matches the commit the artefact describes, re-run rather than
+      carried forward from an earlier capture.
+- [ ] A register row's own numbers are re-derived before the row is offered
+      for approval, not carried over from when the row was first drafted.
+- [ ] A discrepancy with no established cause is reported as unexplained,
+      not given one — inventing a plausible cause is not a substitute for
+      re-deriving the figure.
+- [ ] The report's reconciliation section names the command it ran —
+      `check-report-ci-reconciliation.mjs` — and its exit status, the same
+      way any other claim in the report names the command that produced it.
+      A reconciliation that reads clean because the tool was never actually
+      run is not distinguishable from one that is, without this.
 - [ ] A suppression's verification claim ("N findings before, 0 after") cites a
       repository-scope run — gate 7's own sweep, or an equivalent `semgrep
 --config auto --error .` at the repository root — never a check scoped

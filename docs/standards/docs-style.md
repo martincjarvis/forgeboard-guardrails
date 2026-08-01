@@ -4,7 +4,7 @@ summary: How documents in /docs are structured — frontmatter, section order, a
 read_when: Writing or revising anything under /docs.
 ---
 
-<!-- cspell:ignore Diataxis diffable pyproject -->
+<!-- cspell:ignore Diataxis diffable pyproject uncited -->
 
 # Documentation style standard
 
@@ -335,6 +335,38 @@ and capture any quote, after the last commit that changes anything quoted,
 not before it. Full rule:
 [cross-gate-rules.md](guardrails/cross-gate-rules.md#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own).
 
+**Fix 88 — a quoted figure is re-captured at the commit it reports on, not
+re-explained.** A `change size` figure was captured once, locally, and never
+re-read against a later commit; CI's own logs showed both platforms had
+agreed throughout, but the report stated they differed and gave a plausible-
+sounding cause ("line-ending accounting") that the implementer invented
+rather than checked. The real gap was local versus CI, not platform versus
+platform — a number never re-read against the commit being reported on. The
+same stale figure sat in the change-size override register's own `Counted
+lines` cell, and the same habit produced a pull request body claiming zero
+vulnerabilities in one sentence and naming three, dev-only, in the next —
+true only of a commit two earlier. **A figure quoted in a report, a register
+row or a pull request body is re-captured — re-run, not re-explained — after
+the last commit that could change it**, the same sequencing fix 80 requires
+of a reconciliation quote, generalised to every quoted number in every
+artefact a human reads or approves from. **A discrepancy with no established
+cause is reported as unexplained, not given one:** a wrong explanation is
+believed, an unexplained gap gets investigated. Full rule:
+[cross-gate-rules.md](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked).
+
+**Fix 89 — a tool cited as available is not evidence it ran.** The
+reconciliation tool's own output never appeared anywhere in one session's
+full log, even though a later, independent run of it reported clean — the
+reconciliation was genuinely correct, but nothing in the report let a reader
+tell that from evidence rather than luck. **The report's reconciliation
+section names the command it ran and its exit status** — `node
+scripts/check-report-ci-reconciliation.mjs <report> <job log>` exited 0, or
+exited non-zero naming what it found — the same way every other numeric
+claim above already names the command that produced it. Not a new check:
+the existing citation requirement, applied to the one tool whose use had,
+until now, gone uncited. Full rule:
+[cross-gate-rules.md](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked).
+
 **Tuning removes content; it never removes the checklist that catches
 under-tuning.** The seven checks in [Verification](#verification) below are
 not stack-specific or component-specific content — they are a property of
@@ -650,6 +682,14 @@ requirement it stands in for.
       outstanding-work section — names the command whose output produced
       it, and where a gate produces the same figure for the same commit,
       the report quotes the gate's own number rather than a local run's.
+- [ ] Every quoted figure — in the report, a register row or a pull request
+      body — is re-captured after the last commit that could change it, not
+      carried forward from an earlier run and re-explained.
+- [ ] A discrepancy between two captured figures with no established cause
+      is reported as unexplained, not given an invented one.
+- [ ] The report's reconciliation section names the command it ran —
+      `check-report-ci-reconciliation.mjs` — and its exit status, not only
+      the conclusion the reconciliation reached.
 - [ ] A word present only in `tooling`-classed files does not count as "used
       elsewhere" for an instantiation-residue finding — checked against a
       scratch repository that has actually ported the checker, not only

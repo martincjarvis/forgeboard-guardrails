@@ -330,7 +330,41 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    the report never mentions. This is a step after the pipeline runs, not a
    stricter precondition on opening the pull request — run it once CI has
    produced a log to reconcile against, and fold any gap it finds into the
-   fix-66 section above before calling the report ready.
+   fix-66 section above before calling the report ready. **Name the command
+   and its exit status in that section, not only the gap it found or its
+   absence** (fix 89 below) — a reconciliation the report only concludes,
+   never cites, is indistinguishable from one that was never run.
+
+   **Fix 80 — reconciled at label level is not reconciled at value level.**
+   Confirming every CI finding is named against the job log — label-level
+   reconciliation — proves nothing is missing; it does not prove a quoted
+   finding's own detail is still current. One report named every CI finding
+   correctly and still quoted a stale span — `(anonymous)@1594-2939` where
+   live CI read `(anonymous)@1602-2947` — because a later commit shifted the
+   file after the reconciliation pass had already run.
+   `check-report-ci-reconciliation.mjs` matches the `<gate>: FAIL <label>`
+   line by design, never the indented detail beneath it, so this was never
+   within the check's own scope to catch — the defect is the report's claim,
+   not a gap in the check. State which level the report reconciled at:
+   naming every finding is label level; quoting a tool's output verbatim is
+   the stronger, value-level claim, and that claim is only true when the
+   tool was re-run at the commit being reported on — never a capture carried
+   forward from an earlier one, even one that was accurate when taken.
+   Reconcile, and take any quoted capture, **after** the last commit that
+   changes anything quoted — not before it. Full rule:
+   [cross-gate-rules.md](../../docs/standards/guardrails/cross-gate-rules.md#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own).
+
+   **Fix 89 — a tool cited as available is not evidence it ran.** One
+   session's own log never mentioned
+   `check-report-ci-reconciliation.mjs` at all; run independently
+   afterwards, it reported clean, so the reconciliation happened to be
+   correct — but nothing in the report let a reader tell that from evidence
+   rather than luck. Cite the command and its exit status in the
+   reconciliation section itself, the same way every other numeric claim in
+   the report already names the command that produced it — not a new check,
+   the existing citation rule
+   ([cross-gate-rules.md](../../docs/standards/guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)),
+   applied to this tool's own use.
 
 ## What done looks like
 
