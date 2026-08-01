@@ -190,8 +190,8 @@ finding — it does not judge whether the removal's stated reason is honest,
 only where it was written down.
 
 **Fix 56 — a bootstrap report's "what remains" section is generated from
-gate output, not written from memory.** Nothing in this toolkit reads the
-report — `git grep -il "IMPLEMENTATION-REPORT" scripts/ hooks/ .github/`
+gate output, not written from memory.** Nothing in this toolkit reads a
+bootstrap report — grepping `scripts/`, `hooks/` and `.github/` for its filename
 returns nothing, so every claim in it stands or falls on whoever wrote it
 getting the count right by hand. One report claimed gate 6 was red on four
 licence rows; the actual gate output carried four licences, nine advisories

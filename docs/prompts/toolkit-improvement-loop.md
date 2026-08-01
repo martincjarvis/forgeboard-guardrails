@@ -4,7 +4,7 @@ summary: The reviewer/implementer loop that hardens this toolkit — bootstrap a
 read_when: Running another round of toolkit improvement, or deciding whether a change to the loop is a shortcut or a genuine fix.
 ---
 
-<!-- cspell:ignore opencode -->
+<!-- cspell:ignore opencode oneline -->
 
 # The toolkit improvement loop
 
@@ -54,6 +54,34 @@ should have had to answer itself.
 No interventions, no answers, no corrections. If it goes wrong, that is the
 result.
 
+The implementer's prompt is **the constant of the experiment** and describes only
+the project — never the standards, never a gate, never a remedy. Keep it in
+version control beside this document, hash it, and change it only by deciding to
+start a new series.
+
+```markdown
+Bootstrap a new project in the empty repository at <path> (remote: <url>).
+
+The project is <name> — <one sentence on what it does and how it is consumed>.
+
+This repository must be compliant with the guardrail standards, which are
+installed at <toolkit path>. Read them and apply them: they define the gates,
+the test strategy, the versioning and release model, and the records the
+repository must carry.
+
+Constraints:
+
+- <CI platform> for CI, <registry> for publishing.
+- There is no cloud environment. Anything that has to be proven must be proven
+  locally.
+- <the operating systems that must both work>
+
+Raise a pull request with the work when it is done.
+```
+
+That is the whole prompt. Everything the implementer needs beyond it is the
+corpus's job — which is precisely what the round measures.
+
 ### 3. Read the verdict from the raw job log
 
 Never the platform's summary view. GitHub's check-runs annotations endpoint
@@ -73,6 +101,53 @@ coordinator's mistakes was caught by an auditor and none by the coordinator:
 a claim relayed from another audit without checking, a skipped check described as
 a pass, a false attribution of a defect to the wrong cycle.
 
+```markdown
+You are the independent auditor for round N. Verify compliance by following the
+toolkit's own checklists — [guardrail-standards](../standards/guardrail-standards.md)
+and the Verification section of each gate reference under
+[standards/guardrails](../standards/guardrails/). You did not implement any of
+this. Audit it adversarially. Do not fix anything; report.
+
+## The two repositories
+
+- **Toolkit** (the standards under test): <path>, branch <branch>, HEAD <sha>.
+- **Subject** (bootstrapped this round): <path>, branch <branch>, PR #<n>.
+
+Read-only on both. Do not commit, push or edit. <Any PATH the analysers need.>
+
+## What the last fix cycle changed
+
+<One paragraph per fix: what it claimed to do, and where it lives.>
+
+## Established facts — do not re-derive, but challenge if evidence contradicts
+
+<Exit code, commit count, tracked files, whether a clarifying question was asked.
+The CI verdict, read from the raw job log — name the run and job id so the
+auditor can re-fetch it. The previous round's figures, for comparison.>
+
+## The questions, in priority order
+
+<Two or three that decide whether the round improved, then the standing
+regressions. For each, say what would count as evidence either way, and which
+outcome would be the serious one.>
+
+## How to report
+
+Lead with the first two. For each question: what you ran, what it output, what it
+means. Quote decisive lines exactly; do not paraphrase a verdict into existence.
+Distinguish defects in the toolkit's guidance — the deliverable — from defects in
+this implementer's execution. Where you find a gap, say concretely what corpus
+wording would close it.
+
+If a claim in this brief is wrong, say so plainly and show the evidence.
+```
+
+Two details in that template are load-bearing. **Naming the run and job id** lets
+the auditor re-fetch the log rather than trust a pasted count — which is how the
+truncating-annotations defect was found. And **the standing-regressions list**
+carries forward every prior round's fix, so a fix that silently stops working is
+caught by the round after it, not the audit that first found it.
+
 ### 5. Write a fix brief, then dispatch a fix agent
 
 State the evidence, not the remedy alone. A brief that says "fix X" produces a
@@ -81,6 +156,50 @@ narrow patch; one that quotes the failing output produces an understanding.
 Name what **not** to do. Half the value of these briefs was in the exclusions:
 do not mechanise prose honesty, do not extend a keyword list, do not build a
 checker that scores a report.
+
+The brief is a document; the dispatch is short and points at it.
+
+```markdown
+You are implementing fix cycle N on the guardrail toolkit at <path>, branch
+<branch>, HEAD <sha>.
+
+Read the brief first and follow it exactly: <path to brief>
+
+<One line naming each fix, and which to do first if order matters.>
+
+## Before you begin — this is not optional
+
+1. <Any PATH the analysers need.>
+2. Confirm a clean tree at <sha>.
+3. `npm install` — a fresh worktree does not carry `node_modules`.
+4. `npm test`, `npm run build`, `npm run lint`. Baseline is <N/N>. If the
+   baseline is red, stop and report it rather than implementing through it.
+
+**Then reproduce each defect before fixing it.** <The exact command, and what it
+must print.> A fix you have not watched fail first is a fix you cannot claim.
+
+## Rules in force
+
+Read [AGENTS.md](../../AGENTS.md) — it governs. In particular: never commit to
+`main`; every suppression needs a register row with every column filled except
+the approver, and **you may not approve one**; new spell-check tokens go in the
+file's own `cspell:ignore` line; no absolute paths, usernames or host details in
+any committed file; improvements outside the brief become notes in your report,
+not commits.
+
+Do not touch <the subject repository> — an evaluation is reading it.
+
+## When done
+
+<What to quote back. Name the specific wording or number that decides whether the
+fix is real.> Include final `npm test` / build / lint results and
+`git log --oneline`.
+```
+
+The brief carries the reasoning; the dispatch carries the discipline. Keeping
+them separate is why a fix agent can be given a five-item brief without the rules
+getting lost among the fixes — and why the rules section can simply cite
+[AGENTS.md](../../AGENTS.md) rather than drifting from it.
 
 ### 6. Verify, then repeat
 
