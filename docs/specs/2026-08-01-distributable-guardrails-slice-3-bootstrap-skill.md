@@ -123,6 +123,43 @@ a defect.
 | Default branch           | `git symbolic-ref refs/remotes/origin/HEAD`; then the host CLI's report of the remote default                                                                                   | The checked-out branch's upstream; recorded as a finding                                                                                               |
 | Build and test commands  | Conventional task names in the discovered manifests                                                                                                                             | None wired. The remedy is naming the tasks conventionally, which is a change to the repository — recorded as a finding, never performed silently       |
 | Licence                  | `package.json`'s `license`, a `LICENSE` file, `PackageLicenseExpression`                                                                                                        | Absent is not ambiguous — it is the existing step 8 recommendation, already reserved for a human                                                       |
+| Decision-record path     | A directory already holding records with `status`/`decided` frontmatter — see below                                                                                             | `docs/ADR/`, undeclared. A new repository declares nothing                                                                                             |
+
+#### Where decision records live
+
+An existing repository often already records decisions, at `adr/`,
+`docs/decisions/`, `doc/architecture/decisions/` or a name of its own. Uplift
+**adapts to what is there rather than introducing a second convention beside
+it** — the same rule as any other divergent conflict, where the repository's
+existing tool wins.
+
+The path is **declared once, and only when it differs from the default**:
+
+- **A new repository declares nothing.** `docs/ADR/` is the default, the
+  directory is created by the first record that needs one, and no configuration
+  exists to drift.
+- **An uplift that finds records elsewhere declares that path**, where the checks
+  read it. Nothing moves, and links and tooling already pointing at it keep
+  working.
+- **An uplift that finds none also declares nothing** — it is a new repository as
+  far as decision records are concerned.
+
+Detection is by content, not by a list of conventional names: a directory holding
+markdown files whose frontmatter carries `status` and `decided` is a
+decision-record directory, whatever it is called. A fixed list of names goes
+stale, and a repository using something unusual would silently get `docs/ADR/`
+created alongside its real one. Where detection finds more than one candidate,
+that is an ambiguity by the rule above — interactive asks, unattended takes the
+default and records a finding naming both.
+
+Three of the four checks that resolve this path already accept it as a
+parameter — `check-adr-approver.mjs`, `check-approval-provenance.mjs` and
+`check-dependency-advisories.mjs` all default `adrDir` and take an override.
+`check-pr-body-artefacts.mjs` holds it as a module-level `const` and is the one
+that has to change.
+
+Slice 1 owns **where the declaration is written**, since it owns what a consuming
+repository carries.
 
 **Several answers is not ambiguity.** A repository with three manifests has
 three stacks; every one of them gets its own answer for build, lint, test and
@@ -555,21 +592,7 @@ material available.
    path, or this class of accepted finding needs somewhere else to live, and this
    spec cannot settle that without changing a standard.
 
-5. **Does bootstrap introduce `docs/ADR/` on an uplift of a repository that
-   already records decisions at a different path, or adapt to theirs?** The
-   ordinary case is decided, once, in
-   [slice 1](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-is-not-in-it): bootstrap
-   creates no `docs/ADR/`, and an opt-out is no special case — the opt-out
-   conversation's own `Proposed` record creates the directory if it is the
-   first decision record the repository has, new repository or uplift alike.
-   What that leaves open is narrower: a repository that already has an
-   established, differently-named location for its decisions. Writing the
-   opt-out's record to `docs/ADR/` anyway introduces a second convention
-   alongside the repository's own; adapting means every check that resolves
-   `adrDir` from `docs/ADR/` needs the path made configurable. Neither is
-   decided here.
-
-6. **Is the change-size override still reserved for a human on a bootstrap
+5. **Is the change-size override still reserved for a human on a bootstrap
    branch that is large by nature?** The current skill says yes, at length. That
    holds unchanged here, but an uplift branch is smaller than a new-repository
    bootstrap's, and it is worth confirming the threshold is still crossed often

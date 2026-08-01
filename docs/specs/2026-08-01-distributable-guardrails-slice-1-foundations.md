@@ -131,6 +131,21 @@ special case for an opt-out, or for any other reserved decision:**
 and [slice 4](2026-08-01-distributable-guardrails-slice-4-audit-skill.md#opt-out-awareness) each need
 this once and cite it here rather than restating it.
 
+**`docs/ADR/` is the default, not the only answer.** An uplifted repository that
+already records decisions elsewhere keeps its own path — the same rule as any
+other divergent conflict, where what the repository already has wins. Slice 3
+specifies [how that path is discovered and when it is
+declared](2026-08-01-distributable-guardrails-slice-3-bootstrap-skill.md#where-decision-records-live);
+this slice owns **where the declaration is written**, since it owns what a
+consuming repository carries.
+
+It is written in `.guardrails/`, beside the opt-out register, and **only when it
+differs from the default** — a new repository declares nothing, so there is no
+configuration to drift from a path nobody changed. Three of the four checks that
+resolve it already take `adrDir` as a parameter;
+`.guardrails/check-pr-body-artefacts.mjs` holds it as a module-level constant and
+is the one that has to change.
+
 ### What `.guardrails/` is, and what therefore stays out of it here
 
 Stated once, because three slices reach the same boundary from three
