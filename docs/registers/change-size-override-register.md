@@ -3,7 +3,7 @@
 Every branch that carried the `[large-pr]` marker into gate 6, the human decision
 that accepted the size and what was driving it, and the condition that would let
 the row go. The `change size override` check refuses a marker with no matching
-row here — see [fix 74](../standards/guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
+row here — see [an override is not a fix](../standards/guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
 
 **An agent may fill in every column below except Approver.**
 [Gate 4](../standards/guardrails/gate-4-task-completion.md) reports the counted

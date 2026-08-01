@@ -192,8 +192,8 @@ people learn to push and hope.
 **"Named required status check" is a platform setting, not a sentence in this
 corpus.** A check can be wired into gate 6, run on every pull request and
 still block nothing if branch protection was never configured to require it —
-audit 8 found exactly that: a red gate 6 and a red platform scanner check,
-neither one refusing a merge. [Branch protection](branch-protection.md) is
+a red gate 6 and a red platform scanner check, neither one refusing a merge, is
+exactly that gap. [Branch protection](branch-protection.md) is
 where this is verified rather than assumed: `scripts/check-branch-protection.mjs`
 reads the protected branch's actual configuration and reports every check
 this toolkit runs that is not in the required list — as a finding, not a

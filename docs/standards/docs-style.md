@@ -215,8 +215,8 @@ TypeScript rows of any per-stack table — the .NET, Python, Java, Go, Rust, PHP
 and Ruby rows are removed, not commented out or left "in case it becomes
 relevant." A reader cannot tell aspiration from requirement, and a table with
 seven stacks and one actually in use reads as if none of them were checked —
-the defect Audit 10 found: an instantiated `docs/standards` carrying the same
-file count as this toolkit's own, because nothing had been removed.
+an instantiated `docs/standards` carrying the same file count as this toolkit's
+own, because nothing had been removed.
 
 **Record every removal**, in a `PROVENANCE` note or a short section of the
 enforcement map: the property of the repository that made the content
@@ -405,8 +405,8 @@ having been instantiated at all, and every consuming repository's copy carries
 all seven regardless of its own stack list or component count. Reading "remove
 content that cannot apply" as licence to drop the multi-component checkpoint
 because the repository has one component is the same misreading that produced
-Audit 10's finding in the first place — it prunes the check, not the content
-the check exists to catch.
+the finding in the first place — it prunes the check, not the content the check
+exists to catch.
 
 **Record provenance.** Each instantiated standard names the upstream commit it
 was copied from — a footer line in its own `## References` section is enough.
@@ -780,8 +780,7 @@ section — and, for the two mechanical checks above, additionally blocking at
 - [ ] Every instantiated document is shorter than its upstream source, or the
       reason it is not is recorded. This is a **crude proxy**, and
       deliberately so: its value is that it is unambiguous and fails loudly
-      on a corpus copied rather than tuned — the defect Audit 10 actually
-      found. Treat a pass as evidence tuning happened at all, not as a target
+      on a corpus copied rather than tuned. Treat a pass as evidence tuning happened at all, not as a target
       — shortening a document by deleting content that still applies games
       the proxy without fixing what it stands in for.
 - [ ] Every gate document states, in order: what triggers the gate, what it
@@ -792,8 +791,8 @@ section — and, for the two mechanical checks above, additionally blocking at
       either mechanical instantiation check reports a finding — reported at
       gate 7 is not enough, and a change that never touches `docs/standards/`
       is not asked about it. A repository whose gate 6 does not have this
-      wired has the failure Audit 12 found: 60 findings reported at gate 7,
-      nothing ever blocking on them.
+      wired has the failure this exists to prevent: 60 findings reported at gate
+      7, nothing ever blocking on them.
 
 ## References
 

@@ -14,11 +14,12 @@
 // pull request is *opened*; nothing governs the moment CI *disagrees with
 // the local run* — which is exactly when fix 66's four gap categories were
 // supposed to apply. This module is that trigger: it reads a gate's own
-// FAIL lines straight out of a CI job log — the instrument
-// cross-gate-rules.md#fix-64 already requires ("read a gate's own output —
-// the job log, the command's own transcript — not a platform's summary of
-// it"), never the annotations API, which caps at 10 and truncates silently —
-// and flags any line the report text never mentions.
+// FAIL lines straight out of a CI job log — the instrument cross-gate-rules.md
+// (#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own) already
+// requires ("read a gate's own output — the job log, the command's own
+// transcript — not a platform's summary of it"), never the annotations API,
+// which caps at 10 and truncates silently — and flags any line the report
+// text never mentions.
 //
 // Deliberately a citation-shaped check, the same restraint
 // check-pr-body-artefacts.mjs already states for itself: this does not
