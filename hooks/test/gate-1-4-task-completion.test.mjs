@@ -14,6 +14,7 @@ import {
   REGISTER_PATH as CHANGE_SIZE_OVERRIDE_REGISTER_PATH,
 } from "../../scripts/check-change-size-override.mjs";
 import assert from "node:assert/strict";
+import { parseNumstatZ } from "../gate-4-task-completion.mjs";
 import {
   HOOKS,
   ROOT,
@@ -829,4 +830,33 @@ test("gate 4 warns but does not block a test file over the complexity error thre
   assert.equal(r.status, 0, "a test file never blocks on complexity");
   assert.match(r.stderr, /cyclomatic complexity is 17/);
   rmSync(dir, { recursive: true, force: true });
+});
+
+// A renamed directory's --numstat third column is `{old => new}/file`, which
+// check-attr cannot resolve — it returns unspecified, which file classes read
+// as production. `-z` emits old and new paths as separate fields instead.
+test("parseNumstatZ: a renamed file yields its new path, not the brace form", () => {
+  // Exactly what `git diff -z --numstat` writes for a directory rename.
+  const renamed = "1\t1\t\0scripts/a.mjs\0.guardrails/a.mjs\0";
+  assert.deepEqual(parseNumstatZ(renamed), [["1", "1", ".guardrails/a.mjs"]]);
+});
+
+test("parseNumstatZ: ordinary rows, and a binary row, are unchanged", () => {
+  const plain = "3\t4\tsrc/a.mjs\0" + "-\t-\tassets/logo.png\0";
+  assert.deepEqual(parseNumstatZ(plain), [
+    ["3", "4", "src/a.mjs"],
+    ["-", "-", "assets/logo.png"],
+  ]);
+});
+
+test("parseNumstatZ: a rename among ordinary rows does not shift the ones after it", () => {
+  const mixed =
+    "1\t0\tdocs/a.md\0" +
+    "2\t2\t\0scripts/b.mjs\0.guardrails/b.mjs\0" +
+    "5\t1\tsrc/c.mjs\0";
+  assert.deepEqual(parseNumstatZ(mixed), [
+    ["1", "0", "docs/a.md"],
+    ["2", "2", ".guardrails/b.mjs"],
+    ["5", "1", "src/c.mjs"],
+  ]);
 });

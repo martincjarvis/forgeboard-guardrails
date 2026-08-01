@@ -8,6 +8,7 @@
 // Exit 0 reports. Exit 2 blocks the hand-off.
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { git, resolveBase } from "./lib/run.mjs";
+import { pathToFileURL } from "node:url";
 
 const CHANGE_WARN = 400;
 const CHANGE_ERROR = 800;
@@ -79,6 +80,32 @@ function isGenerated(file) {
   return value === "set";
 }
 
+/** `git diff -z --numstat` rows as `[added, deleted, path]`, path being the
+ *  file as it now stands.
+ *
+ *  `-z` is what makes the path usable. Without it a renamed file's third
+ *  column is `{scripts => .guardrails}/a.mjs` — not a path, so `check-attr`
+ *  resolves it `unspecified`, which file classes read as `production`. Under
+ *  `-z` a rename instead emits three NUL-terminated fields, old path then
+ *  new, and the counts are tab-separated from each other only. */
+export function parseNumstatZ(stdout) {
+  const fields = stdout.split("\0");
+  const rows = [];
+  for (let i = 0; i < fields.length; i++) {
+    if (!fields[i]) continue;
+    const [added, deleted, inline] = fields[i].split("\t");
+    if (deleted === undefined) continue;
+    if (inline) {
+      rows.push([added, deleted, inline]);
+    } else {
+      // A rename: this field ended after the counts, and the two paths follow.
+      rows.push([added, deleted, fields[i + 2]]);
+      i += 2;
+    }
+  }
+  return rows;
+}
+
 // Check 1 — change size (thresholds.md, gate-4-task-completion.md row 1).
 // Counted files together count as one number; the override marker clears
 // this check only. A generated file — a lock file, `*.g.cs`, any output no
@@ -87,13 +114,12 @@ function isGenerated(file) {
 // neither change size nor the length limit"); its `guardrail-class` still
 // governs every other check.
 function measureChangeSize(base, findings, warnings) {
-  const numstat = git(["diff", "--numstat", `${base}...HEAD`]);
+  const numstat = git(["diff", "-z", "--numstat", `${base}...HEAD`]);
   if (numstat.status !== 0) return;
 
   let counted = 0;
-  for (const line of numstat.stdout.split("\n")) {
-    const [added, deleted, file] = line.split("\t");
-    if (!file || added === "-") continue;
+  for (const [added, deleted, file] of parseNumstatZ(numstat.stdout)) {
+    if (added === "-") continue;
     if (!COUNTED.has(classOf(file))) continue;
     if (isGenerated(file)) continue;
     counted += Number(added) + Number(deleted);
@@ -313,4 +339,11 @@ async function main() {
   process.exit(findings.length > 0 ? 2 : 0);
 }
 
-await main();
+// Run only when invoked as the hook. Importing the module — the tests do, for
+// the pure functions above — must not execute a gate.
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  await main();
+}
