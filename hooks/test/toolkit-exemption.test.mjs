@@ -58,9 +58,11 @@ test("checkHardcodedCommitSha: a full SHA in a file classed `test` is a finding,
     isToolkit: () => false,
   });
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].path, "hooks/test/x.test.mjs");
-  assert.match(findings[0].problem, /daa59d0cf1d039b997b830eb1029a49d2aa7d099/);
-  assert.match(findings[0].problem, /consuming repository's history does not/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.path, "hooks/test/x.test.mjs");
+  assert.match(finding.problem, /daa59d0cf1d039b997b830eb1029a49d2aa7d099/);
+  assert.match(finding.problem, /consuming repository's history does not/);
 });
 
 test("checkHardcodedCommitSha: the identical SHA in a file NOT classed `test` is out of scope — a configuration-classed CI workflow pinning a GitHub Action to its commit SHA is a security practice, not this defect", () => {

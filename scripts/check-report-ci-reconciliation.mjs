@@ -80,9 +80,11 @@ export function extractGateFailLabels(logText, gate = "gate 6") {
   for (const rawLine of (logText || "").split(/\r?\n/)) {
     const line = stripLogLinePrefix(rawLine).trim();
     const m = GATE_FAIL_RE.exec(line);
-    if (!m) continue;
-    if (m[1].trim() !== gate) continue;
-    labels.push(m[2].trim());
+    const gateName = m?.[1];
+    const label = m?.[2];
+    if (gateName === undefined || label === undefined) continue;
+    if (gateName.trim() !== gate) continue;
+    labels.push(label.trim());
   }
   return labels;
 }
@@ -127,9 +129,8 @@ export function checkReportCiReconciliation(
   );
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const args = process.argv.slice(2);
   const reportPath = args[0];

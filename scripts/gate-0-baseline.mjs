@@ -78,11 +78,11 @@ if (build.status !== 0) {
 // Check 5 — green test suite, with counts quoted rather than summarised.
 const tests = run("node", ["--test", "hooks/test/hooks.test.mjs"]);
 const out = (tests.stdout || "") + (tests.stderr || "");
-for (const [k, re] of [
+for (const [k, re] of /** @type {[string, RegExp][]} */ ([
   ["pass", /# pass (\d+)|ℹ pass (\d+)/],
   ["fail", /# fail (\d+)|ℹ fail (\d+)/],
   ["skipped", /# skipped (\d+)|ℹ skipped (\d+)/],
-]) {
+])) {
   const m = out.match(re);
   counts[k] = m ? Number(m[1] || m[2]) : "?";
 }

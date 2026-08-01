@@ -316,9 +316,8 @@ export async function checkRefusalProofs() {
   return { refuses, doesNotRefuse, noFixture };
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { refuses, doesNotRefuse, noFixture } = await checkRefusalProofs();
   for (const c of refuses)

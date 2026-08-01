@@ -102,7 +102,10 @@ export function coveredFilesFromCobertura(xml) {
   const files = new Set();
   const re = /<class\b[^>]*\bfilename="([^"]+)"/g;
   let m;
-  while ((m = re.exec(xml))) files.add(m[1].replace(/\\/g, "/"));
+  while ((m = re.exec(xml))) {
+    const f = m[1];
+    if (f) files.add(f.replace(/\\/g, "/"));
+  }
   return [...files];
 }
 
@@ -202,9 +205,8 @@ export function checkToolingTestSuiteExists({
   ];
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const declared = checkToolingClassDeclared();
   const { findings: leakFindings, skips } = checkToolingCoverageLeakage();

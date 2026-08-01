@@ -270,8 +270,10 @@ const REQUIRED = ["gate 6 (ubuntu-latest)", "gate 6 (windows-latest)"];
 test("evaluateBranchProtection: no protection configured at all is refused, naming the branch", () => {
   const findings = evaluateBranchProtection(null, "main", REQUIRED);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /main/);
-  assert.match(findings[0].problem, /no branch protection configured/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /main/);
+  assert.match(finding.problem, /no branch protection configured/);
 });
 
 test("evaluateBranchProtection: fully configured protection matching every required check has no findings", () => {
@@ -291,7 +293,9 @@ test("evaluateBranchProtection: a matrix leg missing from the required list is n
   };
   const findings = evaluateBranchProtection(configured, "main", REQUIRED);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /gate 6 \(windows-latest\)/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /gate 6 \(windows-latest\)/);
 });
 
 test("evaluateBranchProtection: each policy 16-24 gap is its own finding — admin override, review, stale dismissal, conversation resolution, force push, deletion, linear history, up to date", () => {
@@ -330,11 +334,10 @@ test("evaluateBranchProtection: a required review present but not dismissing sta
   };
   const findings = evaluateBranchProtection(configured, "main", REQUIRED);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /does not dismiss a stale approval/);
-  assert.doesNotMatch(
-    findings[0].problem,
-    /does not require an approving review/,
-  );
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /does not dismiss a stale approval/);
+  assert.doesNotMatch(finding.problem, /does not require an approving review/);
 });
 
 test("checkBranchProtection is a visible skip, naming gh, when gh is not on PATH", async () => {
@@ -396,7 +399,11 @@ test("checkBranchProtection recovers via gh's own default-branch field when orig
       if (args[0] === "api" && args[1] === "repos/:owner/:repo") {
         return { status: 0, stdout: "main\n" };
       }
-      if (args[0] === "api" && /protection$/.test(args[1])) {
+      if (
+        args[0] === "api" &&
+        args[1] !== undefined &&
+        /protection$/.test(args[1])
+      ) {
         return { status: 1, stderr: "gh: Branch not protected (HTTP 404)" };
       }
       throw new Error(`unexpected gh call: ${args.join(" ")}`);
@@ -408,8 +415,10 @@ test("checkBranchProtection recovers via gh's own default-branch field when orig
     "recovery must not fall back to a skip once gh's default-branch field resolved the branch",
   );
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].path, "main");
-  assert.match(findings[0].problem, /no branch protection configured/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.path, "main");
+  assert.match(finding.problem, /no branch protection configured/);
 });
 
 test("checkBranchProtection is a visible skip when gh cannot resolve a GitHub repository (no GitHub remote)", async () => {
@@ -436,7 +445,11 @@ test("checkBranchProtection refuses unconfigured protection (404) end to end, wi
     run: (cmd, args) => {
       if (args[0] === "api" && args[1] === "user") return { status: 0 };
       if (args[0] === "repo") return { status: 0 };
-      if (args[0] === "api" && /protection$/.test(args[1])) {
+      if (
+        args[0] === "api" &&
+        args[1] !== undefined &&
+        /protection$/.test(args[1])
+      ) {
         return { status: 1, stderr: "gh: Branch not protected (HTTP 404)" };
       }
       throw new Error(`unexpected gh call: ${args.join(" ")}`);
@@ -444,7 +457,9 @@ test("checkBranchProtection refuses unconfigured protection (404) end to end, wi
   });
   assert.deepEqual(skips, []);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /no branch protection configured/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no branch protection configured/);
 });
 
 test("checkBranchProtection is a visible skip, not a finding, when gh cannot read protection at all (403 — no admin token, or GitHub Pro required)", async () => {
@@ -456,7 +471,11 @@ test("checkBranchProtection is a visible skip, not a finding, when gh cannot rea
     run: (cmd, args) => {
       if (args[0] === "api" && args[1] === "user") return { status: 0 };
       if (args[0] === "repo") return { status: 0 };
-      if (args[0] === "api" && /protection$/.test(args[1])) {
+      if (
+        args[0] === "api" &&
+        args[1] !== undefined &&
+        /protection$/.test(args[1])
+      ) {
         return {
           status: 1,
           stderr:
@@ -484,7 +503,11 @@ test("checkBranchProtection passes when the live protection JSON matches the der
     run: (cmd, args) => {
       if (args[0] === "api" && args[1] === "user") return { status: 0 };
       if (args[0] === "repo") return { status: 0 };
-      if (args[0] === "api" && /protection$/.test(args[1])) {
+      if (
+        args[0] === "api" &&
+        args[1] !== undefined &&
+        /protection$/.test(args[1])
+      ) {
         return { status: 0, stdout: JSON.stringify(FULL_PROTECTION) };
       }
       throw new Error(`unexpected gh call: ${args.join(" ")}`);
@@ -556,8 +579,10 @@ test("evaluateRepositoryFeatures: secret scanning disabled on a public repositor
     secretScanning: "disabled",
   });
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].check, "secret scanning");
-  assert.match(findings[0].problem, /public repository/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.check, "secret scanning");
+  assert.match(finding.problem, /public repository/);
   assert.deepEqual(
     skips.filter((s) => /^secret scanning/.test(s)),
     [],
@@ -585,7 +610,9 @@ test("evaluateRepositoryFeatures: push protection follows the same public/privat
     pushProtection: "disabled",
   });
   assert.equal(publicCase.findings.length, 1);
-  assert.equal(publicCase.findings[0].check, "push protection");
+  const publicFinding = publicCase.findings[0];
+  assert.ok(publicFinding, "expected a public-case finding");
+  assert.equal(publicFinding.check, "push protection");
 
   const privateCase = evaluateRepositoryFeatures({
     visibility: "private",
@@ -605,7 +632,9 @@ test("evaluateRepositoryFeatures: code scanning 'disabled' (its own endpoint rea
   });
   assert.equal(publicCase.findings.length, 1);
   assert.equal(privateCase.findings.length, 1);
-  assert.equal(publicCase.findings[0].check, "code scanning");
+  const publicFinding = publicCase.findings[0];
+  assert.ok(publicFinding, "expected a public-case finding");
+  assert.equal(publicFinding.check, "code scanning");
 });
 
 test("evaluateRepositoryFeatures: code scanning reported unavailable (its own endpoint failed) is a skip naming the platform's own message, never a finding", () => {
@@ -819,6 +848,7 @@ test("regression guard: every GitHub Actions `uses:` in every workflow is pinned
   for (const file of files) {
     const content = readFileSync(join(workflowsDir, file), "utf8");
     for (const [, action, ref] of content.matchAll(usesRe)) {
+      assert.ok(ref, "expected a ref");
       checked += 1;
       assert.match(
         ref,
@@ -861,8 +891,10 @@ test("quality-script wiring: a script with no gate wiring and no on-demand decla
   assert.deepEqual(wired, []);
   assert.deepEqual(onDemand, []);
   assert.equal(unwired.length, 1);
-  assert.match(unwired[0], /typecheck/);
-  assert.match(unwired[0], /no gate.*invokes it/);
+  const entry = unwired[0];
+  assert.ok(entry, "expected an unwired entry");
+  assert.match(entry, /typecheck/);
+  assert.match(entry, /no gate.*invokes it/);
 });
 
 test("quality-script wiring: a WIRING claim that no longer matches the file's actual content is reported unwired, not trusted blind", () => {
@@ -876,6 +908,8 @@ test("quality-script wiring: a WIRING claim that no longer matches the file's ac
   );
   assert.deepEqual(wired, []);
   assert.equal(unwired.length, 1);
-  assert.match(unwired[0], /lint/);
-  assert.match(unwired[0], /drifted/);
+  const entry = unwired[0];
+  assert.ok(entry, "expected an unwired entry");
+  assert.match(entry, /lint/);
+  assert.match(entry, /drifted/);
 });

@@ -27,7 +27,9 @@ test("missingLicenceTableEntries: a row citing a tabled licence raises nothing; 
     1,
     "the same untabled licence is named once, not once per row",
   );
-  assert.match(findings[0].problem, /'GPL-3\.0-only'/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /'GPL-3\.0-only'/);
 });
 
 test("missingLicenceTableEntries: a compound expression's leaf with no table entry is named; the tabled leaf is not", () => {
@@ -35,8 +37,10 @@ test("missingLicenceTableEntries: a compound expression's leaf with no table ent
     { dep: "a", version: "1.0.0", licence: "MIT OR GPL-3.0-only" },
   ]);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /GPL-3\.0-only/);
-  assert.doesNotMatch(findings[0].problem, /'MIT'/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /GPL-3\.0-only/);
+  assert.doesNotMatch(finding.problem, /'MIT'/);
 });
 
 test("missingLicenceTableEntries: a blank or unknown licence is left to the policy check's own finding, not duplicated here", () => {

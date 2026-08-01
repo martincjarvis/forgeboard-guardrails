@@ -41,14 +41,13 @@ test("dependency advisory scan blocks a runtime dependency at high severity", ()
     runtimeNames: new Set(["left-pad"]),
   });
   assert.equal(findings.length, 1);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
   assert.match(
-    findings[0].problem,
+    finding.problem,
     /left-pad carries a high advisory \(runtime dependency\)/,
   );
-  assert.match(
-    findings[0].remedy,
-    /block severity has no accepted-record path/,
-  );
+  assert.match(finding.remedy, /block severity has no accepted-record path/);
 });
 
 test("dependency advisory scan does not push back a development-only dependency below its band", () => {
@@ -70,7 +69,9 @@ test("dependency advisory scan pushes back a development-only dependency at high
     1,
     "high severity, dev-only, is the push-back band",
   );
-  assert.match(unaccepted[0].problem, /ghsa-aaaa-bbbb-cccc/);
+  const finding = unaccepted[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /ghsa-aaaa-bbbb-cccc/);
 
   const accepted = classifyAdvisories(report, {
     runtimeNames: new Set(),
@@ -102,12 +103,14 @@ test("dependency advisory scan's push-back remedy names all three paths — upgr
   ]);
   const findings = classifyAdvisories(report, { runtimeNames: new Set() });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].remedy, /upgrade/i);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.remedy, /upgrade/i);
   assert.match(
-    findings[0].remedy,
+    finding.remedy,
     /overrides.*resolutions|resolutions.*overrides/i,
   );
-  assert.match(findings[0].remedy, /Accepted ADR/);
+  assert.match(finding.remedy, /Accepted ADR/);
 });
 
 test("dependency advisory scan is a visible skip, naming the reason, when not triggered", () => {

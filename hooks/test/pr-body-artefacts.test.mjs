@@ -120,7 +120,9 @@ test("disclosedFindingLines: bullets under a heading naming outstanding work are
     "- ran the suite locally\n";
   const findings = disclosedFindingLines(body);
   assert.equal(findings.length, 2, "only the two bullets under Outstanding");
-  assert.match(findings[0].text, /ADR-0004/);
+  const finding = findings[0];
+  assert.ok(finding, "expected at least one finding");
+  assert.match(finding.text, /ADR-0004/);
 });
 
 test("disclosedFindingLines: a bold-only line opens a section too — the invented-heading shape audit 17 found", () => {
@@ -130,7 +132,9 @@ test("disclosedFindingLines: a bold-only line opens a section too — the invent
     "- the gap-fill scan misparses this file\n";
   const findings = disclosedFindingLines(body);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].text, /misparses/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.text, /misparses/);
 });
 
 test("findUncitedFindings: reproduces audit 17's own case — an invented heading with an uncited bullet is a finding", () => {
@@ -143,7 +147,9 @@ test("findUncitedFindings: reproduces audit 17's own case — an invented headin
     registerIdentities: ["no-eval"],
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /no register row, Proposed\/Accepted ADR/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no register row, Proposed\/Accepted ADR/);
 });
 
 test("findUncitedFindings: a bullet citing a real, reserved artefact is not a finding", () => {
@@ -207,6 +213,12 @@ test("readPrBody: a missing --file path is a named skip, never a silent empty bo
   ]);
   assert.equal(body, null);
   assert.match(skip, /could not read/);
+});
+
+test("readPrBody: --file with no path following it is a named skip, not a read of undefined", () => {
+  const { body, skip } = readPrBody(["--file"]);
+  assert.equal(body, null);
+  assert.match(skip, /no path/);
 });
 
 test("readPrBody: with no --file, falls back to gh pr view for an already-open pull request", () => {

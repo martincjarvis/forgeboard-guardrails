@@ -63,7 +63,9 @@ test("checkCspellResidue: a Node-only repository's cspell.json carrying dead .NE
   });
   assert.equal(findings.length, 4);
   assert.ok(findings.every((f) => f.path === "cspell.json"));
-  assert.match(findings[0].problem, /'Roslynator'.*dotnet/);
+  const finding = findings[0];
+  assert.ok(finding, "expected at least one finding");
+  assert.match(finding.problem, /'Roslynator'.*dotnet/);
 });
 
 test("checkCspellResidue: the same word list passes clean once the .NET manifest is actually present — the stack is no longer outside the derived list", () => {
@@ -144,7 +146,9 @@ test("checkCspellResidue: an occurrence only in a file classed `tooling` does no
     1,
     "a word appearing only in a tooling-classed file is still residue",
   );
-  assert.match(findingsWithClassExcluded[0].problem, /'Roslynator'.*dotnet/);
+  const finding = findingsWithClassExcluded[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /'Roslynator'.*dotnet/);
 
   // The same corpus, with the tooling file left unclassified (every file
   // reads as production) — this is the pre-fix-59 shape, and it must NOT

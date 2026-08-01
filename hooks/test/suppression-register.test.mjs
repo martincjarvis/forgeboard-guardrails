@@ -234,8 +234,12 @@ test("evaluateRegisterRows: a missing justification and a 'never' removal condit
   ];
   const { blocking, pendingApproval } = evaluateRegisterRows(rows);
   assert.equal(blocking.length, 2);
-  assert.match(blocking[0].problem, /Justification/);
-  assert.match(blocking[1].problem, /never/);
+  const first = blocking[0];
+  const second = blocking[1];
+  assert.ok(first, "expected a first blocking finding");
+  assert.ok(second, "expected a second blocking finding");
+  assert.match(first.problem, /Justification/);
+  assert.match(second.problem, /never/);
   assert.deepEqual(pendingApproval, []);
 });
 
@@ -253,8 +257,10 @@ test("pendingSuppressionApprovals / unapprovedSuppressionFindings: gate 2's push
   assert.equal(pending.length, 1, "gate 2 sees the row as pending approval");
   const blocked = unapprovedSuppressionFindings(rows);
   assert.equal(blocked.length, 1, "gate 6 turns the same row into a finding");
-  assert.equal(blocked[0].check, "suppression register — approver");
-  assert.match(blocked[0].problem, /no-console.*no approver/);
+  const first = blocked[0];
+  assert.ok(first, "expected a blocking finding");
+  assert.equal(first.check, "suppression register — approver");
+  assert.match(first.problem, /no-console.*no approver/);
 });
 
 test("fix 35: gate 2 (pre-commit.mjs) allows a commit whose suppression register row is complete except for the approver — a push back, not a block", () => {

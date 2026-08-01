@@ -123,7 +123,8 @@ export function citesReservedArtefact(
   { adrNumbers = new Set(), registerIdentities = [] } = {},
 ) {
   const adrMatch = /ADR-0*(\d+)/i.exec(lineText);
-  if (adrMatch && adrNumbers.has(adrMatch[1].padStart(4, "0"))) return true;
+  const adrNum = adrMatch?.[1];
+  if (adrNum && adrNumbers.has(adrNum.padStart(4, "0"))) return true;
 
   const lower = lineText.toLowerCase();
   if (
@@ -173,7 +174,8 @@ export function disclosedFindingLines(body) {
     }
     if (!inSection) continue;
     const m = /^[-*]\s+(.*)$/.exec(line);
-    if (m) findings.push({ line: i + 1, text: m[1] });
+    const text = m?.[1];
+    if (text !== undefined) findings.push({ line: i + 1, text });
   }
   return findings;
 }
@@ -220,6 +222,12 @@ export function readPrBody(
   const fileIdx = args.indexOf("--file");
   if (fileIdx !== -1) {
     const path = args[fileIdx + 1];
+    if (!path) {
+      return {
+        body: null,
+        skip: "--file given with no path following it",
+      };
+    }
     try {
       return { body: readFileSync(path, "utf8"), skip: null };
     } catch (err) {
@@ -245,9 +253,8 @@ export function readPrBody(
   return { body: view.stdout || "", skip: null };
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { body, skip } = readPrBody(process.argv.slice(2));
   if (skip) {

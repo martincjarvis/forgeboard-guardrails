@@ -31,10 +31,12 @@ test("evaluateRegisterRow: a licence that fails the decision rule blocks when th
     null,
   );
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /gnarly-thing@1\.0\.0/);
-  assert.match(findings[0].problem, /WTFPL/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /gnarly-thing@1\.0\.0/);
+  assert.match(finding.problem, /WTFPL/);
   assert.match(
-    findings[0].remedy,
+    finding.remedy,
     /Decision record column and the person in Approver/,
   );
 });
@@ -93,10 +95,9 @@ test("evaluateRegisterRow: a licence absent from the table blocks and asks for a
     null,
   );
   assert.equal(findings.length, 1);
-  assert.match(
-    findings[0].problem,
-    /has no entry in scripts\/licence-table\.mjs/,
-  );
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /has no entry in scripts\/licence-table\.mjs/);
 });
 
 test("acceptedAdvisoryIds reads GHSA ids only from Accepted ADRs, not Proposed ones", () => {

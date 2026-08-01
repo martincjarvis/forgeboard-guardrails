@@ -66,8 +66,10 @@ test("checkToolingClassDeclared: a consuming repository with ported gate scripts
     isToolkit: () => false,
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /gate-6-pull-request\.mjs/);
-  assert.match(findings[0].problem, /no file anywhere.*classed `tooling`/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /gate-6-pull-request\.mjs/);
+  assert.match(finding.problem, /no file anywhere.*classed `tooling`/);
 });
 
 test("checkToolingClassDeclared: a consuming repository that did class at least one file tooling raises nothing", () => {
@@ -115,8 +117,10 @@ test("checkToolingTestSuiteExists: tooling-classed scripts with no test file nam
     readFile: () => "",
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /check-foo\.mjs/);
-  assert.match(findings[0].problem, /no tooling tests suite exists/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /check-foo\.mjs/);
+  assert.match(finding.problem, /no tooling tests suite exists/);
 });
 
 test("checkToolingTestSuiteExists: a test file naming one tooling script by its basename is enough — the whole class need not be enumerated", () => {
@@ -199,7 +203,9 @@ test("checkToolingCoverageLeakage: no report yet this run is a visible skip, not
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /no coverage\/cobertura-coverage\.xml/);
+  const skip = skips[0];
+  assert.ok(skip, "expected a skip");
+  assert.match(skip, /no coverage\/cobertura-coverage\.xml/);
 });
 
 test("checkToolingCoverageLeakage: a tooling-classed file present in the report is a finding, named", () => {
@@ -213,7 +219,9 @@ test("checkToolingCoverageLeakage: a tooling-classed file present in the report 
   });
   assert.equal(skips.length, 0);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /tools\/check-foo\.mjs/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /tools\/check-foo\.mjs/);
 });
 
 test("checkToolingCoverageLeakage: a clean report with no tooling-classed file in it raises nothing", () => {

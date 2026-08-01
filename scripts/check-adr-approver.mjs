@@ -148,10 +148,13 @@ export function adrNumbersCitedByRegisters(registersDir = REGISTERS_DIR) {
 function parseFrontmatter(text) {
   const fields = {};
   const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
-  const block = fm ? fm[1] : "";
+  const block = fm?.[1] ?? "";
   for (const line of block.split(/\r?\n/)) {
     const m = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
-    if (m) fields[m[1].toLowerCase()] = m[2].trim();
+    const key = m?.[1];
+    const val = m?.[2];
+    if (key !== undefined && val !== undefined)
+      fields[key.toLowerCase()] = val.trim();
   }
   return fields;
 }
@@ -229,9 +232,8 @@ export function checkAdrApprover(
   return findings;
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   report("gate 2", checkAdrApprover(), []);
 }

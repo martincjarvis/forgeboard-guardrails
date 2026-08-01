@@ -153,9 +153,8 @@ export function checkDependencyAdvisories(scanTriggered) {
   };
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   // Manual or scheduled run: always in scope — there is no staged/changed set
   // to ask, the way pre-commit.mjs and gate-6-pull-request.mjs can.

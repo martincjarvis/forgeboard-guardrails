@@ -188,9 +188,8 @@ export function checkLinks(files) {
 
 // CLI — when run directly, checks the whole tracked corpus.
 import { pathToFileURL } from "node:url";
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { report } = await import("./lib.mjs");
   const files = process.argv.slice(2).filter((a) => !a.startsWith("-"));

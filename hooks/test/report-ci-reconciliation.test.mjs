@@ -145,10 +145,9 @@ test("findUnreconciledCiFindings reproduces audit 18's own case: a report with z
   ].join("\n");
   const findings = findUnreconciledCiFindings(reportText, ciLog);
   assert.equal(findings.length, 1);
-  assert.match(
-    findings[0].problem,
-    /cross-stack dependency scan \(osv-scanner\)/,
-  );
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /cross-stack dependency scan \(osv-scanner\)/);
 });
 
 test("findUnreconciledCiFindings raises nothing once the report names the CI finding, wherever in the report it appears", () => {
@@ -177,5 +176,7 @@ test("checkReportCiReconciliation reads both files by path, injected for testing
     readFile: (p) => files[p],
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /lint \(eslint\)/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /lint \(eslint\)/);
 });

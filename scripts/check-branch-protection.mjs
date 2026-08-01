@@ -45,11 +45,15 @@ function indentOf(line) {
 function applyJobBodyLine(job, line, indent, bodyIndent) {
   if (indent === bodyIndent) {
     const nameMatch = /^name:\s*(.+)$/.exec(line);
-    if (nameMatch) job.name = nameMatch[1].trim();
+    const jobName = nameMatch?.[1];
+    if (jobName) job.name = jobName.trim();
   }
   const listMatch = /^([A-Za-z0-9_-]+):\s*\[(.+)\]\s*$/.exec(line);
   if (listMatch) {
-    job.matrix[listMatch[1]] = listMatch[2].split(",").map((s) => s.trim());
+    const key = listMatch[1];
+    const val = listMatch[2];
+    if (key !== undefined && val !== undefined)
+      job.matrix[key] = val.split(",").map((s) => s.trim());
   }
 }
 
@@ -99,7 +103,8 @@ function parseWorkflowJobs(workflowText) {
 function contextsForJob(job) {
   const label = job.name || job.id;
   const varMatch = /\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}/.exec(label);
-  const values = varMatch ? job.matrix[varMatch[1]] : null;
+  const axis = varMatch?.[1];
+  const values = axis ? job.matrix[axis] : null;
   if (!values) return [label];
   return values.map((v) =>
     label.replace(/\$\{\{\s*matrix\.[A-Za-z0-9_-]+\s*\}\}/, v),
@@ -372,9 +377,8 @@ export async function checkBranchProtection({
   };
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { findings, skips } = await checkBranchProtection();
   report("gate 7", findings, skips);

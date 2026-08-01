@@ -75,8 +75,10 @@ test("findComponentCountContradiction: a frontmatter summary reading multi-compo
     "---\ntype: reference\nsummary: How a multi-component app is versioned.\nread_when: Setting up deployment.\n---\n\n# Deployment strategy\n";
   const findings = findComponentCountContradiction(text, 1);
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].field, "frontmatter");
-  assert.equal(findings[0].line, 3);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.field, "frontmatter");
+  assert.equal(finding.line, 3);
 });
 
 test("findComponentCountContradiction: a title reading multi-component is a finding, distinct from the frontmatter", () => {
@@ -84,7 +86,9 @@ test("findComponentCountContradiction: a title reading multi-component is a find
     "---\ntype: reference\nsummary: fine\n---\n\n# The multi-component release process\n";
   const findings = findComponentCountContradiction(text, 1);
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].field, "title");
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.field, "title");
 });
 
 test("findComponentCountContradiction: raises nothing once the repository actually has more than one component", () => {
@@ -99,7 +103,9 @@ test("findComponentCountContradiction: a lede reading multi-component is a findi
     "# Deployment strategy\n\nHow a multi-component app is versioned per-component, packaged, and deployed.\n";
   const findings = findComponentCountContradiction(text, 1);
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].field, "lede");
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.field, "lede");
 });
 
 test("findComponentCountContradiction: a clean frontmatter, title and lede raise nothing — body prose past the lede is not scanned", () => {
@@ -124,7 +130,9 @@ test("regression guard: findComponentCountContradiction run for real against thi
     findings.length > 0,
     "deployment-strategy.md's own frontmatter still reads as multi-component; this is the retained-standard defect fix 72 exists to catch, not a false positive",
   );
-  assert.equal(findings[0].field, "frontmatter");
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.field, "frontmatter");
 });
 
 test("findMultiComponentContent: the phrase inside a paragraph rather than a heading is not a finding — only the section itself is", async (t) => {

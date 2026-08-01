@@ -301,9 +301,8 @@ function pathMatches(scope, file) {
   return f === s || f.endsWith("/" + s) || s === f.replace(/\.[^.]+$/, "");
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const files = process.argv.slice(2).filter((a) => !a.startsWith("-"));
   const findings = checkSuppressions(files.length ? files : undefined);

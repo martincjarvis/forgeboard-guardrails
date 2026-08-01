@@ -37,7 +37,9 @@ test("checkScriptFileWiring: a check-*.mjs file no other script imports and no d
   assert.deepEqual(wired, []);
   assert.deepEqual(onDemand, []);
   assert.equal(unwired.length, 1);
-  assert.match(unwired[0], /check-orphan\.mjs/);
+  const finding = unwired[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding, /check-orphan\.mjs/);
 });
 
 test("checkScriptFileWiring: a check-*.mjs file another tracked script imports is wired", () => {
@@ -75,8 +77,10 @@ test("checkIndexGateClaims: an index entry naming a gate that does not actually 
   };
   const findings = checkIndexGateClaims(indexText, gateSources);
   assert.equal(findings.length, 1);
-  assert.match(findings[0], /check-orphan\.mjs/);
-  assert.match(findings[0], /gate 7/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding, /check-orphan\.mjs/);
+  assert.match(finding, /gate 7/);
 });
 
 test("checkIndexGateClaims: an index entry naming a gate that does invoke the script raises nothing", () => {
@@ -191,8 +195,10 @@ test("checkLicenceTableReferences: a reference answering with a non-2xx status i
     status: 404,
   }));
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /Moved/);
-  assert.match(findings[0].problem, /404/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /Moved/);
+  assert.match(finding.problem, /404/);
 });
 
 test("checkLicenceTableReferences: a reference the network cannot reach at all is its own finding, distinct from a bad status", async () => {
@@ -203,8 +209,10 @@ test("checkLicenceTableReferences: a reference the network cannot reach at all i
     throw new Error("getaddrinfo ENOTFOUND example.invalid");
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /Unreachable/);
-  assert.match(findings[0].problem, /could not be reached/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /Unreachable/);
+  assert.match(finding.problem, /could not be reached/);
 });
 
 // --- Fix 92. gate-7-on-demand.mjs's own print loop used to print only
@@ -239,7 +247,9 @@ const REAL_LIZARD_STDOUT =
   "     23      23.0    21.0      248.0         1     complex-fixture.mjs\n";
 
 test("formatFindingBody: the pre-fix truncation on real secretlint stdout prints nothing — stdout opens with a blank line", () => {
-  const oldPrint = REAL_SECRETLINT_STDOUT.split("\n")[0].slice(0, 200);
+  const firstLine = REAL_SECRETLINT_STDOUT.split("\n")[0];
+  assert.ok(firstLine !== undefined, "expected a first line");
+  const oldPrint = firstLine.slice(0, 200);
   assert.equal(
     oldPrint,
     "",
@@ -257,7 +267,9 @@ test("formatFindingBody: real secretlint stdout — a leading blank line — sti
 });
 
 test("formatFindingBody: the pre-fix truncation on real lizard stdout prints only the decorative banner — the per-function row never appears", () => {
-  const oldPrint = REAL_LIZARD_STDOUT.split("\n")[0].slice(0, 200);
+  const firstLine = REAL_LIZARD_STDOUT.split("\n")[0];
+  assert.ok(firstLine !== undefined, "expected a first line");
+  const oldPrint = firstLine.slice(0, 200);
   assert.equal(
     oldPrint,
     "================================================",

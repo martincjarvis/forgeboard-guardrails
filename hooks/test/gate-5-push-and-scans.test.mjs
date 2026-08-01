@@ -542,8 +542,10 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
     "an unavailable tool must never read as a passing scan",
   );
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /osv-scanner/);
-  assert.match(skips[0], /not on PATH/);
+  const skip = skips[0];
+  assert.ok(skip, "expected a skip");
+  assert.match(skip, /osv-scanner/);
+  assert.match(skip, /not on PATH/);
 });
 
 // --- lib.mjs:classifyOsvScannerOutcome / extractOsvJsonFindings /
@@ -660,8 +662,10 @@ test("checkOsvScanner: a scanner failure with no parseable finding (the audit-12
     "a refusal with no named vulnerability must never block as a finding",
   );
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /osv-scanner/);
-  assert.doesNotMatch(skips[0], /GHSA|CVE|OSV-/);
+  const skip = skips[0];
+  assert.ok(skip, "expected a skip");
+  assert.match(skip, /osv-scanner/);
+  assert.doesNotMatch(skip, /GHSA|CVE|OSV-/);
 });
 
 test("checkOsvScanner: a real advisory in osv-scanner's JSON output is a finding, named by id", () => {

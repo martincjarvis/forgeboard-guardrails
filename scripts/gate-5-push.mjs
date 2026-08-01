@@ -32,7 +32,7 @@ const baseline = resolveBase();
 const rl = createInterface({ input: process.stdin });
 for await (const line of rl) {
   const [oldrev, newrev] = line.split(" ");
-  if (!newrev) continue;
+  if (!newrev || oldrev === undefined) continue;
   const isNewBranch = /^0+$/.test(oldrev);
   if (isNewBranch && !baseline) {
     skips.push(

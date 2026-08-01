@@ -49,8 +49,10 @@ test("parseRegisterRows: identity is the first two cells, approver is the last â
       "| _ | | | | |\n",
   );
   assert.equal(rows.length, 1, "the sentinel row is excluded");
-  assert.equal(rows[0].identity, "my-rule|src/x.mjs");
-  assert.equal(rows[0].approver, "Jane Rivera");
+  const row = rows[0];
+  assert.ok(row, "expected a row");
+  assert.equal(row.identity, "my-rule|src/x.mjs");
+  assert.equal(row.approver, "Jane Rivera");
 });
 
 test("newlyApprovedAdrFinding: an Accepted, risk-accepting ADR introduced by this commit (no 'before' text) is refused", () => {
@@ -102,8 +104,10 @@ test("newlyApprovedRegisterRowFindings: a row with no matching identity in the '
     after,
   );
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /my-rule\|src\/x\.mjs/);
-  assert.match(findings[0].problem, /no row with that identity existed/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /my-rule\|src\/x\.mjs/);
+  assert.match(finding.problem, /no row with that identity existed/);
 });
 
 test("newlyApprovedRegisterRowFindings: the same row is not refused when it already existed with a blank approver â€” filling only the approver cell is the intended two-step", () => {

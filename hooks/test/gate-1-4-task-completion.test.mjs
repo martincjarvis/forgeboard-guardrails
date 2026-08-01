@@ -277,8 +277,10 @@ test("findChangeSizeOverrideFindings blocks a marker with no register row at all
     branch: "feature/bootstrap",
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /no.*row for branch 'feature\/bootstrap'/);
-  assert.equal(findings[0].path, CHANGE_SIZE_OVERRIDE_REGISTER_PATH);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no.*row for branch 'feature\/bootstrap'/);
+  assert.equal(finding.path, CHANGE_SIZE_OVERRIDE_REGISTER_PATH);
 });
 
 test("findChangeSizeOverrideFindings blocks a row with a blank approver — not yet a resolved decision", () => {
@@ -352,7 +354,9 @@ test("findChangeSizeOverrideFindings reports the branch itself as unresolved rat
     branch: "",
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /own name could/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /own name could/);
 });
 
 test("approvedOverrideRowsForBranch matches by branch, case-insensitively, ignoring the counted-lines cell", () => {
