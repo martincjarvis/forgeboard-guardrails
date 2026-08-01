@@ -139,7 +139,7 @@ export function report(gate, findings, skips = []) {
 
 const DECORATIVE_LINE_RE = /^[=-]{5,}$/;
 
-/** Fix 92 — gate 7's own print loop used to print only
+/** gate 7's own print loop used to print only
  *  `String(f.problem).split("\n")[0].slice(0, 200)`, on the assumption that
  *  an external tool's first output line summarises it. True for neither
  *  tool that tripped it: secretlint's stdout opens with a blank line before
@@ -394,7 +394,7 @@ export function normalizeSarifPaths(path) {
   writeFileSync(path, JSON.stringify(sarif));
 }
 
-/** Fix 25 — semgrep's SARIF output includes a finding suppressed in source
+/** semgrep's SARIF output includes a finding suppressed in source
  *  (an inline marker comment) rather than omitting it, marking it
  *  `suppressions: [{ kind: "inSource" }]` so a consumer can choose to hide
  *  it. gate-6-pull-request.mjs's own check honours the suppression and
@@ -427,9 +427,9 @@ export function filterSuppressedSarif(path) {
   writeFileSync(path, JSON.stringify(sarif));
 }
 
-/** Fix 11 (gate-5-push.md: "A broken coverage command blocks the push
- *  without claiming a shortfall") — splits the test verdict from the
- *  coverage verdict for a single combined `c8 --check-coverage ... node
+/** Splits the test verdict from the coverage verdict (gate-5-push.md:
+ *  "A broken coverage command blocks the push
+ *  without claiming a shortfall") for a single combined `c8 --check-coverage ... node
  *  --test ...` invocation, rather than reporting one compound "either a test
  *  failed or coverage is below the floor" finding that cannot name its own
  *  cause.
@@ -501,7 +501,7 @@ export function classifyDiffCoverOutcome(output) {
   };
 }
 
-/** Fix 51 — a percentage computed from zero measured items is unavailable,
+/** A percentage computed from zero measured items is unavailable,
  *  not a pass: on a run whose test suite crashed before executing anything,
  *  the Cobertura report it wrote has zero instrumented statements, diff-cover
  *  finds no changed line to check against it, and prints `Total: 0 lines` /
@@ -520,15 +520,15 @@ export function diffCoverTotalLines(output) {
   return m ? Number(m[1]) : null;
 }
 
-/** osv-scanner (fix 44 — cross-gate-rules.md, "never claim more than was
+/** osv-scanner (cross-gate-rules.md, "never claim more than was
  *  checked"): a non-zero exit means either "vulnerabilities found" or "the
  *  scan itself did not complete" (a missing lockfile, an unsupported
  *  ecosystem, a network failure, a version mismatch) — the same shape
  *  classifyTestCoverageOutcome and classifyDiffCoverOutcome above already
  *  solve for their own tools, generalised to cross-gate-rules.md's own
  *  wording: "a refusal names the specific thing being refused; a refusal
- *  whose problem text contains no identifier is itself a finding." Audit 12
- *  found exactly that live: a CI run failed gate 6 with osv-scanner's own
+ *  whose problem text contains no identifier is itself a finding." That
+ *  exact case was found live: a CI run failed gate 6 with osv-scanner's own
  *  startup banner as the problem text and no vulnerability id anywhere in
  *  it, while the standalone osv-scanner check on the same commit passed
  *  clean — the exit code alone cannot tell "found something" from "could not

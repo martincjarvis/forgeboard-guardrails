@@ -1,12 +1,12 @@
 // cspell:ignore GHSA Uncited
-// Fix 68 — cross-gate-rules.md names five reserved classes a pull request
+// cross-gate-rules.md names five reserved classes a pull request
 // may still open with findings outstanding — a decision record or register
 // row accepting a risk, a licence, a suppression or an opt-out, and a
 // conflict between two standing directives — and says plainly: "A finding
 // the implementer could have fixed is a reason not to open yet, not a line
 // item to disclose and open anyway." That sentence had no check behind it.
 //
-// Audit 17's case: a pull request opened findings under an invented sixth
+// The demonstrated case: a pull request opened findings under an invented sixth
 // heading ("One tool limitation, documented rather than hidden") whose own
 // text named the fix it declined to apply, and six dependency advisories
 // beside it were called "a dependency-upgrade decision" with no ADR naming
@@ -30,7 +30,7 @@
 // Two ways to reach the body it checks, so the check is not stuck reading
 // a mistake after it has already shipped: `--file <path>` reads a draft
 // body straight off disk, for the implementer's own pre-`gh pr create`
-// check (skills/repository-bootstrap/SKILL.md, beside fix 65's own
+// check (skills/repository-bootstrap/SKILL.md, beside its own
 // precondition); no `--file` falls back to `gh pr view` against an
 // already-open pull request, for a reviewer checking one that exists
 // (docs/standards/guardrails/gate-6-pull-request.md, "Running it by
@@ -144,14 +144,14 @@ export function citesReservedArtefact(
   return false;
 }
 
-// A pull request body's disclosed-findings section, in the shape fix
-// 56/61/65 already require of it: a heading naming outstanding, reserved
-// or remaining work — or the bold-only pseudo-heading shape audit 17's own
-// invented class took ("**One tool limitation, documented rather than
+// A pull request body's disclosed-findings section, in the shape the
+// docs already require of it: a heading naming outstanding, reserved
+// or remaining work — or the bold-only pseudo-heading shape the
+// invented sixth class took ("**One tool limitation, documented rather than
 // hidden**") — followed by one bullet per finding. Scoped to that shape
 // deliberately: a body that abandons the required bulleted-list format for
-// free narrative prose is already the defect fix 56/61 exist to catch, and
-// this module does not additionally try to parse prose for it.
+// free narrative prose is already a defect the body-shape checks exist to
+// catch, and this module does not additionally try to parse prose for it.
 const SECTION_HEADING_RE =
   /^#{1,6}\s.*\b(outstanding|reserved|remain(?:ing|s)?|finding)/i;
 const ANY_HEADING_RE = /^#{1,6}\s/;

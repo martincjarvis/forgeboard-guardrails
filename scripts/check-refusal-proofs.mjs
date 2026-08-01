@@ -1,5 +1,5 @@
 // cspell:ignore PYTHONUTF fixtured fixturing xkcdblorptrousers GHSA
-// Fix 9a — the refusal-proof contract (docs/standards/guardrails/
+// The refusal-proof contract (docs/standards/guardrails/
 // cross-gate-rules.md, "Every blocking check proves it refuses").
 //
 // The defect class this closes: a check wired so that it structurally cannot
@@ -240,7 +240,7 @@ const CHECKS_WITH_FIXTURES = [
   {
     check:
       "cross-stack dependency scan (osv-scanner, gate 5 check 3 / gate 6 check 10)",
-    // Fix 44 — classifyOsvScannerOutcome is the pure classifier osv-scanner's
+    // classifyOsvScannerOutcome is the pure classifier osv-scanner's
     // own structured output feeds (extractOsvJsonFindings / extractOsvSarifFindings,
     // lib.mjs), the same layer classifyDiffCoverOutcome and classifyAdvisories
     // above are fixtured through: a synthetic advisory, not a live osv-scanner
@@ -257,14 +257,14 @@ const CHECKS_WITH_FIXTURES = [
  *  state for the protected-branch check, a resolved npm dependency tree for
  *  licence-register completeness) or is proven a different way already (gate
  *  2's lint wiring has its own dedicated regression test — hooks/test/
- *  hooks.test.mjs, fix 10 — not yet folded into this registry). A finding to
+ *  hooks.test.mjs — not yet folded into this registry). A finding to
  *  report, per the contract, not a row to skip. */
 const NO_FIXTURE = [
   "protected branch (gate 2 check 1) — needs a controlled git ref state (HEAD on the derived default branch); not yet fixtured here",
   "dependency lock sync (gate 2 check 3) — comparison logic is inline in pre-commit.mjs and gate-6-pull-request.mjs, not yet extracted for direct fixturing",
   "secret scan (gate 2 check 6) — needs secretlint resolvable from a scratch tree; not yet fixtured here",
   "file size (gate 2 check 10) — comparison logic is inline, not yet extracted for direct fixturing",
-  "per-path lint (gate 2 check 11) — proven by a dedicated regression test (fix 10, hooks/test/hooks.test.mjs), not yet folded into this registry",
+  "per-path lint (gate 2 check 11) — proven by a dedicated regression test (hooks/test/hooks.test.mjs), not yet folded into this registry",
   "build (gate 2 check 12) — self-referential for this repository (there is no second copy of tsc to break on purpose); not yet fixtured here",
   "unit and architecture tests (gate 2 check 13) — self-referential; not yet fixtured here",
   "repository-wide tests (gate 2 check 14) — self-referential; not yet fixtured here",

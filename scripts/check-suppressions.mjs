@@ -16,7 +16,7 @@ export const REGISTER = "docs/registers/suppression-register.md";
 const SELF_URL = import.meta.url;
 
 // Each marker: a directive and a function pulling every rule it names, as an
-// array (fix 33). Multiple rules on one line are legal — two analysers can
+// array. Multiple rules on one line are legal — two analysers can
 // name the same defect differently, or one fires several rules at one site
 // (hooks/lib/run.mjs:48 is exactly that case) — so every named rule is
 // checked independently against the register rather than the joined string
@@ -41,7 +41,7 @@ const MARKERS = [
   },
   {
     // Captures everything after the colon (not just a comma-free character
-    // class — fix 33's actual defect) so a comma-separated rule list is seen
+    // class — the defect this guards against) so a comma-separated rule list is seen
     // in full; splitRules then breaks it apart the same as every other
     // marker family.
     name: "nosemgrep",
@@ -82,7 +82,7 @@ function splitRules(rest) {
 }
 
 /** Every register row, fully parsed. Columns: Code | Scope | Justification |
- *  Removable when | Approved by (registers.md). Fix 34 — the marker-matching
+ *  Removable when | Approved by (registers.md). The marker-matching
  *  lookup below only ever needed the first two cells; register-row
  *  completeness (evaluateRegisterRows) needs every column, so all five are
  *  read here in one place rather than the first two being parsed twice. */
@@ -115,7 +115,7 @@ export function suppressionRegisterRows() {
   return rows;
 }
 
-/** Fix 34 — every column of a register row, not only whether a marker can
+/** Every column of a register row, not only whether a marker can
  *  find it by code+scope. `looksLikeTeamLabel` is check-adr-approver.mjs's
  *  own "person, not a team label" judgement, shared rather than
  *  re-implemented ("check-adr-approver.mjs already makes that judgement;
@@ -125,7 +125,7 @@ export function suppressionRegisterRows() {
  *  outright: a missing justification or removal condition, a removal
  *  condition of "never" (registers.md: "none of them is 'never'"), or an
  *  approver that reads as a team label or a machine. `pendingApproval` rows
- *  are otherwise complete with only the approver blank — fix 35 gives that
+ *  are otherwise complete with only the approver blank — that gets
  *  its own verdict per gate (gate 2 pushes back, gate 6 blocks), not a
  *  finding here.
  *  @param {{ code: string, scope: string, justification: string, removalCondition: string, approver: string }[]} rows */
@@ -167,7 +167,7 @@ export function evaluateRegisterRows(rows) {
   return { blocking, pendingApproval };
 }
 
-/** Fix 35 — rows complete except for approval, as data. `rows` is
+/** Rows complete except for approval, as data. `rows` is
  *  injectable for direct testing (the same shape checkAdrApprover's `adrDir`
  *  parameter takes); the production path (no argument) reads the real
  *  register. Gate 2 (pre-commit.mjs) prints these as a push back — allowed
@@ -180,7 +180,7 @@ export function pendingSuppressionApprovals(rows) {
     .pendingApproval;
 }
 
-/** Fix 35 — the same pending-approval rows, shaped as blocking findings.
+/** The same pending-approval rows, shaped as blocking findings.
  *  gate-6-pull-request.mjs pushes these into its own findings list: there is
  *  no author present server-side to push back to (guardrail-standards.md's
  *  verdict table — "Where no author is present, the check looks for that
@@ -233,7 +233,7 @@ function shouldScanFile(file) {
 /** Findings for one line: zero, or one per rule a marker names that lacks a
  *  register row, plus one for a marker naming no rule at all (more than one
  *  marker, and more than one rule per marker, can legitimately appear on the
- *  same line — fix 33).
+ *  same line).
  *  @param {string} file
  *  @param {number} lineNumber
  *  @param {string} lineText
@@ -254,7 +254,7 @@ function findingsForLine(file, lineNumber, lineText, rows) {
       });
       continue;
     }
-    // Fix 36 — multiple rules at one site are corroborating evidence, not
+    // Multiple rules at one site are corroborating evidence, not
     // noise: the count is stated in the finding itself so a reviewer sees
     // the escalation without counting rows themselves.
     const siteNote =
@@ -300,7 +300,7 @@ export function checkSuppressions(files) {
       findings.push(...findingsForLine(file, i + 1, lineText, rows));
     });
   }
-  // Fix 34 — register-row completeness is independent of which files this
+  // Register-row completeness is independent of which files this
   // commit scanned: an incomplete row is a defect in the register itself.
   findings.push(...evaluateRegisterRows(rows).blocking);
   return findings;

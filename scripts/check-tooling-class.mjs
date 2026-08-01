@@ -1,9 +1,9 @@
 // cspell:ignore martincjarvis
-// Fix 45 — file-classes.md's own rule, stated and never checked: "In a
+// file-classes.md's own rule, stated and never checked: "In a
 // repository that consumes this standard, gate scripts and other development
 // automation are `tooling`… In a repository whose product is the tooling — a
-// guardrails toolkit itself — those same scripts are `production`." Audit 12
-// found `@martincjarvis/greet`, a consuming repository, with its gate
+// guardrails toolkit itself — those same scripts are `production`."
+// `@martincjarvis/greet`, a consuming repository, was found with its gate
 // scripts classed `production` and **no file anywhere classed `tooling`** —
 // and that it had no live effect only because lizard filters to `.ts`/`.tsx`
 // before consulting the class, and c8 measures only what the test process
@@ -44,14 +44,15 @@ export function findGateScripts(files) {
 
 /** file-classes.md: "The class is per repository, not per filename" — a
  *  repository whose product IS the tooling (this one) is exempt outright,
- *  keyed on lib.mjs's `isToolkit()` (fix 91): `.claude-plugin/plugin.json`
+ *  keyed on lib.mjs's `isToolkit()`:
+ *  `.claude-plugin/plugin.json`
  *  existing directly, not on `deriveComponent() !== null` — deriveComponent()
  *  gets re-targeted to a consumer's own manifest when bootstrap ports it, so
  *  a correctly-bootstrapped consuming repository derives a component too,
  *  and that old signal fired only in the one repository it was designed
- *  never to fire in (audit 22). Its absence means this is a consuming
+ *  never to fire in. Its absence means this is a consuming
  *  repository, where a ported gate script with no `tooling`-classed file
- *  anywhere is exactly the audit-12 defect.
+ *  anywhere is exactly the defect this check exists to catch.
  *  @param {{ files?: string[], classify?: (file: string) => string, isToolkit?: () => boolean }} [opts] */
 export function checkToolingClassDeclared({
   files = trackedFiles(),
@@ -115,7 +116,7 @@ export function coveredFilesFromCobertura(xml) {
 
 /** file-classes.md: "Tooling is excluded from coverage." Given the files a
  *  coverage report actually measured, names any classed `tooling` that
- *  leaked in anyway — the checkpoint fix 45 adds because, per audit 12, the
+ *  leaked in anyway — the checkpoint this check adds because the
  *  exclusion has never been exercised against a real `tooling`-classed
  *  file.
  *  @param {string[]} coveredFiles @param {{ classify?: (file: string) => string }} [opts] @returns {string[]} */
@@ -158,10 +159,10 @@ export function checkToolingCoverageLeakage({
   };
 }
 
-// --- Fix 52 — the tooling-suite requirement is text nobody implements ------
+// --- The tooling-suite requirement is text nobody implements ------
 // testing-strategy.md states it in full: "A repository carrying ported gate
 // or check scripts runs a `tooling tests` suite against them… its absence is
-// not a silent default, one way or the other." Audit 13 found a repository
+// not a silent default, one way or the other." A repository was found
 // with 26 `tooling`-classed scripts, no test file covering any of them, and
 // nothing positioned to notice — `check-script-wiring.mjs` asks whether a
 // script is *invoked by a gate*, never whether it is *tested*, so a script
@@ -173,7 +174,7 @@ export function checkToolingCoverageLeakage({
 // weight as findStackReferencesOutsideList in check-standards-
 // instantiation.mjs, not a coverage-instrumentation read (tooling is
 // excluded from coverage by design, so coverage cannot answer this
-// question). It answers exactly what audit 13 found missing: whether
+// question). It answers exactly what was found missing: whether
 // anything that looks like a test even mentions the tooling scripts at all.
 /** @param {{ files?: string[], classify?: (file: string) => string, isToolkit?: () => boolean, readFile?: (file: string) => string }} [opts] */
 export function checkToolingTestSuiteExists({

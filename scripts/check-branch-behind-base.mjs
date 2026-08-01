@@ -1,5 +1,5 @@
 // cspell:ignore symref
-// Fix 67 — pre-push refuses a branch behind its base. Branch protection sets
+// Pre-push refuses a branch behind its base. Branch protection sets
 // `strict: true` and gate-6-pull-request.md already requires "A pull request
 // behind its base cannot merge until it is updated" — nothing checked it
 // before the push existed, so the merge got refused only after a pipeline
@@ -19,7 +19,7 @@
 // Base is derived — resolveBase() (lib.mjs), never a hardcoded "main" — the
 // same derivation gate 0's own identical rebase check already uses
 // (gate-0-baseline.mjs). An unresolvable base is a visible skip naming the
-// remedy (fix 32's pattern: check-protected-branch.mjs), not a silent pass.
+// remedy (the pattern check-protected-branch.mjs uses), not a silent pass.
 //
 // Fetches first so the comparison is against a current ref, not a stale
 // one — gate 0's own check does the same before its identical rev-list.

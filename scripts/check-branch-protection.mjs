@@ -1,10 +1,10 @@
 // cspell:ignore symref
-// Fix 24 — branch protection is never configured, and its absence is not a
+// Branch protection is never configured, and its absence is not a
 // blocking finding. gate-6-pull-request.md states the merge policy (16-24)
 // and cross-gate-rules.md requires "every blocking local check has a named
 // required status check server-side," but nothing in this toolkit ever
-// checked whether either was actually true on the host. Audit 8, on a
-// bootstrapped repository: `gh api .../branches/main/protection` -> 404,
+// checked whether either was actually true on the host. On a bootstrapped
+// repository: `gh api .../branches/main/protection` -> 404,
 // `gh api .../rulesets` -> [], `gh pr view` -> mergeStateStatus UNSTABLE,
 // mergeable MERGEABLE. A red `Semgrep OSS` check and a red gate 6 blocked
 // nothing, because the platform was never told to refuse the merge.
@@ -21,10 +21,10 @@
 // host can tell us), and full agreement between what is configured and what
 // gate 6 actually runs is a pass.
 //
-// Fix 32 — an unset local `origin/HEAD` symref is not the same "cannot tell"
+// An unset local `origin/HEAD` symref is not the same "cannot tell"
 // as a missing `gh` session or a 403: it is a fixable local-metadata gap
-// (`git remote set-head origin -a`), and audit 9 verified skipping on it
-// silently swallowed a real finding (a 404 sitting right behind it). See
+// (`git remote set-head origin -a`), and skipping on it was verified to
+// silently swallow a real finding (a 404 sitting right behind it). See
 // resolveBranch() below: it recovers via gh's own authoritative
 // `default_branch` field before giving up, and the skip it does still emit
 // names the one-command remedy rather than reading as an unknown.
@@ -252,9 +252,9 @@ function ghAuthenticated(runFn) {
   return runFn("gh", ["api", "user"], { stdio: "ignore" }).status === 0;
 }
 
-/** Fix 32 — an unset local `origin/HEAD` symref (a shallow clone, a fresh
+/** An unset local `origin/HEAD` symref (a shallow clone, a fresh
  *  checkout that never ran `git remote set-head origin -a`) is a fixable
- *  local-metadata gap, not a genuine unknown — audit 9 verified it on a
+ *  local-metadata gap, not a genuine unknown — verified on a
  *  bootstrapped repository: `git symbolic-ref refs/remotes/origin/HEAD`
  *  exits 128 there while `gh api .../branches/main/protection` -> 404 was
  *  sitting right behind it, unreached. Skipping on the symref alone masked

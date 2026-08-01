@@ -3,8 +3,8 @@
 // being pushed. Coverage is command-delegated: c8 owns the threshold. The
 // underlying command also runs the unit suite, so a non-zero exit has three
 // possible causes, not two — a failing test, a genuine coverage shortfall, or
-// the command itself failing to run — and classifyTestCoverageOutcome (lib.mjs,
-// fix 11) tells them apart from the command's own output rather than reporting
+// the command itself failing to run — and classifyTestCoverageOutcome (lib.mjs)
+// tells them apart from the command's own output rather than reporting
 // one compound finding that cannot name its own cause (gate-5-push.md: "A
 // broken coverage command blocks the push without claiming a shortfall").
 // Integration tests are scoped to changed components; this repository has
@@ -45,7 +45,7 @@ for await (const line of rl) {
 }
 if (range) process.stderr.write(`gate 5: pushed range ${range}\n`);
 
-// Check 4 — branch behind its base (fix 67; gate-5-push.md). Cheapest-first
+// Check 4 — branch behind its base (gate-5-push.md). Cheapest-first
 // (cross-gate-rules.md): a branch that cannot merge is worth refusing before
 // paying for the expensive coverage run below.
 {
@@ -91,7 +91,7 @@ skips.push(
     "nothing to run. Add integration tests under a component path to exercise this",
 );
 
-// Check 3 — cross-stack dependency scan (osv-scanner; fix 9b). Placed here,
+// Check 3 — cross-stack dependency scan (osv-scanner). Placed here,
 // not gate 2, because it is network-bound (placing-a-new-check.md); PATH-
 // resolved and never bundled (ADR-0002), the same as semgrep and lizard.
 {

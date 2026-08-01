@@ -169,7 +169,7 @@ note("cross-language analysis (semgrep) — runs at gate 7, not per-commit");
   if (found.length) report("gate 2", found, skips);
 }
 
-// Fix 35 — gate 2's own half of the approver split. A register row missing
+// Gate 2's own half of the approver split. A register row missing
 // only its approver is allowed to commit — a push back
 // (guardrail-standards.md's verdict table), not a block — but is stated in
 // the output so it is not silently forgotten. Gate 6 blocks the merge on the
@@ -182,7 +182,7 @@ for (const row of pendingSuppressionApprovals()) {
   );
 }
 
-// Fix 22 — an Accepted ADR that reads as accepting a risk, a licence, a
+// An Accepted ADR that reads as accepting a risk, a licence, a
 // suppression or an opt-out names a human approver, the same requirement a
 // register row's Approver column already carries. Repository-wide, like the
 // two checks just above — an ADR's own file may not be staged on the
@@ -192,7 +192,7 @@ for (const row of pendingSuppressionApprovals()) {
   if (found.length) report("gate 2", found, skips);
 }
 
-// Fix 49 — approval is an event, not a field. A staged ADR or register row
+// Approval is an event, not a field. A staged ADR or register row
 // that already carries a filled approver, and did not exist at HEAD before
 // this commit, arrives pre-approved rather than reviewed — the same defect
 // class as check 22 above, caught by reading history rather than only the

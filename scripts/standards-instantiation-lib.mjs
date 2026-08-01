@@ -1,6 +1,6 @@
 // cspell:ignore pyproject pytest golangci clippy nunit mstest msbuild pylint virtualenv gofmt phpunit rubocop lede
 // The pure check functions `check-standards-instantiation.mjs` runs as a
-// CLI — split into this file (fix 81) because the combined file reached the
+// CLI — split into this file because the combined file reached the
 // point where lizard's function-span detection merged this module's
 // functions into one over-length block, the same tool artefact ADR-0009
 // fixes for hooks/test/hooks.test.mjs. `check-standards-instantiation.mjs`
@@ -19,9 +19,9 @@
 // seven checks themselves never pruned) ask whether prose is honest or well
 // formed, which no script here scores; see the standard for why.
 //
-// Fix 55 — the first checkpoint is not confined to `docs/standards/**`.
-// Audit 14 found four dead .NET words (`Roslynator`, `Meziantou`, `xunit`,
-// `warnaserror`) in a Node-only repository's `cspell.json`, each with zero
+// The first checkpoint is not confined to `docs/standards/**`.
+// Four dead .NET words (`Roslynator`, `Meziantou`, `xunit`,
+// `warnaserror`) were found in a Node-only repository's `cspell.json`, each with zero
 // occurrences anywhere else in the tree, copied wholesale from this
 // toolkit's own multi-stack word list — where the same words are not
 // residue, because they occur in this corpus's own `.NET` prose.
@@ -34,7 +34,7 @@
 // later edited away and a checker that flags every unused word gets turned
 // off.
 //
-// Fix 53 — one narrow exception, not a third full checkpoint. Whether a
+// One narrow exception, not a third full checkpoint. Whether a
 // removal's stated *reason* is honest and complete stays judgement, same as
 // ever — findRemovalsOutsideEnforcementMap below does not read that. It
 // checks only *where* a removal was written down: docs-style.md requires "a
@@ -56,14 +56,14 @@
 // own gate 7 (call `deriveStackList`/`findStackReferencesOutsideList`/
 // `findMultiComponentContent`, or invoke check-standards-instantiation.mjs
 // directly, from that repository's `gate-7-on-demand.mjs`) — a copy that
-// only sits in the tooling directory checks nothing (fix 40; this toolkit's
+// only sits in the tooling directory checks nothing (this toolkit's
 // own `scripts/check-script-wiring.mjs` reports exactly that unwired
 // state). This toolkit does not wire it into its OWN gate 7, and that is
 // deliberate, not an oversight to imitate: this repository is the
 // canonical corpus, not an instantiated copy (see above) — do not copy the
 // absence of wiring along with the file.
 //
-// Fix 46 — gate 7 alone is not enough either. A bootstrapped repository
+// Gate 7 alone is not enough either. A bootstrapped repository
 // with this wired only there reported 60 findings across 13 gate-reference
 // documents and never blocked a merge on any of them: the sweep runs
 // unconditionally and only ever reports, by design (a stack added later
@@ -151,7 +151,7 @@ export function findStackReferencesOutsideList(text, presentStacks) {
   return findings;
 }
 
-// Fix 55 — single-token markers, distinct from STACK_KEYWORDS above. A
+// Single-token markers, distinct from STACK_KEYWORDS above. A
 // cspell dictionary word is a bare identifier ("xunit"), not running prose,
 // so a phrase built for a substring search in text ("dotnet ", trailing
 // space and all) does not apply to it; this is the same per-stack universe
@@ -194,7 +194,7 @@ function wordNamesStack(word, markers) {
  *  Returns [{ word, stack }]. Deliberately conservative: an unused word with
  *  no stack match is not a finding — most legitimate vocabulary appears once
  *  and is later edited away, and only the combination (unused AND names a
- *  stack the repository does not have) is the residue fix 55 demonstrated.
+ *  stack the repository does not have) is the residue this check demonstrated.
  *
  *  A case-insensitive substring test, not a RegExp built from the word — a
  *  cspell word list is repository content, not trusted input, and semgrep's
@@ -227,13 +227,13 @@ export function findCspellResidue(words, corpusText, presentStacks) {
  *  legitimately lists every stack it documents. `files` and `readFile` are
  *  injectable for testing, the same shape the rest of this module uses.
  *
- *  Fix 59: the "is this word used elsewhere" corpus is built from files
+ *  The "is this word used elsewhere" corpus is built from files
  *  NOT classed `tooling` (file-classes.md), not from every tracked file.
  *  Once this module (and its ported test file, docs-style.md's own
  *  instruction) live inside the repository they inspect, "every tracked
  *  file" includes this checker's own source and test fixtures — which
  *  necessarily contain the literal dead-stack words as fixtures
- *  (`Roslynator`, `Meziantou`, `xunit`, `warnaserror` are exactly fix 55's
+ *  (`Roslynator`, `Meziantou`, `xunit`, `warnaserror` are the
  *  demonstrated case). Those fixtures then vote the words "used elsewhere"
  *  and the checker never flags them in the one repository it exists to
  *  protect. This toolkit's own tests never caught it: `isToolkit()` above
@@ -280,7 +280,7 @@ export function checkCspellResidue({
   }));
 }
 
-// Fix 60 — instantiation residue is not confined to prose or configuration
+// Instantiation residue is not confined to prose or configuration
 // either: a PORTED TEST can carry it too. An implementer removed, by hand,
 // two toolkit self-checks that had made it into a ported test file — one
 // reading this toolkit's own commit `daa59d0c…`, one asserting this
@@ -313,15 +313,15 @@ export function findHardcodedCommitSha(text) {
   return findings;
 }
 
-/** Fix 60: scoped to files classed `test` (file-classes.md), not every
- *  tracked file — the same file-class scoping fix 59 applied to the cspell
+/** Scoped to files classed `test` (file-classes.md), not every
+ *  tracked file — the same file-class scoping the cspell
  *  corpus, applied again. A blanket tree-wide search would false-positive
  *  on a `configuration`-classed CI workflow pinning a third-party GitHub
  *  Action to its commit SHA, which is the opposite of this defect: a
  *  security practice, not a ported assertion about upstream history. This
  *  toolkit's own repository is exempt outright, the same `isToolkit`
  *  reasoning as `checkCspellResidue` above — its own test suite legitimately
- *  asserts its own real history (fix 49, hazard 3: `daa59d0c…`), which is a
+ *  asserts its own real history (hazard 3: `daa59d0c…`), which is a
  *  fact about this canonical repository, not residue to flag.
  *  @param {{ files?: string[], readFile?: (file: string) => string, classify?: (file: string) => string, isToolkit?: () => boolean }} [opts] */
 export function checkHardcodedCommitSha({
@@ -378,9 +378,9 @@ export function findMultiComponentContent(text, componentCount) {
   return findings;
 }
 
-// Fix 72 — findMultiComponentContent above is a heading search, and a
+// findMultiComponentContent above is a heading search, and a
 // retained standard's own contradiction does not have to live in a heading.
-// Audit 17's demonstrated case: docs/standards/deployment-strategy.md, 567
+// The demonstrated case: docs/standards/deployment-strategy.md, 567
 // of 568 lines, whose frontmatter `summary` still read "How a multi-component
 // app is versioned per-component, packaged, and deployed..." in a repository
 // this corpus's own component map derives as one component
@@ -417,7 +417,7 @@ function ledeAfter(lines, titleIndex) {
 /** True for a frontmatter block line, the `# ` title line, or the lede — the
  *  first paragraph right after the H1. Three structural self-description
  *  spots, never the body generally (docs-style.md: "a crude proxy, and
- *  deliberately so"). Fix 81 — audit 19: deployment-strategy.md's
+ *  deliberately so"). deployment-strategy.md's
  *  frontmatter was tuned but its lede still read "multi-component"; the
  *  frontmatter/title scan alone could not see it.
  *  @param {string} text */
@@ -474,7 +474,7 @@ function hasRemovalRecord(text) {
     );
 }
 
-/** Fix 53. `reportFiles` and `instantiatedDocFiles` are each `{ path, text
+/** `reportFiles` and `instantiatedDocFiles` are each `{ path, text
  *  }`; `enforcementMapText` is the enforcement map's own content, or `null`
  *  when the repository carries none yet. A finding names the report that
  *  recorded a removal and the durable location docs-style.md actually

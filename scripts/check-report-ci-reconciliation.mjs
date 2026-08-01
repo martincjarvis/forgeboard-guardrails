@@ -1,6 +1,6 @@
-// Fix 76 — "verbatim" was the local run's output, and CI disagreed.
+// "Verbatim" was the local run's output, and CI disagreed.
 //
-// Audit 18, on a commit whose subject was "record gate 6 output verbatim in
+// On a commit whose subject was "record gate 6 output verbatim in
 // the bootstrap report": the report's quoted block had 12 lines and zero
 // osv-scanner mentions — the *local* run's output, where osv-scanner
 // correctly skipped (not on PATH). CI, on that same commit, reported:
@@ -10,9 +10,9 @@
 //
 // Six real CVEs the report never mentioned, while its own header claimed
 // "what remains open (copied from gate 6's own output)" — true of the local
-// run, false against the live state. Fixes 65 and 69 govern the moment a
-// pull request is *opened*; nothing governs the moment CI *disagrees with
-// the local run* — which is exactly when fix 66's four gap categories were
+// run, false against the live state. The rules that govern the moment a
+// pull request is *opened* do not govern the moment CI *disagrees with
+// the local run* — which is exactly when the four gap categories were
 // supposed to apply. This module is that trigger: it reads a gate's own
 // FAIL lines straight out of a CI job log — the instrument cross-gate-rules.md
 // (#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own) already
@@ -36,15 +36,15 @@
 // into gate 6 itself — it verifies the *report*, once CI's log exists, and
 // is run by hand (or as a CI step reading its own prior job's log) before
 // the pull request is presented as ready. See gate-6-pull-request.md's
-// "Running it by hand" and skills/repository-bootstrap/SKILL.md's fix-66
-// paragraph for where it is invoked.
+// "Running it by hand" and skills/repository-bootstrap/SKILL.md's
+// gap-categories paragraph for where it is invoked.
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { report } from "./lib.mjs";
 
 const GATE_FAIL_RE = /^([\w .()-]+?): FAIL (.+)$/;
 
-// Fix 90 — a real job log is never the bare "<gate>: FAIL <label>" text
+// A real job log is never the bare "<gate>: FAIL <label>" text
 // GATE_FAIL_RE expects. Two real shapes, both observed against the same run:
 //
 //   REST API job log (`gh api .../logs`, and what a workflow step reads from
@@ -57,7 +57,7 @@ const GATE_FAIL_RE = /^([\w .()-]+?): FAIL (.+)$/;
 //
 // The timestamp's own colons sit inside the `[\w .()-]` class GATE_FAIL_RE
 // requires up to ": FAIL", so the regex never reaches the real marker —
-// audit 22 measured 0 labels extracted from 9 real FAIL lines. Strip
+// 0 labels were measured from 9 real FAIL lines. Strip
 // whichever job/step columns are present (rightmost tab), then the ISO-8601
 // timestamp, before matching.
 const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s*/;
@@ -97,7 +97,7 @@ export function extractGateFailLabels(logText, gate = "gate 6") {
  *  case-insensitive substring test, the same structural (not prose-honesty)
  *  restraint `citesReservedArtefact` already states for the sibling PR-body
  *  check. A report that genuinely reconciled the finding names it somewhere,
- *  in whichever section fix 66 puts it.
+ *  in whichever section the gap-categories rule places it.
  *  @param {string} reportText
  *  @param {string} logText
  *  @param {string} [gate="gate 6"]

@@ -36,7 +36,7 @@
 //
 // A consuming repository carries only the entries its own resolved
 // dependency set actually uses — arriving by the same instantiation route as
-// the standards themselves (fix 12), with the upstream commit recorded, not
+// the standards themselves, with the upstream commit recorded, not
 // the whole table here. This file IS that whole table: the toolkit's own
 // canonical copy, since whether a licence is OSI-approved is not a property
 // of any one repository.
@@ -348,7 +348,7 @@ export const LICENCE_TABLE = {
     },
     limitations: { noTrademark: true, noWarranty: true, noLiability: true },
   },
-  // Fix 42 — jschardet (a transitive dependency of the new diff-cover
+  // jschardet (a transitive dependency of the new diff-cover
   // devDependency) carries this in its own package.json `license` field
   // verbatim, "+" and all — kept as the register's own mechanical-production
   // rule states (licenceTableEntry's own comment: "correct the register cell
@@ -400,7 +400,7 @@ export function licenceTableEntry(id) {
   return table[(id ?? "").trim()];
 }
 
-// --- SPDX licence expression parsing (fix 8, moved here by fix brief 6 so
+// --- SPDX licence expression parsing, shared here so
 // both gate 2 (check-licence.mjs, completeness) and gate 6
 // (check-licence-policy.mjs, policy) share one parser rather than each
 // carrying its own copy) ---

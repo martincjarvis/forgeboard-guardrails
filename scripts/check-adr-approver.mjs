@@ -1,5 +1,5 @@
 // cspell:ignore GHSA licen
-// Fix 22 — an ADR that accepts a risk, a licence, a suppression, or an
+// An ADR that accepts a risk, a licence, a suppression, or an
 // opt-out needs a human named in its own frontmatter, exactly the
 // requirement registers.md and bypass-and-exceptions.md already state for a
 // register row (registers.md: "every row names a human approver, and no
@@ -30,9 +30,9 @@ const OPT_OUT_RE = /\bopt(?:s|ed|ing)?[- ]?out\b/i;
 const SUPPRESSION_WORD_RE = /\bsuppress(?:ion|ed|es)?\b/i;
 // The four inline-suppression marker names themselves (bypass-and-exceptions.md's
 // own list), each built by concatenation rather than typed as a contiguous
-// literal — this repository's own suppression-register check (fix 15's
-// self-flagging problem, check-suppressions.mjs's own SELF_URL guard) scans
-// every tracked file's raw text for exactly these strings, and a plain
+// literal — this repository's own suppression-register check
+// (check-suppressions.mjs, which guards its own text with a SELF_URL marker)
+// scans every tracked file's raw text for exactly these strings, and a plain
 // literal here would read as an unregistered directive of this module's own.
 const SUPPRESSION_MARKER_STRINGS = [
   "eslint" + "-disable",
@@ -51,7 +51,7 @@ const SUPPRESSION_MARKER_STRINGS = [
  *  toolkit's own 0001-0003 among them — mentions none of this vocabulary
  *  and is correctly left alone.
  *
- *  Fix 54: this is a vocabulary fallback, not the primary signal — kept for
+ *  This is a vocabulary fallback, not the primary signal — kept for
  *  an ADR no register row cites yet. The next ADR will use different words,
  *  and a detector that must anticipate an author's vocabulary is one that
  *  fails silently; see `citedAdrNumbers` below for the structural signal
@@ -78,7 +78,7 @@ function cellsOf(line) {
     .map((c) => c.trim());
 }
 
-// Fix 54 — a register row citing an ADR in its Decision record column IS
+// A register row citing an ADR in its Decision record column IS
 // that ADR being used to accept a risk, licence, suppression or opt-out
 // (registers.md: "names the ADR carrying the reasoning"). Following that
 // pointer needs no vocabulary and cannot be evaded by rewording; extending
@@ -165,7 +165,7 @@ function parseFrontmatter(text) {
   return fields;
 }
 
-// Exported so check-approval-provenance.mjs (fix 49) can read the same two
+// Exported so check-approval-provenance.mjs can read the same two
 // fields off a file's "before" and "after" content without re-implementing
 // frontmatter parsing a second time.
 /** @param {string} text @param {string} field @returns {string} */
@@ -173,7 +173,7 @@ export function frontmatterField(text, field) {
   return parseFrontmatter(text)[field.toLowerCase()] ?? "";
 }
 
-/** A team label, not a person — the exact shape audit 8 found
+/** A team label, not a person — the demonstrated shape
  *  (`owner: greet maintainers`): a role or group noun with no individual
  *  name attached. Heuristic, not exhaustive — a human name is whatever is
  *  left once these read as plainly not one.
@@ -192,7 +192,7 @@ export function looksLikeTeamLabel(name) {
  *
  *  Reserved-class is derived two ways, citation first: an ADR any register
  *  row cites in its Decision record column is reserved-class regardless of
- *  its wording (fix 54); an ADR no row cites yet falls back to the
+ *  its wording; an ADR no row cites yet falls back to the
  *  vocabulary check, for the case a risk is accepted in an ADR before any
  *  row exists to point at it. */
 export function checkAdrApprover(

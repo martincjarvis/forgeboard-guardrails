@@ -1,6 +1,6 @@
-// Fix brief 8, item 2 — "every check the platform already provides is
+// The rule "every check the platform already provides is
 // enabled rather than rebuilt" (cross-gate-rules.md) was unactionable:
-// audit 5 found Dependabot and vulnerability alerts disabled with no
+// Dependabot and vulnerability alerts were found disabled with no
 // decision record, and no cycle since fixed it, because nothing enumerated
 // which features the rule actually meant or told an implementer how to
 // tell "off" from "not offered on this plan." See

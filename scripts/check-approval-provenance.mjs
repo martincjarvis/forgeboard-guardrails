@@ -1,6 +1,6 @@
-// Fix 49 — approval is an event, not a field.
+// Approval is an event, not a field.
 //
-// Audit 13, on a bootstrapped repository: an ADR arrived `status: Accepted`,
+// On a bootstrapped repository: an ADR arrived `status: Accepted`,
 // `approver: <a person's name>`, byte-identical to this toolkit's own record;
 // three dependency-licence rows and two suppression rows named the same
 // person; all six landed already approved, inside the single bootstrap

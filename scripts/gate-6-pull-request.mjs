@@ -270,7 +270,7 @@ if (changedText.length) {
     const sgOut = (sg.stdout || "") + (sg.stderr || "");
     process.stderr.write(sgOut);
     normalizeSarifPaths(sarif);
-    // Fix 25 — drop results suppressed in source before upload; see
+    // Drop results suppressed in source before upload; see
     // filterSuppressedSarif (lib.mjs) for why the register, not the SARIF
     // file, is the audit trail for an accepted finding.
     filterSuppressedSarif(sarif);
@@ -300,7 +300,7 @@ if (changedText.length) {
   }
 }
 
-// --- Check 10 (gate 6) — cross-stack dependency scan (osv-scanner; fix 9b) -
+// --- Check 10 (gate 6) — cross-stack dependency scan (osv-scanner) -
 // Whole-repository, not range-scoped: it reads the resolved dependency tree,
 // not the files this range touched (the same reason checks 6/7 above read
 // the whole tree rather than the diff). Re-run here server-side, with a
@@ -319,9 +319,9 @@ if (have("osv-scanner", ["--version"])) {
   const osvOut = (osv.stdout || "") + (osv.stderr || "");
   process.stderr.write(osvOut);
   normalizeSarifPaths(sarif);
-  filterSuppressedSarif(sarif); // fix 25 — same in-source-suppression rule as semgrep's SARIF above
-  // Fix 44 — the exit code alone cannot distinguish "vulnerabilities found"
-  // from "the scan itself did not complete" (audit 12: a live CI run failed
+  filterSuppressedSarif(sarif); // same in-source-suppression rule as semgrep's SARIF above
+  // The exit code alone cannot distinguish "vulnerabilities found"
+  // from "the scan itself did not complete" (a live CI run failed
   // this exact check with osv-scanner's own startup banner as the problem
   // text and no vulnerability id in it, while the standalone osv-scanner
   // check on the same commit passed clean). Read the SARIF file just written
@@ -358,20 +358,20 @@ for (const f of checkLinks()) findings.push(f);
 // same call here.
 for (const f of checkSuppressions()) findings.push(f);
 
-// --- Fix 35 — gate 6's own half of the approver split. Gate 2 lets a row
+// --- Gate 6's own half of the approver split. Gate 2 lets a row
 // missing only its approver through as a push back; here there is no author
 // present to push back to, so the same rows fail the merge outright
 // (guardrail-standards.md: "Where no author is present, the check looks for
 // that record and fails without it").
 for (const f of unapprovedSuppressionFindings()) findings.push(f);
 
-// --- Fix 22 — ADR approver, over the whole ADR corpus ------------------------
+// --- ADR approver, over the whole ADR corpus ------------------------
 // Same repository-wide call as pre-commit.mjs; an ADR accepting a risk,
 // licence, suppression or opt-out is a standing decision, not scoped to
 // this pull request's own range.
 for (const f of checkAdrApprover()) findings.push(f);
 
-// --- Fix 49 — approval provenance, once per commit in the range -------------
+// --- Approval provenance, once per commit in the range -------------
 // Server-side re-validation of the same gate-2 check above, over every
 // commit the pull request actually added (checkCommitRange's own reasoning
 // in check-scope.mjs: "adapts per commit... not once against the branch
@@ -441,7 +441,7 @@ for (const f of checkApprovalProvenanceRange(logRange)) findings.push(f);
   // everything already went right.
   coverageTestSummary = extractCoverageAndTestSummary(testOut);
   if (test.status !== 0) {
-    // Fix 11: name which of the two this actually was, rather than a
+    // Name which of the two this actually was, rather than a
     // compound "either...or" finding that cannot name its own cause
     // (gate-5-push.md: "A broken coverage command blocks the push without
     // claiming a shortfall").
@@ -476,7 +476,7 @@ for (const f of checkApprovalProvenanceRange(logRange)) findings.push(f);
   );
 }
 
-// --- Check 8 (gate 6) — changed-line coverage (fix 42; gate-6-pull-request.md
+// --- Check 8 (gate 6) — changed-line coverage (gate-6-pull-request.md
 // "coverage and untrusted runs") ---------------------------------------------
 // A different number from the flat floor above, computed a different way: a
 // repository comfortably over its overall floor can add an entirely
@@ -507,7 +507,7 @@ if (!existsSync(COBERTURA_REPORT)) {
   ]);
   const dcOut = (dc.stdout || "") + (dc.stderr || "");
   process.stderr.write(dcOut);
-  // Fix 51 — a Cobertura report with zero instrumented statements (an
+  // A Cobertura report with zero instrumented statements (an
   // earlier step's test run crashed before writing real coverage) makes
   // diff-cover print `Total: 0 lines` and `Coverage: 100%`, exiting 0: a
   // percentage from an empty denominator, not a pass. Checked before the
@@ -545,7 +545,7 @@ if (!existsSync(COBERTURA_REPORT)) {
 // `${base}...HEAD` against the same file classes this script uses
 // everywhere else.
 //
-// Fix 71 — pass this script's own already-resolved `base` explicitly,
+// Pass this script's own already-resolved `base` explicitly,
 // rather than let the subprocess re-derive it via resolveBase(). Before
 // this fix the two calls could resolve differently in the same checkout:
 // this script's own `base` (line 84) reads GITHUB_BASE_REF first, which a
@@ -570,7 +570,7 @@ if (!existsSync(COBERTURA_REPORT)) {
   }
 }
 
-// --- Fix 74 — [large-pr] is a human decision, checked here rather than
+// --- [large-pr] is a human decision, checked here rather than
 // trusted from the marker's bare presence. Gate 4 above still clears the
 // local, author-present block on the string alone (an agent may propose the
 // override by reporting it, never apply it — the report is what reaches the

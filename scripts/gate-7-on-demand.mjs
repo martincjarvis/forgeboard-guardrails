@@ -165,7 +165,7 @@ if (have("semgrep", ["--version"])) {
 // bootstrap's first commit (ADR-0009, cross-gate-rules.md: "a check reused
 // across gates carries its severity model with it").
 //
-// Fix 45 — this used to hand lizard "." unfiltered, scanning every tracked
+// This used to hand lizard "." unfiltered, scanning every tracked
 // file regardless of class. That had no visible effect here only because
 // every file in this toolkit's own repository is `production`
 // (file-classes.md's stated carve-out for a repository whose product is the
@@ -199,7 +199,7 @@ if (!complexityFiles.length) {
   skips.push("repository-wide size scan — lizard not on PATH");
 }
 
-// --- Size: tooling file class (fix 45; file-classes.md, "The class is per
+// --- Size: tooling file class (file-classes.md, "The class is per
 // repository, not per filename") --------------------------------------------
 // Two checks the class attribute never had exercised against it before:
 // a consuming repository with ported gate scripts and no file classed
@@ -215,7 +215,7 @@ if (!complexityFiles.length) {
   const { findings: leaked, skips: leakSkips } = checkToolingCoverageLeakage();
   for (const f of leaked) add(f.check, f.path, f.problem, f.remedy);
   skips.push(...leakSkips);
-  // Fix 52 — testing-strategy.md's own tooling-suite requirement, stated in
+  // testing-strategy.md's own tooling-suite requirement, stated in
   // full and never checked: a repository carrying tooling-classed gate
   // scripts with nothing that tests them is a finding, the same tier as the
   // class-declaration check just above.
@@ -331,11 +331,11 @@ function npmBin(name) {
 // --- Policy: platform capability audit ---
 // Azure DevOps and any host besides GitHub still has no local check —
 // `az repos policy list` stays a by-hand step (platforms.md). GitHub's own
-// branch protection is no longer one: fix 24 (cross-gate-rules.md, "every
+// branch protection is no longer one (cross-gate-rules.md, "every
 // blocking local check has a named required status check server-side")
 // closes it below, using the same local `gh` session a human or agent
-// running gate 7 by hand already has. Fix brief 8, item 2 adds the sibling
-// check: which free GitHub repository features (Dependabot, secret
+// running gate 7 by hand already has. A sibling check adds which
+// free GitHub repository features (Dependabot, secret
 // scanning, code scanning, ...) are actually enabled — see
 // docs/standards/guardrails/gate-7-on-demand.md#platform-features-enabled-by-default.
 skips.push(
@@ -352,7 +352,7 @@ skips.push(
   skips.push(...rfSkips);
 }
 
-// --- Policy: refusal-proof audit (fix 9a; cross-gate-rules.md, "Every
+// --- Policy: refusal-proof audit (cross-gate-rules.md, "Every
 // blocking check proves it refuses"). REFUSAL_PROOF_FIXTURE guards against
 // the recursion this would otherwise cause: one of the audit's own fixtures
 // runs this very script against a scratch repository to prove the semgrep
@@ -378,7 +378,7 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
   }
 }
 
-// --- Policy: quality-script wiring audit (fix 16; cross-gate-rules.md,
+// --- Policy: quality-script wiring audit (cross-gate-rules.md,
 // "Every quality script is wired or declared"). A script in package.json
 // that no gate invokes and no on-demand declaration covers reads as a
 // check the repository runs when nothing runs it — worse than an absent
@@ -422,7 +422,7 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
   }
 }
 
-// --- Policy: script-file wiring audit (fix 40, "close the class, not just
+// --- Policy: script-file wiring audit ("close the class, not just
 // the instance"). checkScriptWiring above only sees what package.json's
 // `scripts` object names; check-standards-instantiation.mjs was never
 // listed there at all, so it sat ported, unit-tested and never imported by
@@ -460,7 +460,7 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
     );
   }
 
-  // --- Fix 43 — the same defect one level up, in a tooling index's own
+  // --- The same defect one level up, in a tooling index's own
   // prose rather than the manifest: scripts/README.md (if this repository
   // carries one) can claim a script "runs at gate N" without anything ever
   // re-checking that claim against the gate's actual imports.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // cspell:ignore symref
-// Fix 24 — the mechanism half. gate-6-pull-request.md states the merge
+// The mechanism half. gate-6-pull-request.md states the merge
 // policy (16-24: required status checks, required review, no self-approval,
 // stale-approval dismissal, conversation resolution, no admin override, no
 // force push, no deletion, required history shape) and supplies no way to
@@ -35,7 +35,7 @@ function fail(msg) {
   process.exit(1);
 }
 
-// Derived, not hardcoded (fix 24's own requirement): the branch from
+// Derived, not hardcoded (the requirement this script exists to meet): the branch from
 // origin/HEAD, the same derivation every other gate in this toolkit uses.
 // Local and free, so it runs before the gh probes below — which is also what
 // lets the skip be tested without a gh on the runner's PATH.

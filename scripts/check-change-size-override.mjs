@@ -1,10 +1,10 @@
 // cspell:ignore ccd
-// Fix 74 — [large-pr] is a human decision an agent may propose and never take.
+// [large-pr] is a human decision an agent may propose and never take.
 //
 // hooks/gate-4-task-completion.mjs's own OVERRIDE check was, before this fix,
 // `!log.stdout.includes(OVERRIDE)` — pure string presence, satisfied by any
 // commit on the branch, from any author, with no reason and no approver.
-// Audit 18's own case: the marker landed two commits after the diff it
+// The demonstrated case: the marker landed two commits after the diff it
 // excused (`ccd9d67`, +520, after `53f4bed`, +29,447) — which already
 // satisfied that check, and would have satisfied a naive fix requiring "the
 // marker sits in a commit distinct from the one it excuses" too, because it
@@ -64,7 +64,7 @@ export function approvedOverrideRowsForBranch(registerText, branch) {
   );
 }
 
-/** Fix 74's check, pure and injectable. `branch` is the pull request's own
+/** The change-size override check, pure and injectable. `branch` is the pull request's own
  *  head branch (`GITHUB_HEAD_REF` in CI, the checked-out branch for a
  *  manual run) — the same identity a human filing the row names in the
  *  register's own Branch column, so a row approved for one branch does not
@@ -140,7 +140,7 @@ export function checkChangeSizeOverride(
   });
 }
 
-// Fix 84 — the marker itself, not only the finding it excuses, is refused
+// The marker itself, not only the finding it excuses, is refused
 // without an approved row. ADR-0006 already made a pre-approved register row
 // unwritable in the commit that files it (check-approval-provenance.mjs: the
 // approver cell cannot be filled in the same commit that introduces the row).
