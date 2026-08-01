@@ -98,12 +98,36 @@ export function touchesComponent(file, paths) {
  *
  *  `.claude-plugin/plugin.json` itself is not part of what bootstrap ports
  *  into a consumer — nothing in skills/repository-bootstrap/SKILL.md
- *  produces that file — so checking for it directly, rather than through
+ *  produces that file — so reading it directly, rather than through
  *  deriveComponent()'s (now re-targetable) read of it, is the signal a
- *  correctly-bootstrapped consumer cannot collide with. A fork of this
- *  toolkit still carries the file and is still correctly "the toolkit". */
-export function isToolkit() {
-  return existsSync(".claude-plugin/plugin.json");
+ *  correctly-bootstrapped consumer cannot collide with.
+ *
+ *  It is the plugin's `name` that decides, not the file's existence: a
+ *  repository that is itself a Claude plugin — someone developing an
+ *  unrelated plugin, who then adopts these guardrails — carries the same file
+ *  and would otherwise be exempted from the two checks that exist to catch
+ *  ported content, which is most of what a plugin repository holds. Merely
+ *  existing was the same defect fix 91 corrected one step wider, where
+ *  "a component was derived" stood in for "this is the toolkit".
+ *
+ *  A fork keeps the name and is still correctly "the toolkit"; a fork that
+ *  renames itself has become a different plugin, and being treated as a
+ *  consumer of these standards is the right answer for it. */
+export const TOOLKIT_PLUGIN_NAME = "forgeboard-guardrails";
+
+export function isToolkit(
+  readFile = (f) => readFileSync(f, "utf8"),
+  exists = existsSync,
+) {
+  const manifest = ".claude-plugin/plugin.json";
+  if (!exists(manifest)) return false;
+  try {
+    return JSON.parse(readFile(manifest))?.name === TOOLKIT_PLUGIN_NAME;
+  } catch {
+    // An unreadable or malformed manifest is not proof this is the toolkit,
+    // and the fail-safe direction is to run the checks rather than skip them.
+    return false;
+  }
 }
 
 const BINARY =

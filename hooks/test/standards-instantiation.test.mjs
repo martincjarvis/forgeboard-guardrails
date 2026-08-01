@@ -17,6 +17,7 @@ import {
   findHardcodedCommitSha,
   checkHardcodedCommitSha,
 } from "../../scripts/check-standards-instantiation.mjs";
+import { isToolkit, TOOLKIT_PLUGIN_NAME } from "../../scripts/lib.mjs";
 import assert from "node:assert/strict";
 import { ROOT, CLEAN_ENV, git, scratchRepo, runScript } from "./support.mjs";
 
@@ -755,4 +756,62 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
     /hooks\/test\/hooks\.test\.mjs:1: hard-codes a full 40-character commit SHA \(daa59d0cf1d039b997b830eb1029a49d2aa7d099\)/,
   );
   rmSync(dir, { recursive: true, force: true });
+});
+
+// isToolkit() itself, against its real implementation rather than an injected
+// stub. Every other test in this file passes `isToolkit: () => …`, which
+// verifies what the exemption's consumers do given a boolean and never whether
+// the boolean is derived correctly — so the predicate shipped untested through
+// fix 91, and again after it. The middle case below is the one that was wrong:
+// a repository that is itself a Claude plugin, developing something unrelated,
+// carries `.claude-plugin/plugin.json` too, and the existence check exempted it
+// from the two checks that exist to catch ported content.
+test("isToolkit: true for this plugin, false for another plugin, false for no plugin", () => {
+  const manifest = ".claude-plugin/plugin.json";
+  const withManifest = (json) =>
+    isToolkit(
+      () => json,
+      (f) => f === manifest,
+    );
+
+  assert.equal(
+    withManifest(JSON.stringify({ name: TOOLKIT_PLUGIN_NAME })),
+    true,
+    "this toolkit's own manifest",
+  );
+  assert.equal(
+    withManifest(JSON.stringify({ name: "somebody-elses-plugin" })),
+    false,
+    "an unrelated plugin under development is a consumer, not the toolkit",
+  );
+  assert.equal(
+    isToolkit(
+      () => "",
+      () => false,
+    ),
+    false,
+    "no plugin manifest at all",
+  );
+  assert.equal(
+    withManifest("{ not json"),
+    false,
+    "a malformed manifest fails safe by running the checks, not skipping them",
+  );
+});
+
+// The consequence, end to end: the hardcoded-SHA check must still fire in a
+// repository that is a plugin but is not this one.
+test("checkHardcodedCommitSha: still fires in an unrelated plugin repository", () => {
+  const notThisPlugin = () =>
+    isToolkit(
+      () => JSON.stringify({ name: "somebody-elses-plugin" }),
+      () => true,
+    );
+  const findings = checkHardcodedCommitSha({
+    files: ["hooks/test/ported.test.mjs"],
+    readFile: () => "const SHA = 'daa59d0cf1d039b997b830eb1029a49d2aa7d099';",
+    classify: () => "test",
+    isToolkit: notThisPlugin,
+  });
+  assert.equal(findings.length, 1);
 });
