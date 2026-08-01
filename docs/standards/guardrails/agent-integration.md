@@ -108,6 +108,33 @@ standards do not define X, so I assumed Y" is a blocker plus a decision, and
 is correct. "Which should I use, X or Y?" is a clarifying question, and is
 not.
 
+This rule exists to make unattended runs deterministic — a run whose
+behaviour depends on what someone typed back is not a run you can compare
+against another. Two things are not clarifying questions, and the rule does
+not forbid either:
+
+- **A decision the standards reserve for a human** — a suppression approval,
+  an accepted risk, an opt-out, a conflict between two standing directives.
+  Surfacing one is reporting a blocker that needs an owner, not asking the
+  corpus to settle something it already settled; the decision is someone
+  else's to own. The opt-out conversation a bootstrap skill holds with a
+  human sits inside this carve-out.
+- **A genuine ambiguity in an interactive session with a human present.**
+  The rule does not exist to forbid a human collaborating with a skill in a
+  session they are sitting in, where the human can answer cheaply what
+  discovery could not resolve. An interactive skill may ask — once, batched,
+  with candidates, evidence and the default taken on no answer; an unattended
+  one may not.
+
+**Unattended runs are unchanged by the second carve-out.** The evaluation
+loop is unattended, and "the run had to answer a clarifying question"
+remains one of its stated failure conditions. A carve-out that leaked into
+unattended operation would silently invalidate every round the loop has ever
+measured. Collapsing the interactive path into the unattended one — take the
+documented default, report it, never ask — was the rejected alternative: it
+discards the one case where a human is present and able to answer, to spare
+a question the human is there precisely to answer.
+
 **Failure to deliver is a valid outcome, provided the reason is stated.** An
 agent that stops and says precisely what blocked it has succeeded at
 reporting; one that stops and asks a question, or stops silently, has not.
@@ -129,9 +156,13 @@ reporting; one that stops and asks a question, or stops silently, has not.
 - [ ] A working session reports what it is doing, what it has finished, and
       what is blocking it while the work is in progress, not only at the end.
 - [ ] A blocker is reported when it is hit, not held until the final report.
-- [ ] An ambiguous requirement is resolved by taking the reasonable option and
-      recording the choice and the rejected alternative, not by stopping to
-      ask.
+- [ ] An ambiguous requirement in an unattended run is resolved by taking the
+      reasonable option and recording the choice and the rejected alternative,
+      not by stopping to ask. An interactive run may ask once, batched, on a
+      genuine ambiguity discovery could not resolve; an unattended one may not.
+- [ ] A decision reserved for a human — a suppression, a risk, an opt-out, a
+      conflict between directives — is surfaced as a blocker needing an owner,
+      not asked as a clarifying question and not settled by the agent.
 - [ ] A session that cannot finish states precisely what blocked it, and does
       not stop silently or ask a clarifying question instead.
 
