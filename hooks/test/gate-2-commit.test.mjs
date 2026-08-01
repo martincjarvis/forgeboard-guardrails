@@ -310,15 +310,13 @@ test("resolveBase has no hardcoded fallback: an absent origin/HEAD with origin/m
 test("gate 6 reports visibly and refuses to proceed when origin/HEAD is unresolvable and no base was given", () => {
   const dir = scratchRepo();
   git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
-  // GITHUB_BASE_REF must be absent for this to exercise resolveBase()'s own
-  // null path rather than the pull_request-event argument path.
-  const env = Object.fromEntries(
-    Object.entries(CLEAN_ENV).filter(([k]) => k !== "GITHUB_BASE_REF"),
-  );
+  // CLEAN_ENV is an allow-list (fix 82) that never carries GITHUB_BASE_REF,
+  // so this already exercises resolveBase()'s own null path rather than the
+  // pull_request-event argument path — no per-test filtering needed.
   const r = spawnSync(
     process.execPath,
     [join(ROOT, "scripts/gate-6-pull-request.mjs")],
-    { cwd: dir, encoding: "utf8", env },
+    { cwd: dir, encoding: "utf8", env: CLEAN_ENV },
   );
   assert.notEqual(
     r.status,

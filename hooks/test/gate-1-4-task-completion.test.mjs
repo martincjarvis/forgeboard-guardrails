@@ -10,6 +10,7 @@ import {
   approvedOverrideRowsForBranch,
   findChangeSizeOverrideFindings,
   checkChangeSizeOverride,
+  checkChangeSizeOverrideMessage,
   REGISTER_PATH as CHANGE_SIZE_OVERRIDE_REGISTER_PATH,
 } from "../../scripts/check-change-size-override.mjs";
 import assert from "node:assert/strict";
@@ -460,6 +461,124 @@ test("regression guard: check-change-size-override.mjs run for real, passes once
     "origin/main..HEAD",
   ]);
   assert.equal(r.status, 0);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// Fix 84 — the marker becomes unwritable-by-agent the same structural way the
+// approver cell already is: mechanical, not a fourth prose statement. These
+// three tests are exactly checkpoints 1-3 of that fix.
+const CHANGE_SIZE_OVERRIDE_REGISTER_HEADER =
+  "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |\n" +
+  "| --- | --- | --- | --- | --- | --- |\n";
+test("checkChangeSizeOverrideMessage wires a single drafted message, the register read and the branch together — injected, no real repository needed", () => {
+  const registerText = [
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- |",
+    "| feature/bootstrap | 14959 | ported tooling | needed for parity | split next time | Martin Jarvis |",
+  ].join("\n");
+  const passing = checkChangeSizeOverrideMessage("chore: accepted [large-pr]", {
+    branch: "feature/bootstrap",
+    readFile: (p) =>
+      p === CHANGE_SIZE_OVERRIDE_REGISTER_PATH ? registerText : "",
+  });
+  assert.deepEqual(passing, []);
+
+  const blocked = checkChangeSizeOverrideMessage("chore: accepted [large-pr]", {
+    branch: "feature/unrelated",
+    readFile: (p) =>
+      p === CHANGE_SIZE_OVERRIDE_REGISTER_PATH ? registerText : "",
+  });
+  assert.equal(blocked.length, 1);
+
+  // A message that never mentions the marker at all — filing the register
+  // row itself, say — trips nothing regardless of the register's state.
+  const untouched = checkChangeSizeOverrideMessage(
+    "docs: record the change-size override",
+    {
+      branch: "feature/unrelated",
+      readFile: () => "",
+    },
+  );
+  assert.deepEqual(untouched, []);
+});
+
+test("regression guard: check-change-size-override.mjs --message run for real, refuses a commit whose own message introduces [large-pr] with no approved row (fix 84, checkpoint 1)", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature/bootstrap"]);
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, CHANGE_SIZE_OVERRIDE_REGISTER_PATH),
+    CHANGE_SIZE_OVERRIDE_REGISTER_HEADER,
+  );
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "docs: create the change-size override register"]);
+
+  const msgFile = join(dir, "MSG");
+  writeFileSync(msgFile, "chore: tune ported corpus [large-pr]\n");
+  const r = runScript("scripts/check-change-size-override.mjs", dir, [
+    "--message",
+    msgFile,
+  ]);
+  assert.equal(
+    r.status,
+    2,
+    "a commit whose own message carries the marker with no register row for this branch must be refused",
+  );
+  assert.match(r.stderr, /change size override/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("regression guard: check-change-size-override.mjs --message run for real, passes once the register already carries a human-approved row for this branch (fix 84, checkpoint 2)", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature/bootstrap"]);
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, CHANGE_SIZE_OVERRIDE_REGISTER_PATH),
+    CHANGE_SIZE_OVERRIDE_REGISTER_HEADER +
+      "| feature/bootstrap | 1000 | ported tooling | needed for parity | split next time | Martin Jarvis |\n",
+  );
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "docs: record the change-size override"]);
+
+  const msgFile = join(dir, "MSG");
+  writeFileSync(msgFile, "chore: tune ported corpus [large-pr]\n");
+  const r = runScript("scripts/check-change-size-override.mjs", dir, [
+    "--message",
+    msgFile,
+  ]);
+  assert.equal(
+    r.status,
+    0,
+    "the same commit is accepted once an approved row already exists for the branch",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("regression guard: check-change-size-override.mjs --message does not block filing a blank-approver row — the proposal path stays open (fix 84, checkpoint 3)", () => {
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature/bootstrap"]);
+  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
+  writeFileSync(
+    join(dir, CHANGE_SIZE_OVERRIDE_REGISTER_PATH),
+    CHANGE_SIZE_OVERRIDE_REGISTER_HEADER +
+      "| feature/bootstrap | 1000 | ported tooling | needed for parity | split next time | |\n",
+  );
+  git(dir, ["add", "-A"]);
+
+  const msgFile = join(dir, "MSG");
+  writeFileSync(
+    msgFile,
+    "docs: record the change-size override, awaiting approval\n",
+  );
+  const r = runScript("scripts/check-change-size-override.mjs", dir, [
+    "--message",
+    msgFile,
+  ]);
+  assert.equal(
+    r.status,
+    0,
+    "a commit that only files the row, with no [large-pr] in its own message, must not be refused",
+  );
   rmSync(dir, { recursive: true, force: true });
 });
 

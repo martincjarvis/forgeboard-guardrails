@@ -326,6 +326,16 @@ between gate 2's push back and gate 6's block for a row missing only its
 approver: **push back in an unattended run** becomes, server-side, a check
 for the resolved answer, and no answer on record is a failure there.
 
+**[ADR-0010](../../ADR/0010-large-pr-marker-refused-without-approved-row.md)
+closes what this paragraph used to leave open.** Gate 4's own change-size
+check still clears the moment it sees the bare string — that is unchanged —
+but the string itself can no longer land in any commit without an approved
+row already behind it: gate 3 (the commit-msg hook) refuses a commit whose
+own message introduces `[large-pr]` unless the change-size override register
+already carries a human-approved row for the branch. An agent can still
+report the finding and stop; it cannot type the marker into a commit ahead
+of a human's own approval, interactively or otherwise.
+
 **An override is not a fix, and a report must not read as though it were.**
 A pull request whose largest anomaly is an unresolved change-size override
 is not "fixed during the bootstrap" — it is outstanding, disclosed, and
@@ -644,6 +654,24 @@ quotes the gate's number, not a local run's**: a local `npm test` that
 passes reliably and CI running the identical suite that does not are two
 different instruments, and quoting the local one is not lying — it is
 citing the wrong instrument for a claim CI has already settled.
+
+**A count names the environment it ran in, not only the command that
+produced it.** The local-versus-CI split two paragraphs up is one instance
+of a general rule, not a special case of it: "`npm test` reports 290/290" is
+a claim about wherever that run happened, and a reader who was not told
+where cannot tell a local result from a CI one — the two are different
+instruments even when the command is identical, because the environment is
+part of what produced the number, not incidental to it (`GITHUB_HEAD_REF`
+and every other CI-only variable a local shell never sets are exactly the
+kind of difference a bare command name hides). This toolkit's own repository
+is the case that named the gap: every "N/N passing" claim in its own history
+was a local result — `gh run list` and `gh pr list --state all` both return
+empty, so none of them had ever run in the one environment gate 6 actually
+runs in — and "N/N passing" read, uncorrected, as though it meant something
+broader. Say where a count ran the same way a check that could not run says
+why: "290/290, `npm test`, local" and "290/290, `npm test`, CI" are different
+claims, and only the second is evidence about what a `pull_request` job will
+find.
 
 **Fix 61 — naming the command is not enough while the set can still be
 assembled check by check.** A report cited the rule above and still lost

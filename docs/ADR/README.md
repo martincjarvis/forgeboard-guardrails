@@ -80,7 +80,7 @@ account in its own repository.
   length limit.
 - [0006](0006-change-size-override-is-a-human-decision.md) — an agent
   reports a change-size finding; a human, not the agent, applies
-  `[large-pr]`.
+  `[large-pr]`. Superseded by [0010](0010-large-pr-marker-refused-without-approved-row.md).
 - [0007](0007-pull-request-precondition-is-resolvability.md) — a pull
   request opens when every finding an implementer could resolve has been
   resolved; the reserved classes are a consequence, not the definition.
@@ -91,3 +91,7 @@ account in its own repository.
   split by subject area so lizard's function-span detection stops merging
   adjacent functions; warn-not-block at gate 6 and a tool-artefact register
   row were rejected.
+- [0010](0010-large-pr-marker-refused-without-approved-row.md) — a commit
+  whose own message introduces `[large-pr]` is refused at the commit-msg
+  hook unless the change-size override register already carries a
+  human-approved row for the branch; supersedes 0006.

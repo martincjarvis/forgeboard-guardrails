@@ -35,7 +35,7 @@
 // (cross-gate-rules.md#prefer-established-tooling-to-bespoke-checks).
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { run, report } from "./lib.mjs";
+import { run, report, readStaged } from "./lib.mjs";
 import { parseRegisterRows } from "./check-approval-provenance.mjs";
 import { looksLikeTeamLabel } from "./check-adr-approver.mjs";
 
@@ -135,8 +135,59 @@ export function checkChangeSizeOverride(
   });
 }
 
+// Fix 84 — the marker itself, not only the finding it excuses, is refused
+// without an approved row. ADR-0006 already made a pre-approved register row
+// unwritable in the commit that files it (check-approval-provenance.mjs: the
+// approver cell cannot be filled in the same commit that introduces the row).
+// This closes the matching gap on the other side: three prose statements
+// (ADR-0006, SKILL.md, the register's own header) told an agent never to
+// write the marker on its own authority, and one commit did it anyway while
+// quoting the rule it broke. A prose-only defect recurs; this makes the
+// marker mechanically unwritable the same structural way the approver cell
+// already is — an agent cannot fabricate the earlier, separate, human-filled
+// approval a commit carrying the marker now requires to exist first.
+//
+// Wired at the commit-msg hook (gate 3 — docs/standards/guardrails/gate-3-
+// commit-message.md — the one hook stage where the message about to be
+// committed is readable at all; gate 2's own contract is staged *file*
+// content, and the marker lives in the message, not a file, so gate 2 cannot
+// see it before the commit object exists). `logText` here is the single
+// drafted message, not a log range: the check fires once, for the commit
+// that would introduce the marker, not for the branch's whole history — a
+// commit that only files the register row (its own message never mentions
+// `[large-pr]`) never trips it, so filing a blank-approver row stays exactly
+// as available as ADR-0006 already made it.
+export function checkChangeSizeOverrideMessage(
+  message,
+  {
+    branch = process.env.GITHUB_HEAD_REF ||
+      run("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout?.trim(),
+    readFile = readStaged,
+  } = {},
+) {
+  return findChangeSizeOverrideFindings({
+    logText: message,
+    registerText: readFile(REGISTER_PATH),
+    branch,
+  });
+}
+
 const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
-  const range = process.argv[2] || "origin/main..HEAD";
-  report("gate 6", checkChangeSizeOverride(range));
+  if (process.argv[2] === "--message") {
+    // .husky/commit-msg usage: the one message about to be committed.
+    const msgFile = process.argv[3];
+    let message = "";
+    if (msgFile) {
+      try {
+        message = readFileSync(msgFile, "utf8");
+      } catch {
+        message = "";
+      }
+    }
+    report("gate 3", checkChangeSizeOverrideMessage(message));
+  } else {
+    const range = process.argv[2] || "origin/main..HEAD";
+    report("gate 6", checkChangeSizeOverride(range));
+  }
 }

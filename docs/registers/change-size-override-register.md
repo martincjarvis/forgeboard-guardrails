@@ -14,9 +14,14 @@ the one that files the row, the same two-step every other register in this
 repository already requires
 ([registers.md](../standards/guardrails/registers.md#approval-is-an-event-not-a-field)).
 
-A row missing only its Approver is not refused here — gate 4 lets the branch
-proceed locally with the row still open, and gate 6 is what blocks the merge on
-it, the same split every other register in this repository already draws.
+A row missing only its Approver is not refused here — filing it is still
+permitted with the row left open, the same split every other register in
+this repository already draws. What is refused is pairing the marker with an
+unapproved row: a commit whose own message contains `[large-pr]` is refused
+at the commit-msg hook unless a human-approved row for the branch already
+exists ([ADR-0010](../ADR/0010-large-pr-marker-refused-without-approved-row.md)),
+so gate 4 and gate 6 only ever see the marker once that row is already in
+place.
 
 ## Register
 

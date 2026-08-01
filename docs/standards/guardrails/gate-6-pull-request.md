@@ -560,8 +560,12 @@ pipeline refuses the merge.
       skip standing in for one — see [branch protection](branch-protection.md)
       for the three states and what each one means.
 - [ ] A branch carrying `[large-pr]` with no matching, human-approved row in
-      the change-size override register is refused here, even though the
-      bare marker already cleared gate 4 locally
+      the change-size override register is refused here — the backstop for a
+      marker that reached a commit through a bypassed hook, since a commit
+      introducing the marker is otherwise already refused earlier, at the
+      commit-msg hook, without an approved row
+      ([ADR-0010](../../ADR/0010-large-pr-marker-refused-without-approved-row.md)).
+      Gate 4's own change-size check still clears on the bare marker locally
       ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
 - [ ] A row approved for a different branch does not clear this check for the
       one under review.

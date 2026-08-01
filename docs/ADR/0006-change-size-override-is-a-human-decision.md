@@ -1,8 +1,9 @@
 ---
 type: explanation
-status: Accepted
+status: Superseded
 decided: 2026-07-31
 owner: Toolkit maintainers
+superseded_by: 0010
 summary: An agent reports a change-size finding and the composition driving it; it never applies the [large-pr] override on its own authority. The override is a resolved decision record — a human-approved row in the change-size override register — never the bare marker string.
 read_when: Asking why gate 6 refuses a [large-pr] marker with no register row behind it, or deciding how an autonomous run should handle an oversized branch.
 ---

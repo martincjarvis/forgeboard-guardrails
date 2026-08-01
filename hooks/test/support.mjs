@@ -1,4 +1,4 @@
-// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
+// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited LOCALAPPDATA windir
 // Shared helpers for the split hooks.test.mjs suite (fix 79) — the throwaway
 // git-repository builders and process wrappers every subject-area file uses.
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -13,14 +13,48 @@ export const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 // into the environment; anything spawned with those inherited resolves THIS
 // repository instead of the throwaway one its cwd points at. Left in place, a
 // `git add -A` in the scratch directory commits against the real index and
-// deletes the corpus — which is exactly what happened once. Strip them so the
-// scratch repository the test builds is the one the commands act on.
+// deletes the corpus — which is exactly what happened once.
 //
-// This applies to the gates under test as much as to the test's own git calls:
-// a gate spawned with GIT_DIR set would measure the real repository and report
-// on a branch nobody asked about.
+// Fix 82: a deny-list of GIT_* alone still let GITHUB_HEAD_REF through. A real
+// `pull_request` job exports it for the whole job; a scratch-repo subprocess
+// that inherits it resolves check-change-size-override.mjs's branch from the
+// job's variable instead of deriving it from the repo the test built, finds no
+// register row for that name, and refuses a case the test set up to pass. The
+// deny-list moved byte-for-byte through the fix-79 split and has been latent
+// since fix 74 introduced GITHUB_HEAD_REF resolution — the same shape
+// hooks/lib/run.mjs's own comment already names for GIT_*: "a hook-spawned
+// process inherits ... and resolves the wrong repository."
+//
+// A deny-list only ever excludes the variable someone thought to name; the
+// next ambient variable a CI host sets (GITHUB_BASE_REF, GITHUB_ACTIONS,
+// GITHUB_EVENT_NAME, GITHUB_STEP_SUMMARY, CI, RUNNER_* ...) fails the same way
+// on its own schedule. So this is an allow-list instead: only the platform
+// plumbing a spawned git/node/tool process actually needs to run at all —
+// locate its own executable, find a home and temp directory, and, on Windows,
+// the system paths a `.cmd` shim's shell needs — crosses into the child.
+// Anything test- or environment-specific a subprocess should react to
+// (GITHUB_HEAD_REF included) has to be added back explicitly by the test that
+// wants it, the same way individual tests already add PYTHONUTF8 for semgrep
+// rather than relying on it being ambient.
+const INHERITED_ENV_KEYS = [
+  "PATH",
+  "HOME",
+  "USERPROFILE",
+  "TEMP",
+  "TMP",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "SystemRoot",
+  "windir",
+  "PATHEXT",
+  "ComSpec",
+];
+
 export const CLEAN_ENV = Object.fromEntries(
-  Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")),
+  INHERITED_ENV_KEYS.filter((k) => process.env[k] !== undefined).map((k) => [
+    k,
+    process.env[k],
+  ]),
 );
 
 export function git(cwd, args) {

@@ -21,6 +21,15 @@ no version at all.
 | 4   | Breaking change | Policy | A breaking change is marked without a footer describing the migration                                           |
 | 5   | Scope agreement | Policy | The scope names a component the change does not touch, or the change touches components the scope does not name |
 
+**`.husky/commit-msg` also runs one check outside this gate's own concern**:
+whether the message introduces the `[large-pr]` change-size override marker
+with no human-approved row behind it yet
+(`node scripts/check-change-size-override.mjs --message <file>`,
+[ADR-0010](../../ADR/0010-large-pr-marker-refused-without-approved-row.md)).
+It shares this hook only because the commit-msg stage is the one place the
+drafted message is readable before the commit exists — it is not a
+Conventional Commits check and is not numbered above.
+
 ## Structure
 
 ```text

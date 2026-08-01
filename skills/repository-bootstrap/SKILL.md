@@ -334,6 +334,22 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
 
 ## What done looks like
 
+- **The work is not finished when the pull request opens — it is finished
+  once the pipeline has run and the report reconciles against its own log
+  (fix 66, fix 76).** A pull request existing is a precondition for CI to run
+  at all, not evidence that it did. One run's own report promised
+  reconciliation in fix 66's words — "If CI finds something the local run
+  did not, that gap is itself a finding … and will be recorded here" — and
+  the session ended before its own CI job had even started: the last commit
+  landed at 00:30:14Z, CI began at 00:35:36Z, and two of five CI findings
+  (`unit tests`, `cross-stack dependency scan (osv-scanner)`) never made it
+  into the report at all. `node <tooling-dir>/check-report-ci-reconciliation.mjs
+<report-path> <job-log-path>` is what would have caught it — it reads a
+  gate's own `FAIL` lines out of the job log generically, not one tool by
+  name, so it catches whichever check CI disagrees with, not only the one a
+  prior audit happened to name. Stay in the session, or hand off explicitly
+  with the reconciliation step still outstanding and named as such — do not
+  let the run's own end read as the work's end.
 - Every step above has evidence, not configuration alone.
   `skills/guardrail-audit/SKILL.md`'s "Verifying rather than assuming" section
   applies here too: a check is real once you have seen it fail on something it
@@ -364,16 +380,19 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
   claim broader than the check performed sends whoever reads the report
   looking in the wrong place, the same as any other finding stated wrong.
 - **Every numeric claim anywhere in the report names the command that
-  produced it — not only the outstanding-work section.** Fix 57: a report
-  whose outstanding-work section was already generated from gate output
-  still stated, in its "What was done" narrative, `node --test … reports
-225 pass, 0 fail`, while CI on the same commit reported `pass 219 / fail 2
-/ cancelled 4`. Any count, any "all X pass", any "N findings" —
-  wherever it appears in the report — names its command, and where a gate
-  produces the identical figure for the same commit, the report quotes the
-  gate's number, not a local run's: a local run that passes reliably while
-  CI's does not are two different instruments, and citing the local one is
-  citing the wrong one, not lying.
+  produced it, and the environment it ran in — not only the outstanding-work
+  section.** Fix 57: a report whose outstanding-work section was already
+  generated from gate output still stated, in its "What was done" narrative,
+  `node --test … reports 225 pass, 0 fail`, while CI on the same commit
+  reported `pass 219 / fail 2 / cancelled 4`. Any count, any "all X pass",
+  any "N findings" — wherever it appears in the report — names its command
+  and where it ran, and where a gate produces the identical figure for the
+  same commit, the report quotes the gate's number, not a local run's: a
+  local run that passes reliably while CI's does not are two different
+  instruments, and citing the local one is citing the wrong one, not lying.
+  "290/290, `npm test`, local" is a narrower claim than "290/290, `npm test`,
+  CI" and the report says which one it is
+  ([cross-gate-rules.md](../../docs/standards/guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)).
 
 ## Rules
 
