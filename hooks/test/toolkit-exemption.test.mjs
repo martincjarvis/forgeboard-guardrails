@@ -14,7 +14,7 @@ import { isToolkit, TOOLKIT_PLUGIN_NAME } from "../../scripts/lib.mjs";
 import assert from "node:assert/strict";
 import { ROOT, CLEAN_ENV, git, scratchRepo, runScript } from "./support.mjs";
 
-// --- scripts/check-standards-instantiation.mjs — fix 60. An implementer
+// --- scripts/check-standards-instantiation.mjs — an implementer
 // removed, by hand, two toolkit self-checks that had made it into a ported
 // test file: one reading this toolkit's own commit daa59d0c…, one asserting
 // this toolkit's own ADR-0004 was Accepted with a named approver. Both would
@@ -47,7 +47,7 @@ test("findHardcodedCommitSha: a 40-character run embedded inside a longer hex st
   assert.deepEqual(findings, []);
 });
 
-test("checkHardcodedCommitSha: a full SHA in a file classed `test` is a finding, naming the file, line and SHA (fix 60)", () => {
+test("checkHardcodedCommitSha: a full SHA in a file classed `test` is a finding, naming the file, line and SHA", () => {
   const files = ["hooks/test/x.test.mjs"];
   /** @type {Record<string, string>} */
   const contents = {
@@ -94,9 +94,9 @@ test("checkHardcodedCommitSha: this toolkit's own repository is exempt outright,
   assert.deepEqual(findings, []);
 });
 
-test("checkHardcodedCommitSha: run for real against this toolkit's own repository, the exemption verified rather than assumed (fix 60, hazard 4)", () => {
+test("checkHardcodedCommitSha: run for real against this toolkit's own repository, the exemption verified rather than assumed (hazard 4)", () => {
   // hooks/test/hooks.test.mjs itself legitimately carries a full 40-character
-  // SHA (fix 49, hazard 3: daa59d0cf1d039b997b830eb1029a49d2aa7d099, this
+  // SHA (hazard 3: daa59d0cf1d039b997b830eb1029a49d2aa7d099, this
   // repository's own real history) — the exact recursion the brief warns
   // about. isToolkit() defaults to true here (this repository carries
   // .claude-plugin/plugin.json), so the check must return no findings.
@@ -107,7 +107,7 @@ test("checkHardcodedCommitSha: run for real against this toolkit's own repositor
     "the toolkit exemption keeps this repository's own real SHA from being flagged",
   );
 
-  // Fix 59's lesson applied here: an exemption that hides a path from a
+  // The lesson applied here: an exemption that hides a path from a
   // check also hides it from every test that only ever runs under that
   // exemption. Forcing the exemption off exercises the non-exempt path for
   // real, against this repository's own tree, rather than assuming it would
@@ -121,11 +121,11 @@ test("checkHardcodedCommitSha: run for real against this toolkit's own repositor
   );
 });
 
-// --- Fix 91. `isToolkit()` used to be `() => deriveComponent() !== null`.
+// --- `isToolkit()` used to be `() => deriveComponent() !== null`.
 // deriveComponent() derives whatever single component a stack's own
 // manifest groups (components.md) and is deliberately re-targeted per
 // stack when bootstrap ports it — so a correctly-bootstrapped consumer
-// derives a non-null component too. Audit 22, against the real subject
+// derives a non-null component too. Against the real subject
 // (martincjarvis/greet, a consuming repository): its own ported
 // scripts/lib.mjs checks `.claude-plugin/plugin.json` first, exactly this
 // repository's own logic, and falls through to `package.json` when that
@@ -136,7 +136,7 @@ test("checkHardcodedCommitSha: run for real against this toolkit's own repositor
 // `.claude-plugin/plugin.json` directly, never through deriveComponent(),
 // so no fallback a ported copy adds can affect it.
 
-test("isToolkit (lib.mjs): false in a repository whose component derives from package.json, not .claude-plugin/plugin.json — the real ported shape audit 22 found", () => {
+test("isToolkit (lib.mjs): false in a repository whose component derives from package.json, not .claude-plugin/plugin.json — the real ported shape", () => {
   const dir = scratchRepo();
   writeFileSync(
     join(dir, "package.json"),
@@ -175,7 +175,7 @@ test("isToolkit (lib.mjs): true in this toolkit's own repository, run for real, 
   assert.equal(r.stdout, "true");
 });
 
-test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose ported test file hard-codes a full commit SHA, refuses and names the file, line and SHA (fix 60)", () => {
+test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose ported test file hard-codes a full commit SHA, refuses and names the file, line and SHA", () => {
   const dir = scratchRepo();
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
   mkdirSync(join(dir, "docs", "standards"), { recursive: true });
@@ -205,8 +205,8 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
 // isToolkit() itself, against its real implementation rather than an injected
 // stub. Every other test in this file passes `isToolkit: () => …`, which
 // verifies what the exemption's consumers do given a boolean and never whether
-// the boolean is derived correctly — so the predicate shipped untested through
-// fix 91, and again after it. The middle case below is the one that was wrong:
+// the boolean is derived correctly — so the predicate shipped untested,
+// and again after the fix. The middle case below is the one that was wrong:
 // a repository that is itself a Claude plugin, developing something unrelated,
 // carries `.claude-plugin/plugin.json` too, and the existence check exempted it
 // from the two checks that exist to catch ported content.

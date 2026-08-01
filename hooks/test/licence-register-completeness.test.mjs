@@ -123,7 +123,7 @@ test("licence policy refuses a missing register, and refuses a resolved dependen
 });
 
 test("licence policy: an unresolved version is its own finding, and the literal 'undefined' never reaches a diagnostic", () => {
-  // Fix 19. Audit 7's CI: `monocart-coverage-reports@undefined carries
+  // From a real CI run: `monocart-coverage-reports@undefined carries
   // licence 'unknown'` — a failed metadata read (the version) rendered as
   // data and folded into the same sentence as a second, distinct failure
   // (the licence).
@@ -150,7 +150,7 @@ test("licence policy: an unresolved version is its own finding, and the literal 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("licence policy (full pipeline): a compound SPDX expression passes when at least one disjunct is OSI-approved and compatible — audit 6's JSONStream / type-fest regression", () => {
+test("licence policy (full pipeline): a compound SPDX expression passes when at least one disjunct is OSI-approved and compatible — the JSONStream / type-fest regression", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature"]);
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });

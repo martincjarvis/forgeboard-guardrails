@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: gate-6-dependency-advisories-and-licence-policy.
+// Split from hooks.test.mjs — subject group: gate-6-dependency-advisories-and-licence-policy.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import {
@@ -86,15 +86,15 @@ test("dependency advisory scan pushes back a development-only dependency at high
   );
 });
 
-// --- Fix 93. The push-back remedy used to name only two paths — "upgrade
+// --- The push-back remedy used to name only two paths — "upgrade
 // the dependency, or accept it in an Accepted ADR naming the advisory id" —
-// a false binary. Iteration 26 (audit 22's own subject) took the ADR branch
+// a false binary. Iteration 26 took the ADR branch
 // in good faith for a js-yaml advisory, reasoning the fixed version only
 // shipped bundled inside markdownlint-cli2, five days inside the
 // repository's own release-age window — missing that js-yaml@5.2.2 itself,
 // pinned directly via `overrides`, was published nine days EARLIER, clears
 // the same window on its own, and `npm audit` reports 0 vulnerabilities
-// with that pin (audit 22, and iteration 25 before it, both verified this).
+// with that pin (verified across two iterations).
 // The remedy must name the pin as a real third option, not push every
 // push-back-band advisory toward either an upgrade nobody can do yet or an
 // ADR nobody needed to write.
@@ -205,7 +205,7 @@ test("compatible(): a non-permissive licence that never ships has nothing downst
   assert.equal(compatible(artistic, "Development", "MIT"), true);
 });
 
-test("SPDX expression evaluation: OR passes if any disjunct is acceptable — audit 6's JSONStream / type-fest regression, MIT OR Apache-2.0 and (MIT OR CC0-1.0)", () => {
+test("SPDX expression evaluation: OR passes if any disjunct is acceptable — the JSONStream / type-fest regression, MIT OR Apache-2.0 and (MIT OR CC0-1.0)", () => {
   assert.equal(
     licenceExpressionAcceptable("MIT OR Apache-2.0", "Runtime", null)
       .acceptable,
@@ -301,7 +301,7 @@ test("SPDX expression evaluation: an identifier with no table entry blocks, name
 });
 
 test("SPDX expression evaluation: a non-SPDX string is reported as unparseable, quoted whole — not tokenised into a wrong identifier", () => {
-  // Fix 18. A space instead of the SPDX hyphen ('Apache 2.0' rather than
+  // A space instead of the SPDX hyphen ('Apache 2.0' rather than
   // 'Apache-2.0') tokenises into two identifier-shaped words with no
   // operator between them; a parser that stops at the first token the
   // grammar doesn't recognise would silently drop the rest and name '2.0' or

@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: gate-2-commit.
+// Split from hooks.test.mjs — subject group: gate-2-commit.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import {
@@ -133,7 +133,7 @@ test("gate 2 checks 12/13 read the staged tree, not a working-tree fix that was 
 test("gate 2 wires a lint check independently of the build: a lint-only violation tsc accepts is refused", () => {
   // gate-2-commit.md, check 11: "A lint or type-check failure is refused
   // independently of the build — the type checker is not the linter."
-  // Fix 10 (audit 6): `npm run lint` used to be invoked by nothing, so this
+  // `npm run lint` used to be invoked by nothing, so this
   // check was effectively absent. An unused local variable is exactly the
   // shape tsc's checkJs (strict: false, no noUnusedLocals) does not catch,
   // so a build that runs against the same file stays green — proving the
@@ -196,7 +196,7 @@ test("gate 2 wires a lint check independently of the build: a lint-only violatio
 test("eslint --max-warnings 0 refuses a rule configured at its own default (warn) severity", () => {
   // cross-gate-rules.md: "No gate emits a warning it does not treat as a
   // failure" and "a rule configured at a linter's own warn severity still
-  // [fails]." Fix 10's second half: --max-warnings 0 wherever eslint runs.
+  // [fails]." --max-warnings 0 wherever eslint runs.
   // Every rule in eslint.config.mjs is already "error" (checked directly, not
   // inferred), so this proves the FLAG closes the gap, independent of
   // whether any rule happens to be misconfigured today.
@@ -271,7 +271,7 @@ test("protected-branch check refuses on the derived default branch, allows a fea
 });
 
 test("resolveBase has no hardcoded fallback: an absent origin/HEAD with origin/main still present is a visible skip, not a guessed name", () => {
-  // The single-failure case (lib.mjs:resolveBase, fix 14): a shallow clone,
+  // The single-failure case (lib.mjs:resolveBase): a shallow clone,
   // partial clone, or stale symref can delete refs/remotes/origin/HEAD while
   // refs/remotes/origin/main stays behind. A hardcoded "origin/main" fallback
   // would use that guessed name as though it had been derived, and the
@@ -310,7 +310,7 @@ test("resolveBase has no hardcoded fallback: an absent origin/HEAD with origin/m
 test("gate 6 reports visibly and refuses to proceed when origin/HEAD is unresolvable and no base was given", () => {
   const dir = scratchRepo();
   git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
-  // CLEAN_ENV is an allow-list (fix 82) that never carries GITHUB_BASE_REF,
+  // CLEAN_ENV is an allow-list that never carries GITHUB_BASE_REF,
   // so this already exercises resolveBase()'s own null path rather than the
   // pull_request-event argument path — no per-test filtering needed.
   const r = spawnSync(

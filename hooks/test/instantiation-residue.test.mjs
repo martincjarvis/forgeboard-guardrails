@@ -11,8 +11,8 @@ import {
 import assert from "node:assert/strict";
 import { git, scratchRepo, runScript } from "./support.mjs";
 
-// --- fix 55 — instantiation residue outside docs/standards/**. Audit 14
-// found four dead .NET words (Roslynator, Meziantou, xunit, warnaserror) in
+// --- instantiation residue outside docs/standards/**. Four
+// dead .NET words (Roslynator, Meziantou, xunit, warnaserror) were found in
 // a Node-only repository's cspell.json, each with zero occurrences anywhere
 // else in the tree, copied wholesale from this toolkit's own multi-stack
 // word list. Kept conservative: an unused word alone is not a finding, only
@@ -47,7 +47,7 @@ test("findCspellResidue: a word naming a stack that IS in the derived list is no
   assert.deepEqual(findCspellResidue(words, corpus, new Set(["node"])), []);
 });
 
-test("checkCspellResidue: a Node-only repository's cspell.json carrying dead .NET vocabulary is refused, naming the word and the stack (fix 55, audit 14's exact case)", () => {
+test("checkCspellResidue: a Node-only repository's cspell.json carrying dead .NET vocabulary is refused, naming the word and the stack", () => {
   const files = ["cspell.json", "package.json", "docs/README.md"];
   /** @type {Record<string, string>} */
   const contents = {
@@ -93,7 +93,7 @@ test("checkCspellResidue: this toolkit's own repository is exempt outright, what
   assert.deepEqual(findings, []);
 });
 
-test("checkCspellResidue: run for real against this toolkit's own repository, exits clean — the same cspell.json audit 14's demonstrated words came from, verified not to fire here (fix 55)", () => {
+test("checkCspellResidue: run for real against this toolkit's own repository, exits clean — the same cspell.json the demonstrated words came from, verified not to fire here", () => {
   // Two separate reasons this must stay clean, both worth proving rather
   // than assuming: the toolkit exemption (isToolkit, the default here since
   // this repository carries .claude-plugin/plugin.json), AND — checked
@@ -116,8 +116,8 @@ test("checkCspellResidue: run for real against this toolkit's own repository, ex
   );
 });
 
-test("checkCspellResidue: an occurrence only in a file classed `tooling` does not count as 'used elsewhere' (fix 59) — the ported checker's own fixtures must not vote for their own vocabulary", () => {
-  // Audit 15's structural finding: checkCspellResidue's original corpus was
+test("checkCspellResidue: an occurrence only in a file classed `tooling` does not count as 'used elsewhere' — the ported checker's own fixtures must not vote for their own vocabulary", () => {
+  // The structural finding: checkCspellResidue's original corpus was
   // every tracked text file, which — once this module and its test file are
   // themselves ported into the repository they inspect — includes this
   // checker's own source and fixtures containing the literal dead-stack
@@ -166,11 +166,11 @@ test("checkCspellResidue: an occurrence only in a file classed `tooling` does no
   assert.deepEqual(
     findingsWithoutClassExcluded,
     [],
-    "unclassified, the ported checker's own fixture registers as 'used elsewhere' and hides the residue — this is the bug fix 59 closes",
+    "unclassified, the ported checker's own fixture registers as 'used elsewhere' and hides the residue — this is the bug the check closes",
   );
 });
 
-test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose cspell.json carries dead .NET vocabulary with zero other occurrences, refuses and names it (fix 55)", () => {
+test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose cspell.json carries dead .NET vocabulary with zero other occurrences, refuses and names it", () => {
   const dir = scratchRepo();
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
   writeFileSync(
@@ -210,14 +210,14 @@ test("regression guard: check-standards-instantiation.mjs run for real, the same
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree that has ported the checker itself into its tooling directory, still refuses on the real four words (fix 59) — the non-exempt path, exercised directly", () => {
-  // The exact shape audit 15 found: a Node-only consuming repository whose
+test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree that has ported the checker itself into its tooling directory, still refuses on the real four words — the non-exempt path, exercised directly", () => {
+  // The exact shape found: a Node-only consuming repository whose
   // own tooling directory carries this checker (and a test file exercising
   // it), so the tree tracks a copy of scripts/check-standards-instantiation.mjs
   // containing the literal fixture words this test's own cspell.json also
   // lists — deriveComponent() finds no .claude-plugin/plugin.json under
   // `dir`, so isToolkit() is false here and this check's real, non-exempt
-  // path runs — the path fix 59's lesson says must be exercised directly,
+  // path runs — the path whose lesson says it must be exercised directly,
   // not assumed clean because the canonical toolkit's own run is exempt.
   const dir = scratchRepo();
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));

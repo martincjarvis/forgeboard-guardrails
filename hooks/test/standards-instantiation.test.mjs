@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited lede
-// Split from hooks.test.mjs (fix 79) — subject group: standards-instantiation.
+// Split from hooks.test.mjs — subject group: standards-instantiation.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
@@ -68,8 +68,8 @@ test("findMultiComponentContent: the same heading raises nothing once the reposi
   assert.deepEqual(findings, []);
 });
 
-// --- findComponentCountContradiction — fix 72. findMultiComponentContent
-// above is a heading search; audit 17's demonstrated case (docs/standards/
+// --- findComponentCountContradiction — findMultiComponentContent
+// above is a heading search; the demonstrated case (docs/standards/
 // deployment-strategy.md, 567 of 568 lines retained) carried its own
 // contradiction in the frontmatter `summary` field, which is never a
 // Markdown heading, so the heading search read the document as clean.
@@ -101,7 +101,7 @@ test("findComponentCountContradiction: raises nothing once the repository actual
   assert.deepEqual(findComponentCountContradiction(text, 3), []);
 });
 
-test("findComponentCountContradiction: a lede reading multi-component is a finding, distinct from the frontmatter and the title (fix 81, audit 19's demonstrated case)", () => {
+test("findComponentCountContradiction: a lede reading multi-component is a finding, distinct from the frontmatter and the title", () => {
   const text =
     "---\ntype: reference\nsummary: How this repository is packaged and released.\n---\n\n" +
     "# Deployment strategy\n\nHow a multi-component app is versioned per-component, packaged, and deployed.\n";
@@ -124,7 +124,7 @@ test("findComponentCountContradiction: a clean frontmatter, title and lede raise
   );
 });
 
-test("regression guard: findComponentCountContradiction run for real against this toolkit's own docs/standards/deployment-strategy.md, at component count 1, refuses on its frontmatter (fix 72, audit 17's exact case)", () => {
+test("regression guard: findComponentCountContradiction run for real against this toolkit's own docs/standards/deployment-strategy.md, at component count 1, refuses on its frontmatter", () => {
   const text = readFileSync(
     join(ROOT, "docs", "standards", "deployment-strategy.md"),
     "utf8",
@@ -132,7 +132,7 @@ test("regression guard: findComponentCountContradiction run for real against thi
   const findings = findComponentCountContradiction(text, 1);
   assert.ok(
     findings.length > 0,
-    "deployment-strategy.md's own frontmatter still reads as multi-component; this is the retained-standard defect fix 72 exists to catch, not a false positive",
+    "deployment-strategy.md's own frontmatter still reads as multi-component; this is the retained-standard defect this check exists to catch, not a false positive",
   );
   const finding = findings[0];
   assert.ok(finding, "expected one finding");
@@ -143,7 +143,7 @@ test("findMultiComponentContent: the phrase inside a paragraph rather than a hea
   const text = "This paragraph mentions cross-component effects in passing.\n";
   const findings = findMultiComponentContent(text, 1);
   assert.deepEqual(findings, []);
-  // findRemovalsOutsideEnforcementMap — fix 53. docs-style.md requires every
+  // findRemovalsOutsideEnforcementMap — docs-style.md requires every
   // instantiation removal be recorded "in a PROVENANCE note or a short section
   // of the enforcement map." A bootstrapped repository instead recorded every
   // removal in docs/bootstrap-report.md — a one-time session report — while
@@ -151,7 +151,7 @@ test("findMultiComponentContent: the phrase inside a paragraph rather than a hea
   // not judge whether the removal's stated reason is honest; only whether it
   // was written down somewhere durable.
   //
-  // Nested with awaited t.test(), not a further top-level test() — fix 58. A
+  // Nested with awaited t.test(), not a further top-level test(). A
   // top-level test() nested inside a running one races the parent's
   // completion instead of being awaited by it, and under load the parent can
   // be marked done before the child reports, which node:test then cancels as
@@ -241,13 +241,13 @@ test("findMultiComponentContent: the phrase inside a paragraph rather than a hea
 });
 
 test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree with a stack reference outside the derived list, refuses and names it", () => {
-  // Fix 40 — this script was found ported, unit-tested (the three exported
+  // This script was found ported, unit-tested (the three exported
   // functions above) and never wired: its own isMain block, the shape a
   // consuming repository's gate 7 actually invokes, had never been run by
   // anything in this suite. This exercises that CLI path directly, the same
   // way a consuming repository's own gate 7 would, against a Node-only
   // scratch repository whose docs/standards/ names .NET tooling it has no
-  // manifest for — the exact defect class audit 11 measured in the wild.
+  // manifest for — the exact defect class measured in the wild.
   const dir = scratchRepo();
   writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));
   mkdirSync(join(dir, "docs", "standards"), { recursive: true });
@@ -284,11 +284,11 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
   assert.match(r.stderr, /standards instantiation: 0 findings/);
   rmSync(dir, { recursive: true, force: true });
 
-  // Nested with awaited t.test(), not a further top-level test() — fix 58.
+  // Nested with awaited t.test(), not a further top-level test().
   // See flaky-tests.md and the note beside the earlier instance of this
   // pattern in this file.
   await t.test(
-    "regression guard: check-standards-instantiation.mjs run for real, against a scratch tree recording a removal only in a session report, refuses and names it (fix 53)",
+    "regression guard: check-standards-instantiation.mjs run for real, against a scratch tree recording a removal only in a session report, refuses and names it",
     () => {
       const dir = scratchRepo();
       writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "x" }));

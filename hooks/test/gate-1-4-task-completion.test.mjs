@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: gate-1-4-task-completion.
+// Split from hooks.test.mjs — subject group: gate-1-4-task-completion.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
@@ -94,7 +94,7 @@ test("gate 4 passes a small branch", () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- Fix 71. Root cause: scripts/gate-6-pull-request.mjs resolves its own
+// --- Root cause: scripts/gate-6-pull-request.mjs resolves its own
 // base via GITHUB_BASE_REF first (always set on a real `pull_request` CI
 // run), falling back to resolveBase() only for a manual run — but it used
 // to spawn this hook as a subprocess with no base argument at all, so the
@@ -108,7 +108,7 @@ test("gate 4 passes a small branch", () => {
 // an explicit base argument is used when given, and the pre-existing local
 // behaviour (Stop hook, hooks.json, called with no argument) is unchanged.
 
-test("gate 4 uses an explicit base argument instead of resolveBase() when one is given (fix 71)", () => {
+test("gate 4 uses an explicit base argument instead of resolveBase() when one is given", () => {
   const dir = scratchRepo();
   // Break resolveBase() the same single-failure way line 722's test does —
   // origin/main still resolves, origin/HEAD does not — so a pass here can
@@ -151,7 +151,7 @@ test("gate 4 still skips visibly, with no explicit base given, when origin/HEAD 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("regression guard: scripts/gate-6-pull-request.mjs passes its own resolved base to the gate-4 subprocess by argument, rather than letting it re-derive independently (fix 71)", () => {
+test("regression guard: scripts/gate-6-pull-request.mjs passes its own resolved base to the gate-4 subprocess by argument, rather than letting it re-derive independently", () => {
   // A wiring check, the same shape check-script-wiring.mjs already uses for
   // "does the claimed call site actually say what it claims" — re-reads the
   // real source rather than trusting a comment, so a future edit that drops
@@ -236,15 +236,15 @@ test("the override marker does not clear file length", () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- Fix 74. gate-4-task-completion.mjs's own OVERRIDE check (above) only
+// --- gate-4-task-completion.mjs's own OVERRIDE check (above) only
 // ever asked whether the [large-pr] string appears anywhere in the branch's
 // commit log — satisfied by any author, with no reason and no approver, and
 // unaffected by which commit carries it. check-change-size-override.mjs is
 // the server-side check that makes the override answerable only by a human:
 // the marker must be backed by an approved row in the change-size override
 // register, identified by branch. These tests exercise that module's pure
-// functions directly, plus one real, end-to-end reproduction of audit 18's
-// own shape below.
+// functions directly, plus one real, end-to-end reproduction of
+// the demonstrated shape below.
 
 test("usesOverrideMarker is true only when the marker string is present", () => {
   assert.equal(usesOverrideMarker("chore: accepted [large-pr]\n"), true);
@@ -266,8 +266,8 @@ test("findChangeSizeOverrideFindings reports nothing when the branch never used 
   );
 });
 
-test("findChangeSizeOverrideFindings blocks a marker with no register row at all — audit 18's own case", () => {
-  // The exact shape audit 18 found: [large-pr] present, in a commit distinct
+test("findChangeSizeOverrideFindings blocks a marker with no register row at all — the demonstrated case", () => {
+  // The exact shape found: [large-pr] present, in a commit distinct
   // from the oversized diff (that distinction is not modelled here — it does
   // not matter to this check, which is the point: "which commit" was never
   // the missing property). No row exists anywhere for this branch.
@@ -407,14 +407,14 @@ test("checkChangeSizeOverride wires the log read, the register read and the bran
   assert.equal(blocked.length, 1);
 });
 
-test("regression guard: check-change-size-override.mjs run for real, against a scratch branch shaped exactly like audit 18's — marker in a later, distinct commit from the oversized diff, no register row — refuses", () => {
+test("regression guard: check-change-size-override.mjs run for real, against a scratch branch shaped exactly like the demonstrated case — marker in a later, distinct commit from the oversized diff, no register row — refuses", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature/bootstrap"]);
   for (let i = 0; i < 5; i++)
     writeFileSync(join(dir, `part${i}.ts`), lines(200));
   git(dir, ["add", "-A"]);
   git(dir, ["commit", "-qm", "chore: bootstrap greet against the standards"]);
-  // The marker, in its own later commit — the exact separation audit 18's
+  // The marker, in its own later commit — the exact separation the
   // branch already had, and which a naive "different commit" rule would have
   // accepted.
   git(dir, [
@@ -469,9 +469,9 @@ test("regression guard: check-change-size-override.mjs run for real, passes once
   rmSync(dir, { recursive: true, force: true });
 });
 
-// Fix 84 — the marker becomes unwritable-by-agent the same structural way the
+// --- The marker becomes unwritable-by-agent the same structural way the
 // approver cell already is: mechanical, not a fourth prose statement. These
-// three tests are exactly checkpoints 1-3 of that fix.
+// three tests are exactly checkpoints 1-3 of that change.
 const CHANGE_SIZE_OVERRIDE_REGISTER_HEADER =
   "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |\n" +
   "| --- | --- | --- | --- | --- | --- |\n";
@@ -507,7 +507,7 @@ test("checkChangeSizeOverrideMessage wires a single drafted message, the registe
   assert.deepEqual(untouched, []);
 });
 
-test("regression guard: check-change-size-override.mjs --message run for real, refuses a commit whose own message introduces [large-pr] with no approved row (fix 84, checkpoint 1)", () => {
+test("regression guard: check-change-size-override.mjs --message run for real, refuses a commit whose own message introduces [large-pr] with no approved row (checkpoint 1)", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature/bootstrap"]);
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
@@ -533,7 +533,7 @@ test("regression guard: check-change-size-override.mjs --message run for real, r
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("regression guard: check-change-size-override.mjs --message run for real, passes once the register already carries a human-approved row for this branch (fix 84, checkpoint 2)", () => {
+test("regression guard: check-change-size-override.mjs --message run for real, passes once the register already carries a human-approved row for this branch (checkpoint 2)", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature/bootstrap"]);
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
@@ -559,7 +559,7 @@ test("regression guard: check-change-size-override.mjs --message run for real, p
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("regression guard: check-change-size-override.mjs --message does not block filing a blank-approver row — the proposal path stays open (fix 84, checkpoint 3)", () => {
+test("regression guard: check-change-size-override.mjs --message does not block filing a blank-approver row — the proposal path stays open (checkpoint 3)", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature/bootstrap"]);
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
@@ -675,7 +675,7 @@ test("a file classed as tooling counts toward change size but has no length limi
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- Fix 73. A generated file has no remedy: nobody can meaningfully split
+// --- A generated file has no remedy: nobody can meaningfully split
 // or shrink a lock file, and any hand edit to one is discarded by the next
 // `npm install`. file-classes.md: "A generated file counts toward neither
 // change size nor the length limit" — declared through its own
@@ -731,7 +731,7 @@ test("a hand-written configuration file of the same size still counts toward cha
 });
 
 test("a code-generated production file (*.g.cs) is discounted from change size the same as a lock file", () => {
-  // Fix 73's own point: generated code, not only a lock file, carries the
+  // The point: generated code, not only a lock file, carries the
   // same "no remedy" property. Unclassified .cs falls out to production
   // (file-classes.md's fail-safe default), so this also proves the
   // discount applies independently of guardrail-class.

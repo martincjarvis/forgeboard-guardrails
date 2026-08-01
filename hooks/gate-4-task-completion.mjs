@@ -141,7 +141,7 @@ function measureChangeSize(base, findings, warnings) {
         `change size ${counted} lines exceeds the error threshold (${CHANGE_ERROR}). ` +
           `Split it, or report the size and what is driving it — accepting it with the ` +
           `${OVERRIDE} marker is a human's decision, not one this check, or the agent ` +
-          `that tripped it, may make on its own (fix 74).`,
+          `that tripped it, may make on its own.`,
       );
     }
   } else if (counted > CHANGE_WARN) {
@@ -308,7 +308,7 @@ async function measureComplexity(names, findings, warnings) {
 }
 
 async function main() {
-  // Fix 71 — an explicit base (argv[2]) wins over resolveBase(). Invoked
+  // An explicit base (argv[2]) wins over resolveBase(). Invoked
   // standalone (the Stop hook, hooks.json) this hook has always had to
   // derive its own base and resolveBase() is the right, and only, way to do
   // that. Invoked as a subprocess of scripts/gate-6-pull-request.mjs, the

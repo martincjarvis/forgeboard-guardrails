@@ -16,13 +16,13 @@ import {
 import assert from "node:assert/strict";
 import { ROOT } from "./support.mjs";
 
-// --- scripts/check-pr-body-artefacts.mjs — fix 68. cross-gate-rules.md
+// --- scripts/check-pr-body-artefacts.mjs — cross-gate-rules.md
 // names five reserved classes a pull request may open with findings still
 // outstanding — a register row or ADR accepting a risk, a licence, a
 // suppression or an opt-out, and a named conflict between two standing
 // directives — and says "a finding the implementer could have fixed is a
 // reason not to open yet, not a line item to disclose and open anyway."
-// Audit 17: a pull request opened findings under an invented sixth heading
+// The demonstrated case: a pull request opened findings under an invented sixth heading
 // ("One tool limitation, documented rather than hidden") with no register
 // row or ADR behind it, and six dependency advisories cited none either.
 
@@ -101,7 +101,7 @@ test("citesReservedArtefact: the root instruction file's named conflict clause i
   );
 });
 
-test("citesReservedArtefact: an invented reason with no artefact behind it — audit 17's own case — cites nothing", () => {
+test("citesReservedArtefact: an invented reason with no artefact behind it — the demonstrated case — cites nothing", () => {
   assert.ok(
     !citesReservedArtefact(
       "one tool limitation, documented rather than hidden: lizard's parser is unreliable here",
@@ -125,7 +125,7 @@ test("disclosedFindingLines: bullets under a heading naming outstanding work are
   assert.match(finding.text, /ADR-0004/);
 });
 
-test("disclosedFindingLines: a bold-only line opens a section too — the invented-heading shape audit 17 found", () => {
+test("disclosedFindingLines: a bold-only line opens a section too — the invented-heading shape found", () => {
   const body =
     "## Findings\n\n" +
     "**One tool limitation, documented rather than hidden**\n\n" +
@@ -137,7 +137,7 @@ test("disclosedFindingLines: a bold-only line opens a section too — the invent
   assert.match(finding.text, /misparses/);
 });
 
-test("findUncitedFindings: reproduces audit 17's own case — an invented heading with an uncited bullet is a finding", () => {
+test("findUncitedFindings: reproduces the demonstrated case — an invented heading with an uncited bullet is a finding", () => {
   const body =
     "## Outstanding\n\n" +
     "**One tool limitation, documented rather than hidden**\n\n" +
@@ -178,8 +178,8 @@ test("regression guard: adrNumbersProposedOrAccepted and registerRowIdentities r
 });
 
 // --- readPrBody — the check must be runnable before a pull request exists,
-// not only after (skills/repository-bootstrap/SKILL.md's own precondition,
-// beside fix 65): `--file` reads a draft body straight off disk, with no
+// not only after (skills/repository-bootstrap/SKILL.md's own
+// precondition): `--file` reads a draft body straight off disk, with no
 // `gh` call and no open pull request anywhere in the picture.
 
 test("readPrBody: --file reads a draft body from disk, with no gh call and no pull request in existence", () => {

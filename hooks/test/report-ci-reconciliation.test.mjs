@@ -9,13 +9,13 @@ import {
 } from "../../scripts/check-report-ci-reconciliation.mjs";
 import assert from "node:assert/strict";
 
-// --- Fix 76. "Verbatim" was the local run's output, and CI disagreed. Audit
-// 18's own reproduction: the report quoted 12 lines of the local gate-6 run,
+// --- "Verbatim" was the local run's output, and CI disagreed. The
+// reproduction: the report quoted 12 lines of the local gate-6 run,
 // osv-scanner correctly skipped there, and the report's own header claimed
 // this was gate 6's output "copied ... verbatim". CI's job log, on the same
 // commit, actually failed the check with six CVEs the report never
 // mentioned. extractGateFailLabels reads a gate's own FAIL lines straight
-// from a job log (fix 64's own instrument, never the capped annotations
+// from a job log (the job-log instrument, never the capped annotations
 // API); findUnreconciledCiFindings is the reconciliation itself.
 
 test("extractGateFailLabels reads a gate's own FAIL lines, scoped to the named gate", () => {
@@ -42,7 +42,7 @@ test("extractGateFailLabels finds nothing in a clean log", () => {
   );
 });
 
-// --- Fix 90. Audit 22: GATE_FAIL_RE never saw a real job log. Every real
+// --- GATE_FAIL_RE never saw a real job log. Every real
 // GitHub Actions log line is timestamp-prefixed, and the timestamp's own
 // colons sat inside the character class the old regex required up to
 // ": FAIL" — 0 labels extracted from 9 real `gate 6: FAIL` lines, on both
@@ -98,7 +98,7 @@ const REAL_JOB_LOG_FAIL_LABELS = [
   "gate 4 — change size / file length",
 ];
 
-test("extractGateFailLabels reads all 9 gate 6: FAIL labels from a real, unmodified job log — audit 22's own reproduction, where the pre-fix regex read 0", () => {
+test("extractGateFailLabels reads all 9 gate 6: FAIL labels from a real, unmodified job log — the reproduction, where the pre-fix regex read 0", () => {
   assert.deepEqual(
     extractGateFailLabels(REAL_JOB_LOG, "gate 6"),
     REAL_JOB_LOG_FAIL_LABELS,
@@ -130,7 +130,7 @@ test("findUnreconciledCiFindings: the adversarial case — a report that says no
   );
 });
 
-test("findUnreconciledCiFindings reproduces audit 18's own case: a report with zero osv-scanner mentions, CI reporting a FAIL for it", () => {
+test("findUnreconciledCiFindings reproduces the demonstrated case: a report with zero osv-scanner mentions, CI reporting a FAIL for it", () => {
   const reportText = [
     "## What remains open (copied from gate 6's own output)",
     "",

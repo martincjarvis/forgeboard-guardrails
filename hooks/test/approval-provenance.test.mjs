@@ -24,7 +24,7 @@ import {
   REGISTER_HEADER,
 } from "./support.mjs";
 
-// --- scripts/check-approval-provenance.mjs — fix 49. Audit 13: a bootstrapped
+// --- scripts/check-approval-provenance.mjs — a bootstrapped
 // repository landed an ADR and five register rows already approved, in the
 // single commit that introduced them, naming a person who approved nothing
 // in that repository — check-adr-approver.mjs, check-suppressions.mjs and
@@ -238,7 +238,7 @@ test("regression guard: check-approval-provenance.mjs run for real, the same row
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 49: gate 2 (pre-commit.mjs) refuses a commit that stages a fresh, already-Accepted, already-approved ADR", () => {
+test("gate 2 (pre-commit.mjs) refuses a commit that stages a fresh, already-Accepted, already-approved ADR", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature"]);
   writeFileSync(
@@ -257,7 +257,7 @@ test("fix 49: gate 2 (pre-commit.mjs) refuses a commit that stages a fresh, alre
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 49, hazard 3: this repository's own real history — the suppression and licence rows daa59d0c approves pass, because each already existed with a blank approver", () => {
+test("hazard 3: this repository's own real history — the suppression and licence rows daa59d0c approves pass, because each already existed with a blank approver", () => {
   // Verifies against the actual commit (daa59d0c), not a synthetic fixture:
   // it fills the Approved by cell on two already-registered suppression rows
   // (the two run.mjs rows) and on four already-registered licence rows —
@@ -283,7 +283,7 @@ test("fix 49, hazard 3: this repository's own real history — the suppression a
   );
 });
 
-test("fix 49, hazard 3 (continued): the same commit's ADR-0004 — introduced and Accepted in one sitting — is NOT flagged, but only because check-adr-approver.mjs's own risk/licence detection does not recognise its prose, a pre-existing, unrelated gap this fix does not touch", () => {
+test("hazard 3 (continued): the same commit's ADR-0004 — introduced and Accepted in one sitting — is NOT flagged, but only because check-adr-approver.mjs's own risk/licence detection does not recognise its prose, a pre-existing, unrelated gap this fix does not touch", () => {
   // ADR-0004 is exactly the shape the mechanical rule targets: `status:
   // Accepted`, `approver: Martin Jarvis`, introduced from nothing in
   // daa59d0c — a human authoring and accepting their own decision in one
@@ -296,8 +296,8 @@ test("fix 49, hazard 3 (continued): the same commit's ADR-0004 — introduced an
   // ADR's actual prose — it discusses accepting four licences at length
   // without ever using the literal phrase "allow list" that check-adr-
   // approver.mjs's own ALLOW_LIST_RE requires alongside LICENCE_RE. That is
-  // check-adr-approver.mjs's own detection gap (fix 22), not introduced or
-  // fixed by fix 49 — checkAdrApprover() itself would equally fail to
+  // check-adr-approver.mjs's own detection gap, not introduced or
+  // fixed by this check — checkAdrApprover() itself would equally fail to
   // require an approver on this same ADR had one been missing. Recorded
   // here rather than silently assumed clean, per hazard 3's instruction to
   // verify rather than assume.

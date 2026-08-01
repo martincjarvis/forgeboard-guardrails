@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: gate-5-push-and-scans.
+// Split from hooks.test.mjs — subject group: gate-5-push-and-scans.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
@@ -85,7 +85,7 @@ test("normalizeSarifPaths does not throw when the SARIF file is missing", () => 
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- scripts/lib.mjs — filterSuppressedSarif (fix 25). semgrep's SARIF
+// --- scripts/lib.mjs — filterSuppressedSarif. semgrep's SARIF
 // includes a finding suppressed in source rather than omitting it, marked
 // `suppressions: [{ kind: "inSource" }]`; GitHub's code-scanning check
 // treats every result in the uploaded file as a candidate new alert, so an
@@ -156,7 +156,7 @@ test("filterSuppressedSarif does not throw when the SARIF file is missing", () =
 // not typed as a contiguous literal here — this file's own gate 2 suppression
 // check would otherwise read this fixture string as an unregistered
 // directive of its own.
-test("fix 25: a finding suppressed in source is present in raw semgrep SARIF and absent after filtering", () => {
+test("a finding suppressed in source is present in raw semgrep SARIF and absent after filtering", () => {
   if (!have("semgrep", ["--version"])) return; // no fixture — semgrep unavailable here
   const dir = mkdtempSync(join(tmpdir(), "semgrep-suppress-"));
   writeFileSync(
@@ -212,19 +212,19 @@ test("fix 25: a finding suppressed in source is present in raw semgrep SARIF and
   rmSync(dir, { recursive: true, force: true });
 });
 
-// Fix 30 (cross-gate-rules.md, "A suppression is verified at repository
+// cross-gate-rules.md ("A suppression is verified at repository
 // scope, never at the scope of the file just edited") — the exact mechanism
-// behind the defect: fix 21 verified its suppression with `semgrep --config
+// behind the defect: run.mjs's own suppression was verified with `semgrep --config
 // auto --error hooks/lib/run.mjs`, reported "3 findings before, 0 after",
 // and was silent about two live, unmarked findings of the same rule already
-// sitting in hooks/test/hooks.test.mjs (fix 29) — a repository-scope run
+// sitting in hooks/test/hooks.test.mjs — a repository-scope run
 // would have caught them there and then. This reproduces the shape
 // generically, independent of what today's tree happens to contain: one
 // file carries the pattern with an in-source suppression (what "the file
 // just edited" looks like clean), a sibling file carries the same pattern
 // with none (what a repository-scope run, and only a repository-scope run,
 // still catches).
-test("fix 30: a file-scoped semgrep check reads clean while a sibling file's unsuppressed occurrence of the same rule only surfaces at repository scope", () => {
+test("a file-scoped semgrep check reads clean while a sibling file's unsuppressed occurrence of the same rule only surfaces at repository scope", () => {
   if (!have("semgrep", ["--version"])) return; // no fixture — semgrep unavailable here
   const dir = mkdtempSync(join(tmpdir(), "semgrep-scope-"));
   writeFileSync(
@@ -237,13 +237,13 @@ test("fix 30: a file-scoped semgrep check reads clean while a sibling file's uns
       "    pattern: eval(...)\n",
   );
   // The file actually touched by the fix: the pattern is present but
-  // suppressed — the same in-source marker fix 25's fixture above uses.
+  // suppressed — the same in-source marker the fixture above uses.
   writeFileSync(
     join(dir, "edited.py"),
     `x = eval(user_input)  # ${NOSEMGREP}: no-eval\n`,
   );
   // A sibling nobody re-checked: the same rule, no marker — the exact shape
-  // of the two spawn-shell-true sites fix 21's file-scoped check never saw.
+  // of the two spawn-shell-true sites the file-scoped check never saw.
   writeFileSync(join(dir, "sibling.py"), "y = eval(other_input)\n");
 
   const fileScoped = run(
@@ -271,7 +271,7 @@ test("fix 30: a file-scoped semgrep check reads clean while a sibling file's uns
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- scripts/check-refusal-proofs.mjs — fix 9a, the refusal-proof contract
+// --- scripts/check-refusal-proofs.mjs — the refusal-proof contract
 // (docs/standards/guardrails/cross-gate-rules.md, "Every blocking check
 // proves it refuses"). Only the pure classification rule and a fast,
 // file-content regression guard run here: the full registry
@@ -302,7 +302,7 @@ test("classifyFixtureResult: the three-state contract itself", () => {
 });
 
 test("regression guard: .lintstagedrc.json's cspell invocation uses a flag cspell actually recognises", () => {
-  // The exact bug fix 9a's own audit found while writing this contract:
+  // The exact bug found while writing this contract:
   // cspell's CLI is commander-based, and an unrecognised flag
   // (`--no-must-find-file`, missing the plural) prints "unknown option" and
   // still exits 0 — the check never scans anything and reads as a pass. This
@@ -310,7 +310,7 @@ test("regression guard: .lintstagedrc.json's cspell invocation uses a flag cspel
   // silently examines nothing and reports success"), found in this
   // repository's own lint-staged config, not merely a hypothetical.
   //
-  // Both keys are checked, not just Markdown (fix 15) — gate-2-commit.md
+  // Both keys are checked, not just Markdown — gate-2-commit.md
   // requires spelling on "the file's own vocabulary", with no file-type
   // restriction, and a checker that only ever read Markdown would answer
   // "is spelling enforced?" with a confident yes while never opening a
@@ -336,7 +336,7 @@ test("regression guard: .lintstagedrc.json's cspell invocation uses a flag cspel
 });
 
 test("cspell actually reads code files, not only Markdown — a misspelling in a .mjs comment and in a user-facing string are both flagged", () => {
-  // Fix 15. Runs the exact cspell invocation .lintstagedrc.json's code-glob
+  // Runs the exact cspell invocation .lintstagedrc.json's code-glob
   // key now uses, against a scratch file, to prove the check reads .mjs
   // content rather than only ever being wired to Markdown. This is the
   // functional counterpart to the config-shape regression guard above. The
@@ -371,7 +371,7 @@ test("cspell actually reads code files, not only Markdown — a misspelling in a
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- scripts/lib.mjs:classifyTestCoverageOutcome — fix 11. gate-5-push.md:
+// --- scripts/lib.mjs:classifyTestCoverageOutcome — gate-5-push.md:
 // "A broken coverage command blocks the push without claiming a shortfall."
 // The combined `c8 --check-coverage ... node --test ...` command exits
 // non-zero for three different reasons; these are real captured output
@@ -496,7 +496,7 @@ test("classifyDiffCoverOutcome: a command that never produced a coverage line is
   );
 });
 
-// diffCoverTotalLines — fix 51. Audit 13: a test suite that crashed before
+// diffCoverTotalLines — a test suite that crashed before
 // executing anything left a Cobertura report with zero instrumented
 // statements; diff-cover found no changed line to check against it and
 // printed `Total: 0 lines` / `Coverage: 100%`, exiting 0. Nothing escaped
@@ -527,14 +527,14 @@ test("diffCoverTotalLines: output with no Total: line at all (the command never 
   );
 });
 
-// --- scripts/check-osv-scanner.mjs — fix 9b. osv-scanner is external,
+// --- scripts/check-osv-scanner.mjs — osv-scanner is external,
 // PATH-resolved and never bundled (ADR-0002), exactly like semgrep and
 // lizard.
 //
-// Fix 31 — this used to call checkOsvScanner() with no injected collaborator
+// This used to call checkOsvScanner() with no injected collaborator
 // and rely on osv-scanner genuinely being absent from the host running the
-// test. Audit 9 traced a bootstrapped repo's CI failure (`1 unit test(s)
-// failed` in CI, green locally) to exactly that coupling:
+// test. A bootstrapped repo's CI failure (`1 unit test(s)
+// failed` in CI, green locally) was traced to exactly that coupling:
 // .github/workflows/pull-request.yml installs osv-scanner (`go install
 // .../osv-scanner@latest`) before running this suite, so the tool this test
 // required to be absent was already on PATH by the time it ran — the
@@ -559,7 +559,7 @@ test("osv-scanner check is a visible skip, naming the tool, when it is not on PA
 });
 
 // --- lib.mjs:classifyOsvScannerOutcome / extractOsvJsonFindings /
-// extractOsvSarifFindings — fix 44. Audit 12, on a live CI run: gate 6 failed
+// extractOsvSarifFindings — on a live CI run: gate 6 failed
 // "cross-stack dependency scan (osv-scanner)" with the tool's own startup
 // banner ("Scanning dir .\nScanning ... at commit d43f2a3\nScanned
 // .../package-lock.json file and found 476 packages") as the problem text —

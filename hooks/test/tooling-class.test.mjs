@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: tooling-class.
+// Split from hooks.test.mjs — subject group: tooling-class.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
@@ -16,10 +16,10 @@ import {
 import assert from "node:assert/strict";
 import { git, scratchRepo, runScript } from "./support.mjs";
 
-// --- scripts/check-tooling-class.mjs — fix 45. file-classes.md's own rule
+// --- scripts/check-tooling-class.mjs — file-classes.md's own rule
 // ("gate scripts and other development automation are `tooling`" in a
 // repository that consumes this standard) was stated and never checked.
-// Audit 12: `@martincjarvis/greet`, a consuming repository, classed its gate
+// The demonstrated case: `@martincjarvis/greet`, a consuming repository, classed its gate
 // scripts `production` and had zero files classed `tooling` anywhere — with
 // no live effect only because lizard's extension filter and c8's import-only
 // measurement were accidentally doing the class attribute's job. The proof
@@ -82,7 +82,7 @@ test("checkToolingClassDeclared: a consuming repository that did class at least 
   assert.deepEqual(findings, []);
 });
 
-// --- checkToolingTestSuiteExists — fix 52. Audit 13: a repository with 26
+// --- checkToolingTestSuiteExists — a repository with 26
 // `tooling`-classed scripts, no test file, no job, and nothing positioned to
 // notice — check-script-wiring.mjs and check-tooling-class.mjs's own
 // checkToolingClassDeclared both passed clean, because neither asks whether
@@ -285,7 +285,7 @@ test("regression guard: check-tooling-class.mjs run for real, against a scratch 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("regression guard: check-tooling-class.mjs run for real, against a scratch tree with tooling-classed scripts and no test file naming any of them, refuses (fix 52, the audit-13 defect)", () => {
+test("regression guard: check-tooling-class.mjs run for real, against a scratch tree with tooling-classed scripts and no test file naming any of them, refuses", () => {
   const dir = scratchRepo();
   mkdirSync(join(dir, "scripts"), { recursive: true });
   writeFileSync(

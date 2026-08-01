@@ -54,12 +54,12 @@ test("suppression check: a registered marker passes; an unregistered one is refu
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 33: a marker naming two rules checks each independently — a registered one passes, an unregistered one is refused by name", () => {
-  // bypass-and-exceptions.md, restated by fix 36: multiple rules on one line
+test("a marker naming two rules checks each independently — a registered one passes, an unregistered one is refused by name", () => {
+  // bypass-and-exceptions.md: multiple rules on one line
   // are legal (two analysers, or one rule firing twice); what is forbidden
   // is a marker naming NO rule. The old behaviour — refusing the whole
   // marker as "broadened" the moment it named more than one rule — is
-  // exactly the count-based misreading fix 36 corrects.
+  // exactly the count-based misreading this corrects.
   const dir = scratchRepo();
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
   writeFileSync(
@@ -84,7 +84,7 @@ test("fix 33: a marker naming two rules checks each independently — a register
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 36: an unregistered rule at a multi-rule site names the count in the finding, so a reviewer sees the escalation without counting rows", () => {
+test("an unregistered rule at a multi-rule site names the count in the finding, so a reviewer sees the escalation without counting rows", () => {
   const dir = scratchRepo();
   writeFileSync(
     join(dir, "two.mjs"),
@@ -97,7 +97,7 @@ test("fix 36: an unregistered rule at a multi-rule site names the count in the f
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 33: a marker naming no rule at all is refused as a blanket suppression", () => {
+test("a marker naming no rule at all is refused as a blanket suppression", () => {
   const dir = scratchRepo();
   writeFileSync(join(dir, "blanket.mjs"), `// ${ESLINT_DISABLE}-next-line\n`);
   git(dir, ["add", "-A"]);
@@ -107,8 +107,8 @@ test("fix 33: a marker naming no rule at all is refused as a blanket suppression
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 33: hooks/lib/run.mjs's real two-rule no-semgrep-style marker — both rules are extracted and independently matched; removing one row is refused naming that rule", () => {
-  // Reproduces the live defect named in fix brief 7: the old regex, matching
+test("hooks/lib/run.mjs's real two-rule no-semgrep-style marker — both rules are extracted and independently matched; removing one row is refused naming that rule", () => {
+  // Reproduces the live defect: the old regex, matching
   // the "no" + "semgrep" directive followed by `(?::\s*([A-Za-z0-9._-]+))?`,
   // has no comma in its character class, so on a comma-separated marker it
   // silently stops capturing at the
@@ -148,7 +148,7 @@ test("fix 33: hooks/lib/run.mjs's real two-rule no-semgrep-style marker — both
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 34: a register row with a blank justification or removal condition blocks, even though the marker-to-row lookup by code+scope succeeds", () => {
+test("a register row with a blank justification or removal condition blocks, even though the marker-to-row lookup by code+scope succeeds", () => {
   const dir = scratchRepo();
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
   writeFileSync(
@@ -171,7 +171,7 @@ test("fix 34: a register row with a blank justification or removal condition blo
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("fix 34: an approver that reads as a team label, not a person, blocks — sharing check-adr-approver.mjs's judgement", () => {
+test("an approver that reads as a team label, not a person, blocks — sharing check-adr-approver.mjs's judgement", () => {
   const dir = scratchRepo();
   mkdirSync(join(dir, "docs", "registers"), { recursive: true });
   writeFileSync(
@@ -194,7 +194,7 @@ test("fix 34: an approver that reads as a team label, not a person, blocks — s
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- fix 34/35 — evaluateRegisterRows / pendingSuppressionApprovals /
+// --- evaluateRegisterRows / pendingSuppressionApprovals /
 // unapprovedSuppressionFindings: the pure classification, tested directly
 // against constructed rows the same way check-licence-policy.mjs's
 // evaluateRegisterRow is (no register file on disk needed).
@@ -265,7 +265,7 @@ test("pendingSuppressionApprovals / unapprovedSuppressionFindings: gate 2's push
   assert.match(first.problem, /no-console.*no approver/);
 });
 
-test("fix 35: gate 2 (pre-commit.mjs) allows a commit whose suppression register row is complete except for the approver — a push back, not a block", () => {
+test("gate 2 (pre-commit.mjs) allows a commit whose suppression register row is complete except for the approver — a push back, not a block", () => {
   const dir = scratchRepo();
   git(dir, ["checkout", "-qb", "feature"]);
   // Sidesteps an unrelated environment issue: an `npx --no-install

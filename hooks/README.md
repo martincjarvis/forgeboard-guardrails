@@ -43,7 +43,7 @@ invokes `hooks.test.mjs` alone; every other file here is loaded by it. Builds
 a throwaway git repository per case, because the behaviour under test is a
 function of git state and cannot be exercised without one.
 
-**Split by subject area (fix 79), not carried as one file.** A single file
+**Split by subject area, not carried as one file.** A single file
 this size reached the point where lizard's function-span detection merges
 adjacent functions into one over-length block — a tool artefact, not a real
 finding — and gate 6 (unlike gate 7's identical, report-only invocation of

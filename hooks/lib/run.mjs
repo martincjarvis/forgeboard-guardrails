@@ -37,7 +37,7 @@ export function run(command, args, options = {}) {
     // and any other PATH tool all work the same way. Without it a tool reports
     // unavailable when it is installed — the silent green a gate must never give.
     //
-    // Verified, not assumed (fix 21): spawnSync(fullPathTo("npm.cmd"), args,
+    // Verified, not assumed: spawnSync(fullPathTo("npm.cmd"), args,
     // { shell: false }) still returns EINVAL on this platform — Windows has
     // no native way to execute a .cmd/.bat file's content without a shell
     // interpreter, so resolving the path more precisely cannot remove the

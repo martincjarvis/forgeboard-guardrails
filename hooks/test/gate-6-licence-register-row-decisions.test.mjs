@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: gate-6-licence-register-row-decisions.
+// Split from hooks.test.mjs — subject group: gate-6-licence-register-row-decisions.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -9,12 +9,12 @@ import { acceptedAdvisoryIds } from "../../scripts/check-dependency-advisories.m
 import { evaluateRegisterRow } from "../../scripts/check-licence-policy.mjs";
 import assert from "node:assert/strict";
 
-// --- fix brief 6 — a register row whose licence does not pass the decision
+// --- A register row whose licence does not pass the decision
 // rule on its own is not blocked forever: a human can accept THIS
 // dependency specifically, recorded on THIS row's own Decision record and
 // Approver columns (registers.md's existing columns; there is no separate
 // code-level allow list left to extend — see check-licence-policy.mjs's own
-// header comment for why fix 26's RUNTIME_ALLOW_EXTENSIONS mechanism this
+// header comment for why the RUNTIME_ALLOW_EXTENSIONS mechanism this
 // replaces no longer applies once "permissive" is derived data instead of a
 // list membership).
 

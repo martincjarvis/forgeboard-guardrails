@@ -4,7 +4,7 @@
 // count — is exactly the kind that fails quietly, so it leaves a runnable check
 // behind. Run with: node --test hooks/test/hooks.test.mjs
 //
-// Split by subject area (fix 79) so no single file reaches the point where
+// Split by subject area so no single file reaches the point where
 // lizard's function-span detection merges adjacent functions into one
 // over-length block (docs/ADR/0009-split-hooks-test-suite.md). This file is
 // the suite's entry point: each import below runs its module for its side

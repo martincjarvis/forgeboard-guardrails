@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: branch-and-repository-policy.
+// Split from hooks.test.mjs — subject group: branch-and-repository-policy.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import {
@@ -25,13 +25,13 @@ import { checkScriptWiring } from "../../scripts/check-script-wiring.mjs";
 import assert from "node:assert/strict";
 import { ROOT, git, scratchRepo, runScript, NOSEMGREP } from "./support.mjs";
 
-// --- scripts/check-branch-behind-base.mjs — fix 67. gate-5-push.md check 4:
+// --- scripts/check-branch-behind-base.mjs — gate-5-push.md check 4:
 // branch protection's own `strict: true` already refuses a stale merge
 // (gate-6-pull-request.md: "A pull request behind its base cannot merge
 // until it is updated"); nothing checked it before the push existed. Unit
 // tests below exercise the classification through injected `git`/
 // `resolveBase` collaborators — the same injectable shape checkOsvScanner
-// and checkBranchProtection already take, for the same reason (fix 31): a
+// and checkBranchProtection already take, for the same reason: a
 // test must not depend on this host's own network reaching a real remote.
 // The regression guards further down run the real module against a scratch
 // repository with real branches and a real remote-tracking ref (hazard: "Fix
@@ -217,9 +217,9 @@ test("regression guard: check-branch-behind-base.mjs run for real, a feature bra
   rmSync(dir, { recursive: true, force: true });
 });
 
-// --- scripts/check-branch-protection.mjs — fix 24. Branch protection is
-// never configured, and its absence was never a blocking finding (audit 8,
-// on a bootstrapped repository: `gh api .../branches/main/protection` ->
+// --- scripts/check-branch-protection.mjs — branch protection is
+// never configured, and its absence was never a blocking finding (on
+// a bootstrapped repository: `gh api .../branches/main/protection` ->
 // 404, and a red gate 6 blocked nothing). deriveRequiredContexts and
 // evaluateBranchProtection are pure and tested directly; checkBranchProtection
 // itself is tested through its injectable collaborators (the same shape
@@ -395,7 +395,7 @@ test("checkBranchProtection is a visible skip when origin/HEAD cannot be resolve
   );
 });
 
-// Fix 32 — audit 9 verified that on a bootstrapped repository
+// Verified on a bootstrapped repository:
 // `git symbolic-ref refs/remotes/origin/HEAD` exits 128 (the local symref was
 // never set) while `gh api .../branches/main/protection` -> 404 sat right
 // behind it, unreached: resolveBase() failing masked a real finding as a
@@ -778,8 +778,8 @@ test("checkRepositoryFeatures reads a live private repository end to end: Depend
 });
 
 test("regression guard: gate 7 reports, rather than crashes, when package.json is absent", () => {
-  // Fix 16 follow-up — caught by running `npm run gate:7` before declaring
-  // the fix cycle done, per fix 17's own rule. The quality-script wiring
+  // A follow-up — caught by running `npm run gate:7` before declaring
+  // the fix cycle done. The quality-script wiring
   // audit read package.json unconditionally; check-refusal-proofs.mjs's own
   // semgrep fixture builds a scratch repository with no package.json (it
   // exists only to isolate the semgrep step), so gate 7 threw before it
@@ -805,7 +805,7 @@ test("regression guard: gate 7 reports, rather than crashes, when package.json i
 });
 
 test("regression guard: hooks/lib/run.mjs's spawn-shell-true and detect-child-process findings carry a suppression marker, and each is registered", () => {
-  // Fix 21. `semgrep --config auto --error hooks/lib/run.mjs` found three
+  // `semgrep --config auto --error hooks/lib/run.mjs` found three
   // live, unsuppressed findings (one spawn-shell-true, two
   // detect-child-process) with no inline suppression marker and no register
   // row. Closed by registering, not by rewriting the code to dodge the
@@ -838,7 +838,7 @@ test("regression guard: hooks/lib/run.mjs's spawn-shell-true and detect-child-pr
 });
 
 test("regression guard: hooks/ carries a README.md indexing every file in it and in hooks/lib", () => {
-  // Fix 20. file-classes.md: "The directory carries a README.md indexing
+  // file-classes.md: "The directory carries a README.md indexing
   // every script — what it is for, and why it exists." scripts/ has one;
   // hooks/ did not, in this toolkit or in anything bootstrapped from it. A
   // README that exists but silently falls behind a new hook is the same gap
@@ -863,7 +863,7 @@ test("regression guard: hooks/ carries a README.md indexing every file in it and
 });
 
 test("regression guard: every GitHub Actions `uses:` in every workflow is pinned to a commit SHA, not a mutable tag", () => {
-  // Fix 17. semgrep's github-actions-mutable-action-tag rule found exactly
+  // semgrep's github-actions-mutable-action-tag rule found exactly
   // this: a workflow written with `uses: actions/checkout@v4` — a tag GitHub
   // itself, or a compromised action's own maintainer, can move to point at
   // different code without this file ever changing. A pinned commit SHA is
@@ -892,10 +892,10 @@ test("regression guard: every GitHub Actions `uses:` in every workflow is pinned
 });
 
 test("quality-script wiring: every script in this repository's own package.json is accounted for — wired or declared on-demand, nothing unwired", () => {
-  // Fix 16. Runs against the real manifest and the real gate/hook source, not
+  // Runs against the real manifest and the real gate/hook source, not
   // a fixture — the whole point is that THIS repository's own scripts are
   // fully accounted for right now. `spell` is wired here specifically
-  // because fix 15 extended cspell to the code glob; before that fix this
+  // because cspell was extended to the code glob; before that this
   // same assertion would have put `spell` in `unwired`.
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
   /** @param {string} file */
@@ -911,7 +911,7 @@ test("quality-script wiring: every script in this repository's own package.json 
 });
 
 test("quality-script wiring: a script with no gate wiring and no on-demand declaration is reported unwired, naming it", () => {
-  // A synthetic manifest entry standing in for the exact defect fix 16
+  // A synthetic manifest entry standing in for the exact defect this
   // closes: a script added to package.json that nothing invokes and nobody
   // declared on-demand. checkScriptWiring must not silently pass it.
   const { wired, onDemand, unwired } = checkScriptWiring({

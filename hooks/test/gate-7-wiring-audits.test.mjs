@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited AKIA NLOC
-// Split from hooks.test.mjs (fix 79) — subject group: gate-7-wiring-audits.
+// Split from hooks.test.mjs — subject group: gate-7-wiring-audits.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import {
@@ -19,7 +19,7 @@ import { formatFindingBody } from "../../scripts/lib.mjs";
 import assert from "node:assert/strict";
 import { ROOT, scratchRepo, runScript } from "./support.mjs";
 
-// --- checkScriptFileWiring — fix 40's "close the class, not just the
+// --- checkScriptFileWiring — "close the class, not just the
 // instance": a check script sitting in scripts/ that package.json never
 // names at all (so checkScriptWiring above never sees it) is the exact
 // shape check-standards-instantiation.mjs was found in — ported, unit
@@ -68,7 +68,7 @@ test("checkScriptFileWiring: this toolkit's own check-standards-instantiation.mj
   assert.ok(onDemand.includes("check-standards-instantiation.mjs"));
 });
 
-// --- checkIndexGateClaims — fix 43: the same defect class one level up, in
+// --- checkIndexGateClaims — the same defect class one level up, in
 // the prose that describes the wiring rather than the manifest. A tooling
 // index naming where a script runs is a checkable claim, not a comment
 // nobody re-verifies.
@@ -101,7 +101,7 @@ test("regression guard: check-script-wiring.mjs run for real reports package-scr
   // real process elsewhere. A scratch tree with one of each shape: a
   // package.json script no gate invokes, a scripts/ file wired by import, a
   // scripts/ file wired by nothing, and no scripts/README.md (the skip
-  // path fix 43 added).
+  // path this check added).
   const dir = scratchRepo();
   writeFileSync(
     join(dir, "package.json"),
@@ -145,7 +145,7 @@ test("regression guard: check-script-wiring.mjs run for real reports package-scr
 });
 
 test("regression guard: check-script-wiring.mjs reports a script-index mismatch when scripts/README.md claims a gate the gate's own source does not invoke it from", () => {
-  // Fix 43's own CLI path — a tooling index carried alongside the scripts it
+  // The CLI path — a tooling index carried alongside the scripts it
   // describes, checked against the gate files' real imports rather than
   // trusted. The scratch tree's gate-7-on-demand.mjs never imports
   // check-orphan.mjs, so the index's claim is a mismatch.
@@ -218,7 +218,7 @@ test("checkLicenceTableReferences: a reference the network cannot reach at all i
   assert.match(finding.problem, /could not be reached/);
 });
 
-// --- Fix 92. gate-7-on-demand.mjs's own print loop used to print only
+// --- gate-7-on-demand.mjs's own print loop used to print only
 // `String(f.problem).split("\n")[0].slice(0, 200)` — a tool's first output
 // line, on the assumption it summarises the finding. Two real tools that
 // tripped it prove otherwise. Both fixtures below are real, unmodified
