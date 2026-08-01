@@ -294,7 +294,9 @@ export async function checkRefusalProofs() {
       result = await fixture();
     } catch (err) {
       doesNotRefuse.push(
-        `${check} — fixture threw instead of refusing: ${err.message}`,
+        `${check} — fixture threw instead of refusing: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       );
       continue;
     }

@@ -133,6 +133,37 @@ test("checkBranchBehindBase: rev-list itself failing is a visible skip, not a fi
   assert.match(skips[0], /bad revision/);
 });
 
+test("checkBranchBehindBase: a zero exit carrying no count is a visible skip — an unreadable count must not read as level with the base", () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => "origin/main",
+    // What git returns when the process could not be spawned at all: no
+    // stdout to read, and nothing in the status to say the count is missing.
+    git: (args) => {
+      if (args[0] === "fetch") return { status: 0 };
+      if (args[0] === "rev-list") return { status: 0 };
+      throw new Error(`unexpected git ${args.join(" ")}`);
+    },
+  });
+  assert.deepEqual(findings, []);
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /branch behind base/);
+  assert.match(skips[0], /no readable commit count/);
+});
+
+test('checkBranchBehindBase: a zero exit with blank output is the same skip — `Number("")` is 0, and 0 would pass', () => {
+  const { findings, skips } = checkBranchBehindBase({
+    resolveBase: () => "origin/main",
+    git: (args) => {
+      if (args[0] === "fetch") return { status: 0 };
+      if (args[0] === "rev-list") return { status: 0, stdout: "\n" };
+      throw new Error(`unexpected git ${args.join(" ")}`);
+    },
+  });
+  assert.deepEqual(findings, []);
+  assert.equal(skips.length, 1);
+  assert.match(skips[0], /no readable commit count/);
+});
+
 // Regression guards: the real module (default git/resolveBase), run against
 // a scratch repository with real commits and a real remote-tracking ref —
 // not the injected fakes above. scratchRepo() fabricates
@@ -463,6 +494,30 @@ test("checkBranchProtection passes when the live protection JSON matches the der
   assert.deepEqual(findings, []);
 });
 
+// scripts/configure-branch-protection.mjs has no injectable seam — it is a
+// top-level action script — so the one path that needs no gh at all is
+// proven end to end instead, in a scratch repository whose origin/HEAD is
+// missing the way a shallow or partial clone leaves it.
+test("configure-branch-protection: an unresolvable origin/HEAD is a visible skip naming the remedy, never a failure and never a guessed branch", () => {
+  const dir = scratchRepo();
+  git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
+
+  const r = runScript("scripts/configure-branch-protection.mjs", dir);
+  assert.equal(
+    r.status,
+    0,
+    `expected a skip, got status ${r.status}: ${r.stderr}`,
+  );
+  assert.match(r.stderr, /SKIP/);
+  assert.match(r.stderr, /origin\/HEAD could not be resolved/);
+  assert.match(r.stderr, /git remote set-head origin -a/);
+  assert.doesNotMatch(
+    r.stderr,
+    /applying to/,
+    "nothing may be applied to a branch name nobody derived",
+  );
+});
+
 // --- scripts/check-repository-features.mjs — fix brief 8, item 2. "Every
 // check the platform already provides is enabled rather than rebuilt"
 // (cross-gate-rules.md) was unactionable until this enumerated which
@@ -563,6 +618,7 @@ test("evaluateRepositoryFeatures: code scanning reported unavailable (its own en
   });
   assert.deepEqual(findings, []);
   const line = skips.find((s) => /^code scanning/.test(s));
+  assert.ok(line, "a skip line naming code scanning is present");
   assert.match(line, /Code scanning is not enabled for this repository/);
 });
 

@@ -114,7 +114,10 @@ export function registerRowIdentities(registersDir = REGISTERS_DIR) {
  *  CLAUDE.md, alongside the word "conflict") — never a judgement about
  *  whether the citation is a *good* one. `adrNumbers` and
  *  `registerIdentities` are injectable for testing, the same shape every
- *  other check in this module carries. */
+ *  other check in this module carries.
+ *  @param {string} lineText
+ *  @param {{ adrNumbers?: Set<string>, registerIdentities?: readonly string[] }} [sources]
+ */
 export function citesReservedArtefact(
   lineText,
   { adrNumbers = new Set(), registerIdentities = [] } = {},
@@ -220,7 +223,12 @@ export function readPrBody(
     try {
       return { body: readFileSync(path, "utf8"), skip: null };
     } catch (err) {
-      return { body: null, skip: `could not read ${path}: ${err.message}` };
+      return {
+        body: null,
+        skip: `could not read ${path}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      };
     }
   }
   if (!haveFn("gh", ["--version"])) {

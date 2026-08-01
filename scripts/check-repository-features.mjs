@@ -257,7 +257,10 @@ export async function checkRepositoryFeatures({
   }
   let repo;
   try {
-    repo = JSON.parse(repoGet.stdout);
+    // No stdout is not an empty object: `JSON.parse("")` throws, so absent
+    // output lands on the same skip as unparseable output rather than
+    // reading as a repository with every feature off.
+    repo = JSON.parse(repoGet.stdout ?? "");
   } catch {
     skips.push(
       "repository features audit — gh api returned unparseable JSON for the repository",

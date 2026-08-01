@@ -56,7 +56,9 @@ export async function checkLicenceTableReferences(
       findings.push({
         check: "licence table re-validation",
         path: "scripts/licence-table.mjs",
-        problem: `${id}'s reference (${entry.reference}) could not be reached: ${err.message}`,
+        problem: `${id}'s reference (${entry.reference}) could not be reached: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         remedy:
           "confirm network access, then re-run; if it still fails, the reference itself may have moved",
       });

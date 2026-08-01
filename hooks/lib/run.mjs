@@ -90,6 +90,11 @@ export function git(args) {
   );
 }
 
+/**
+ * @param {string} command
+ * @param {readonly string[]} [args]
+ * @returns {boolean}
+ */
 export function have(command, args = ["--version"]) {
   const probe = run(command, args, { stdio: "ignore" });
   return !probe.error && probe.status === 0;

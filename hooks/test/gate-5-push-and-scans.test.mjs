@@ -625,6 +625,7 @@ test("classifyOsvScannerOutcome: a non-zero exit with a named vulnerability is t
 test("classifyOsvScannerOutcome: a non-zero exit with no named vulnerability is unavailable, not a finding — the audit-12 case", () => {
   const outcome = classifyOsvScannerOutcome(127, []);
   assert.equal(outcome.kind, "unavailable");
+  assert.ok(outcome.detail, "an unavailable outcome carries its own detail");
   assert.doesNotMatch(
     outcome.detail,
     /GHSA|CVE|OSV-/,

@@ -66,7 +66,19 @@ export function checkBranchBehindBase({
     return { findings, skips };
   }
 
-  const behind = Number(count.stdout.trim());
+  // A zero exit is not on its own a readable count — stdout can be absent or
+  // blank, and `Number("")` is 0, so a comparison that never happened would
+  // report as level with the base. Unreadable takes the same visible skip a
+  // failed rev-list takes.
+  const counted = (count.stdout || "").trim();
+  if (!/^\d+$/.test(counted)) {
+    skips.push(
+      `branch behind base — git rev-list produced no readable commit count for HEAD..${base}`,
+    );
+    return { findings, skips };
+  }
+
+  const behind = Number(counted);
   if (behind > 0) {
     findings.push({
       check: "branch behind base",
