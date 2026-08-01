@@ -10,6 +10,7 @@ import {
   pendingSuppressionApprovals,
   unapprovedSuppressionFindings,
 } from "../../scripts/check-suppressions.mjs";
+import { slugify, anchorsOf } from "../../scripts/check-links.mjs";
 import assert from "node:assert/strict";
 import {
   git,
@@ -404,4 +405,31 @@ test("suppression check excludes its own source from the scan", () => {
   // directly).
   const findings = checkSuppressions(["scripts/check-suppressions.mjs"]);
   assert.deepEqual(findings, []);
+});
+
+// Every gate in this corpus is titled `Gate N — Name`, so the em-dash slug is
+// the common case rather than a corner one.
+test("slugify: a heading with an em dash keeps both hyphens, as GitHub does", () => {
+  assert.equal(
+    slugify("Fix it, restructure it, or suppress it — in that order"),
+    "fix-it-restructure-it-or-suppress-it--in-that-order",
+  );
+  assert.equal(
+    slugify("Gate 2 — Commit"),
+    "gate-2--commit",
+    "the corpus titles every gate this way, so this is not a corner case",
+  );
+  assert.equal(
+    slugify("Ordinary heading with no punctuation"),
+    "ordinary-heading-with-no-punctuation",
+    "the common case is unchanged",
+  );
+});
+
+test("anchorsOf: exposes the double-hyphen anchor a link to an em-dash heading needs", () => {
+  const anchors = anchorsOf("## Gate 2 — Commit\n\ntext\n");
+  assert.ok(
+    anchors.has("gate-2--commit"),
+    `expected gate-2--commit, got ${[...anchors].join(", ")}`,
+  );
 });

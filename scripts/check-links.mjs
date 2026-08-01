@@ -14,13 +14,16 @@ import { trackedFiles, readStaged } from "./lib.mjs";
 
 const FENCE = /^(\s*)(```+|~~~+)/;
 
-/** GitHub-style heading slug: lowercase, drop punctuation, spaces to hyphens. */
+/** GitHub-style heading slug: lowercase, drop punctuation, spaces to hyphens.
+ *  Each space becomes its own hyphen — punctuation is removed first, so
+ *  `Gate 2 — Commit` keeps both surrounding spaces and slugs to
+ *  `gate-2--commit`. */
 export function slugify(text) {
   return text
     .toLowerCase()
     .replace(/[^\w\s-]/g, "")
     .trim()
-    .replace(/\s+/g, "-");
+    .replace(/ /g, "-");
 }
 
 /** Every anchor a markdown file exposes, including GitHub's -n suffix for

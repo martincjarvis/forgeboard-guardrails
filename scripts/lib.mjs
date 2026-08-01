@@ -76,43 +76,15 @@ export function touchesComponent(file, paths) {
   return paths.some((p) => file === p || file.startsWith(p + "/"));
 }
 
-/** Fix 91 — true only in this toolkit's own canonical repository, never in a
- *  correctly-bootstrapped consumer. Several checks need to skip inside this
- *  repository's own test suite, which legitimately asserts its own history
- *  and its own instantiation-exempt corpus; they used to key that on
- *  `deriveComponent() !== null`, reasoning that a `.claude-plugin/
- *  plugin.json` manifest is what deriveComponent() reads and names this
- *  repository's own shipped product (ADR-0001, ADR-0003). That reasoning
- *  held only until deriveComponent() itself started getting re-targeted:
- *  it derives whatever single component a stack's own manifest already
- *  groups (components.md), so skills/repository-bootstrap/SKILL.md has a
- *  consumer tune it to read *its own* manifest — a JS/TS package's
- *  `package.json`, for one. A correctly bootstrapped consumer then derives
- *  a non-null component too, and `deriveComponent() !== null` stopped
- *  meaning "this is the toolkit" and started meaning "a component was
- *  derived here", true of every single-component repository this standard
- *  produces. Audit 22: `@martincjarvis/greet`, a consuming repository,
- *  derived `{"name":"@martincjarvis/greet",…}` — non-null — so the old
- *  check disabled itself there and fired only in the one repository it was
- *  designed never to fire in.
+/** True only in this toolkit's own repository. Several checks skip here,
+ *  because this repository's test suite legitimately asserts its own history
+ *  and its corpus legitimately names every stack it documents.
  *
- *  `.claude-plugin/plugin.json` itself is not part of what bootstrap ports
- *  into a consumer — nothing in skills/repository-bootstrap/SKILL.md
- *  produces that file — so reading it directly, rather than through
- *  deriveComponent()'s (now re-targetable) read of it, is the signal a
- *  correctly-bootstrapped consumer cannot collide with.
- *
- *  It is the plugin's `name` that decides, not the file's existence: a
- *  repository that is itself a Claude plugin — someone developing an
- *  unrelated plugin, who then adopts these guardrails — carries the same file
- *  and would otherwise be exempted from the two checks that exist to catch
- *  ported content, which is most of what a plugin repository holds. Merely
- *  existing was the same defect fix 91 corrected one step wider, where
- *  "a component was derived" stood in for "this is the toolkit".
- *
- *  A fork keeps the name and is still correctly "the toolkit"; a fork that
- *  renames itself has become a different plugin, and being treated as a
- *  consumer of these standards is the right answer for it. */
+ *  The plugin's `name` decides, not the manifest's existence: a repository
+ *  developing some other Claude plugin carries the same file, and exempting
+ *  it would disable exactly the checks that catch ported content. A fork
+ *  keeps the name and stays the toolkit; a fork that renames is a different
+ *  plugin, and a consumer of these standards. */
 export const TOOLKIT_PLUGIN_NAME = "forgeboard-guardrails";
 
 export function isToolkit(

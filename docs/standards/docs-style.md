@@ -71,6 +71,26 @@ task-oriented skeleton to material people consult rather than follow.
 
 Most standards are `reference`. Most ADRs are `explanation`.
 
+### Where each kind of document lives
+
+`docs/` is organised by what a document **is**, never by which tool produced it.
+A directory named for an authoring skill leaves a document written by hand with
+nowhere to go, and puts two documents of the same kind in two places.
+
+| Directory         | Holds                                                     |
+| ----------------- | --------------------------------------------------------- |
+| `docs/ADR/`       | Decision records                                          |
+| `docs/registers/` | Registers                                                 |
+| `docs/standards/` | The standards themselves                                  |
+| `docs/prompts/`   | Prompts meant to be reused                                |
+| `docs/specs/`     | Designs and specifications, dated `YYYY-MM-DD-<topic>.md` |
+| `docs/plans/`     | Implementation plans, named for the spec they deliver     |
+
+Brainstorming and planning skills default to writing under a directory named
+after themselves — `docs/superpowers/specs/` is the common one. **That default is
+wrong here**: pass the project-relative path explicitly, or the folder regrows on
+the next session that forgets.
+
 ## Language
 
 **Active voice.** "Run the command", not "the command should be run". Passive hides
