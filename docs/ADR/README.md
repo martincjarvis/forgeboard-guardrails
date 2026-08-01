@@ -109,6 +109,14 @@ account in its own repository.
 - [0014](0014-one-command-one-transcript.md) — a report's finding list is
   the verbatim output of one command, never an assembly of individually
   chosen checks or a platform's summary of them.
+- [0015](0015-minimum-release-age.md) — a minimum release age is gated at
+  gate 6, refusing dependencies published inside a 7-day window unless a
+  human-approved register row admits them; advisory reporting and a gate
+  with no exception route were both rejected.
+- [0016](0016-record-resolved-semgrep-rule-set.md) — gate 7 records the rule
+  set `semgrep --config auto` actually resolved into each run's output; pinning
+  and vendoring were rejected, and scans stay non-reproducible and
+  network-dependent.
 - [0017](0017-unmodified-plugin-copy-counts-toward-change-size.md) —
   `Proposed`. A byte-identical copy of the plugin's scripts still counts
   toward change size; discounting it as generated, or only where verified

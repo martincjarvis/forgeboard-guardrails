@@ -51,6 +51,10 @@ import { checkMachineId } from "./check-machine-id.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
 import { checkLicencePolicy } from "./check-licence-policy.mjs";
 import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
+import {
+  checkMinimumReleaseAge,
+  checkMinimumReleaseAgeStaleness,
+} from "./check-minimum-release-age.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
 import { checkAdrApprover } from "./check-adr-approver.mjs";
 import { checkApprovalProvenanceRange } from "./check-approval-provenance.mjs";
@@ -183,6 +187,27 @@ function depsAt(ref) {
   const advisories = checkDependencyAdvisories(lockChanged || scheduled);
   findings.push(...advisories.findings);
   skips.push(...advisories.skips);
+
+  // Check 11 (gate 6) — minimum release age. Change-triggered like the two
+  // dependency checks above, plus scheduled: a dependency old enough to pass
+  // when adopted stays old enough, so only a new dependency (or a new advisory
+  // scan) raises the question. The window is derived from npm's own
+  // `min-release-age` config (.npmrc); see check-minimum-release-age.mjs for
+  // the tooling ladder and why the resolver flag alone is not the gate.
+  const releaseAge = checkMinimumReleaseAge(lockChanged || scheduled);
+  findings.push(...releaseAge.findings);
+  skips.push(...releaseAge.skips);
+}
+
+// Check 11 (gate 6) — minimum release age register staleness. Register hygiene
+// rather than a dependency question: runs whenever the register exists, the
+// same way the change-size-override and unapproved-suppression checks below do,
+// because a row that has aged past the window is stale regardless of whether a
+// dependency moved in this range.
+{
+  const staleness = checkMinimumReleaseAgeStaleness();
+  findings.push(...staleness.findings);
+  skips.push(...staleness.skips);
 }
 
 // --- Check 10 (gate 2) — file size -----------------------------------------

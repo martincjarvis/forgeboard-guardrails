@@ -7,3 +7,4 @@ coverage/
 # like a result.
 *.sarif
 test-results.xml
+semgrep-resolved-rules.json

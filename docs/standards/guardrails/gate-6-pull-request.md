@@ -31,6 +31,7 @@ evidence but does not block leaves the merge to whoever is impatient.
 | 8   | Changed-line coverage                     | Correctness | Coverage of the lines this change added or modified is below the floor                                                                                     |
 | 9   | Untrusted-run isolation                   | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                                                        |
 | 10  | Cross-stack dependency scan (osv-scanner) | Security    | osv-scanner reports an advisory with no accepted record, published as SARIF                                                                                |
+| 11  | Minimum release age                       | Security    | A resolved dependency's version was published inside the `min-release-age` window, with no human-approved register row admitting it                        |
 
 Check 1 is the reason this gate exists in its current form. A local run proves
 the checks pass **on that machine**, with that machine's tool versions, caches
@@ -563,6 +564,11 @@ pipeline refuses the merge.
       code alone: a non-zero exit with no result in that SARIF reports
       unavailable, never a finding with no advisory id in it
       ([cross-gate-rules.md](cross-gate-rules.md#a-refusal-is-a-diagnosis)).
+- [ ] A dependency whose resolved version was published inside the
+      `min-release-age` window is refused, naming the version and its age, and a
+      human-approved row in the minimum-release-age register admits it; a row
+      whose version has aged past the window is reported stale, so exceptions
+      cannot accumulate into permanent exemptions.
 - [ ] End-to-end tests run here or at gate 8, and the checklist states which.
 - [ ] Health checks pass before any end-to-end test runs against the provisioned
       environment.

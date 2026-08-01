@@ -599,6 +599,52 @@ export function extractOsvSarifFindings(sarifPath) {
   return findings;
 }
 
+/** The rule set a `semgrep --config auto` run actually resolved, read from the
+ *  SARIF semgrep itself writes (`runs[].tool.driver.rules[].id` — the SARIF
+ *  spec's full driver rule list, which semgrep populates with every rule the
+ *  registry returned for the run, including rules that found nothing). That is
+ *  the rule set this run resolved, emitted by semgrep rather than parsed out of
+ *  human-readable output. `--config auto` resolves rules from the registry at
+ *  run time, so the same scan can resolve a different set tomorrow with no
+ *  commit in this repository; recording it next to the findings makes that
+ *  drift visible after the fact. Returns the id list (empty when the SARIF
+ *  carries none), never null — a caller that could not read the SARIF at all
+ *  passes that fact through semgrepRuleRecord's `unavailable` state. */
+export function resolvedSemgrepRules(sarif) {
+  const rules = [];
+  for (const run_ of sarif?.runs ?? []) {
+    for (const rule of run_?.tool?.driver?.rules ?? []) {
+      if (rule?.id) rules.push(rule.id);
+    }
+  }
+  return rules;
+}
+
+/** The record of a semgrep rule-resolution run, in three states that must not
+ *  read as each other: `resolved` (semgrep ran and its rule list was read),
+ *  `skipped` (semgrep did not run — not on PATH — distinct from a clean run),
+ *  and `unavailable` (semgrep ran but its rule set could not be read). The
+ *  three-way split is the "do not let unavailable read as passed" rule
+ *  (cross-gate-rules.md) applied to rule recording: a missing tool is not a
+ *  clean resolved set, and a run that produced no readable rule list is not a
+ *  resolved set of zero either. Pure so the skip/resolved distinction is
+ *  testable without shelling out.
+ *
+ *  @param {{ ran?: boolean, rules?: string[] | null, reason?: string }} input */
+export function semgrepRuleRecord({ ran, rules, reason } = {}) {
+  if (!ran) {
+    return { outcome: "skipped", reason: reason ?? "semgrep did not run" };
+  }
+  if (!rules) {
+    return {
+      outcome: "unavailable",
+      reason:
+        reason ?? "semgrep ran but its resolved rule set could not be read",
+    };
+  }
+  return { outcome: "resolved", ruleCount: rules.length, rules };
+}
+
 /** The figures a reader who is not a developer needs to see on the run's own
  *  page without downloading anything: the test pass/fail/total counts, and
  *  the overall lines-coverage percentage — read from the same c8 + node:test

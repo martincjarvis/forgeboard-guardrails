@@ -36,6 +36,10 @@ import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
 import { classifyAdvisories } from "./check-dependency-advisories.mjs";
 import { licenceExpressionAcceptable } from "./check-licence-policy.mjs";
+import {
+  classifyReleaseAge,
+  classifyStaleRows,
+} from "./check-minimum-release-age.mjs";
 
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const TMP = ".refusal-proof-tmp";
@@ -186,6 +190,48 @@ const CHECKS_WITH_FIXTURES = [
     check: "dependency licence policy (gate 6 check 7)",
     fixture: () =>
       !licenceExpressionAcceptable("GPL-3.0-only", "Runtime").acceptable,
+  },
+  {
+    check: "minimum release age (gate 6 check 11)",
+    // classifyReleaseAge is the pure classifier `npm view <name> time`'s output
+    // feeds — the same layer classifyAdvisories and licenceExpressionAcceptable
+    // above are fixtured through: a synthetic young dependency against a fixed
+    // window, not a live registry lookup.
+    fixture: () => {
+      const DAY = 86_400_000;
+      const now = new Date("2026-08-01T12:00:00Z");
+      const twoDaysAgo = new Date(now.getTime() - 2 * DAY).toISOString();
+      const { findings } = classifyReleaseAge(
+        new Map([["brand-new-pkg", "1.0.0"]]),
+        new Map([["brand-new-pkg@1.0.0", twoDaysAgo]]),
+        { windowDays: 7, today: now },
+      );
+      return findings.length > 0;
+    },
+  },
+  {
+    check: "minimum release age register staleness (gate 6 check 11)",
+    // classifyStaleRows is the pure classifier the staleness check's register
+    // read feeds — fixtured with a row whose version has aged past the window,
+    // which is the negative input that proves the staleness check can fail
+    // rather than only report green on a clean register.
+    fixture: () => {
+      const DAY = 86_400_000;
+      const now = new Date("2026-08-01T12:00:00Z");
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY).toISOString();
+      return (
+        classifyStaleRows(
+          [
+            {
+              dep: "was-young-pkg",
+              version: "1.0.0",
+              published: thirtyDaysAgo,
+            },
+          ],
+          { windowDays: 7, today: now },
+        ).length > 0
+      );
+    },
   },
   {
     check: "changed-line coverage (gate 6 check 8)",

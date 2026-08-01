@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The four checked-in registers — suppression, dependency licence, test quarantine and change size override — their columns, and the rules common to all of them.
+summary: The five checked-in registers — suppression, dependency licence, test quarantine, change size override and minimum release age — their columns, and the rules common to all of them.
 read_when: Adding an accepted finding, auditing what a repository has accepted, or deciding whether something is a register row or a decision record.
 ---
 
@@ -17,12 +17,13 @@ than as a silent change in behaviour.
 searching, not important enough to sit at the top of the documentation tree
 beside the standards a reader actually reads through. One file per register.
 
-| Register             | Records                                                        | One row per          | Enforced by                                                                                                |
-| -------------------- | -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path | Commit gate                                                                                                |
-| Dependency licence   | Every resolved dependency and its licence                      | One dependency       | Commit gate for completeness, pipeline for policy                                                          |
-| Test quarantine      | Known-flaky tests not currently blocking                       | One test             | Push gate and pipeline                                                                                     |
-| Change size override | Branches accepted over the change-size error band, and by whom | One branch           | Pipeline ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
+| Register             | Records                                                        | One row per            | Enforced by                                                                              |
+| -------------------- | -------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
+| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path   | Commit gate                                                                              |
+| Dependency licence   | Every resolved dependency and its licence                      | One dependency         | Commit gate for completeness, pipeline for policy                                        |
+| Test quarantine      | Known-flaky tests not currently blocking                       | One test               | Push gate and pipeline                                                                   |
+| Change size override | Branches accepted over the change-size error band, and by whom | One branch             | Pipeline ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
+| Minimum release age  | Dependencies admitted past the release-age window              | One dependency@version | Pipeline ([gate 6](gate-6-pull-request.md#61-revalidation))                              |
 
 ## Rules common to all four
 
@@ -272,6 +273,34 @@ for one branch does not authorise a different one, so a stale acceptance
 elsewhere in the register's history cannot silently cover a branch it was
 never filed for.
 
+## The minimum release age register
+
+A dependency published very recently is the supply-chain attack window. [Gate 6
+check 11](gate-6-pull-request.md#61-revalidation) refuses a dependency whose
+resolved version was published inside the window declared in `.npmrc`'s
+`min-release-age` (npm's own setting) unless a human-approved row here admits
+it. The window and the rule live in npm's config — this register holds only the
+exceptions, the same split the licence register already draws between a policy
+and its accepted findings.
+
+| Column         | Holds                                                                                         |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| Dependency     | Name, as resolved                                                                             |
+| Version        | The exact pinned version the exception admits (the row's identity, with Dependency)           |
+| Published      | The version's publish date (ISO), so staleness is checkable offline without a registry lookup |
+| Justification  | Why this young version is accepted rather than waited out — normally an urgent security patch |
+| Removable when | Mechanical: once the version is older than the `min-release-age` window, the row must go      |
+| Approver       | The human who accepted the exception                                                          |
+
+The **Removable when** column is mechanical rather than aspirational here, and
+that is the point of the design. Every pinned version eventually passes the
+window on its own, so every row is self-expiring: the staleness check (the same
+gate 6 check, run over this register) reports any row whose Published date is
+older than the window, so an exception cannot silently accumulate into a
+permanent exemption. The Published column is what makes that checkable from the
+row alone, which is why it is a column rather than a value the check re-fetches
+every run — staleness must be deterministic, not network-dependent.
+
 ## Running it by hand
 
 Resolving what is actually installed, to compare against the register:
@@ -387,6 +416,10 @@ table.
       read the full resolved set, not the direct one.
 - [ ] Every commercial acceptance names its obligations and carries an expiry,
       and no expiry has passed.
+- [ ] A dependency inside the release-age window is refused at gate 6 unless a
+      human-approved row in the minimum-release-age register admits it, and a
+      row whose version has aged past the window is reported stale so it cannot
+      accumulate into a permanent exemption.
 - [ ] The dependency register covers every platform the repository's CI
       targets — a package published one optional tarball per OS
       (`@esbuild/linux-x64` and `@esbuild/win32-x64` being the recurring
@@ -406,6 +439,8 @@ table.
   required instead of a row.
 - [Suppression register](../../registers/suppression-register.md) — this repository's own instance.
 - [Change size override register](../../registers/change-size-override-register.md) —
+  this repository's own instance.
+- [Minimum release age register](../../registers/minimum-release-age-register.md) —
   this repository's own instance.
 - [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
   the rule this register exists to answer.
