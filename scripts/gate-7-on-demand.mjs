@@ -14,7 +14,14 @@ import {
   readdirSync,
 } from "node:fs";
 import { join } from "node:path";
-import { trackedFiles, isText, have, run, git } from "./lib.mjs";
+import {
+  trackedFiles,
+  isText,
+  have,
+  run,
+  git,
+  formatFindingBody,
+} from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkRefusalProofs } from "./check-refusal-proofs.mjs";
@@ -491,10 +498,9 @@ for (const s of skips) process.stderr.write(`gate 7: SKIP ${s}\n`);
 for (const f of findings) {
   const where = f.path ? ` (${f.path})` : "";
   process.stderr.write(`gate 7: FINDING ${f.check}${where}\n`);
-  if (f.problem)
-    process.stderr.write(
-      `          ${String(f.problem).split("\n")[0].slice(0, 200)}\n`,
-    );
+  for (const line of formatFindingBody(f.problem)) {
+    process.stderr.write(`          ${line}\n`);
+  }
 }
 const banner = findings.length
   ? `gate 7: ${findings.length} finding(s), ${skips.length} skip(s) — reports only, caller decides`

@@ -1,3 +1,4 @@
+// cspell:ignore GHSA
 // Check 6 (gate 6) — dependency advisory scan.
 //
 // Change-triggered (change-triggered-checks.md) PLUS scheduled: a licence is a
@@ -106,7 +107,7 @@ export function classifyAdvisories(
         (ids.length ? `: ${ids.join(", ")}` : ""),
       remedy: blocks
         ? "upgrade or remove the dependency; block severity has no accepted-record path"
-        : "upgrade the dependency, or accept it in an Accepted ADR naming the advisory id",
+        : "upgrade the dependency, pin the specific vulnerable transitive dependency via `overrides`/`resolutions` where that version itself clears policy, or accept it in an Accepted ADR naming the advisory id",
     });
   }
   return findings;

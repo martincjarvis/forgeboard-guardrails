@@ -78,7 +78,12 @@
 // never touches the instantiated corpus is not asked about it; one that
 // does and leaves it non-clean does not merge that way.
 import { readFileSync } from "node:fs";
-import { trackedFiles, isText, deriveComponent, classOf } from "./lib.mjs";
+import {
+  trackedFiles,
+  isText,
+  classOf,
+  isToolkit as isToolkitRepo,
+} from "./lib.mjs";
 
 /** Manifest that, if present, means the stack is genuinely in use. */
 const STACK_MARKERS = {
@@ -211,13 +216,13 @@ export function findCspellResidue(words, corpusText, presentStacks) {
 /** Fix 55: `cspell.json`'s word list is configuration the instantiation
  *  copies verbatim, the same as a document under `docs/standards/**` — a
  *  dead stack's vocabulary can hide there just as easily. This toolkit's
- *  own repository is exempt outright, the same reasoning
- *  `check-tooling-class.mjs`'s `isToolkit` already applies
- *  (`deriveComponent()` names this repository's own shipped product; its
- *  absence means a consuming repository): this corpus's `cspell.json`
- *  legitimately lists every stack it documents, in prose this same check
- *  would otherwise have to read to rule out. `files` and `readFile` are
- *  injectable for testing, the same shape the rest of this module uses.
+ *  own repository is exempt outright, keyed on lib.mjs's `isToolkit()`
+ *  (fix 91 — `.claude-plugin/plugin.json` existing directly, not on
+ *  whatever manifest a consumer's own tuned `deriveComponent()` happens to
+ *  read): this corpus's `cspell.json` legitimately lists every stack it
+ *  documents, in prose this same check would otherwise have to read to rule
+ *  out. `files` and `readFile` are injectable for testing, the same shape
+ *  the rest of this module uses.
  *
  *  Fix 59: the "is this word used elsewhere" corpus is built from files
  *  NOT classed `tooling` (file-classes.md), not from every tracked file.
@@ -239,7 +244,7 @@ export function checkCspellResidue({
   files = trackedFiles(),
   readFile = (f) => readFileSync(f, "utf8"),
   classify = classOf,
-  isToolkit = () => deriveComponent() !== null,
+  isToolkit = isToolkitRepo,
 } = {}) {
   if (isToolkit()) return [];
   let cspell;
@@ -316,7 +321,7 @@ export function checkHardcodedCommitSha({
   files = trackedFiles(),
   readFile = (f) => readFileSync(f, "utf8"),
   classify = classOf,
-  isToolkit = () => deriveComponent() !== null,
+  isToolkit = isToolkitRepo,
 } = {}) {
   if (isToolkit()) return [];
   const findings = [];

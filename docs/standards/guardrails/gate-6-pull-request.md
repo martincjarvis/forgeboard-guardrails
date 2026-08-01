@@ -100,6 +100,24 @@ A record accepting an advisory is one of the few that should carry an expiry, in
 the way a quarantine does. An advisory tolerated because no fix exists is a
 different statement a month later, when one does.
 
+**The remedy is not a binary choice between upgrading and accepting.** A third
+path exists, and skipping it has already produced two runs over the same
+corpus reaching opposite, both defensible-looking conclusions: pin the
+specific vulnerable transitive dependency directly, via `overrides`
+(npm/pnpm) or `resolutions` (yarn), independently of whatever version its
+parent package happens to bundle. A vulnerable package is often reachable
+two ways — bundled inside a direct dependency's own `node_modules`, and
+available as its own standalone release — and **a bundled fix and a direct
+fix do not share a publication date.** The direct fix is frequently
+available first: the maintainer of the vulnerable package publishes a patch
+release the day the advisory goes public, while every package that bundles
+it waits on its own release cycle to pick that patch up. A vetting or
+minimum-release-age policy judged against the bundled fix's publish date can
+therefore refuse a fix that the same policy, judged against the direct
+fix's own publish date, would accept. Check both dates before choosing
+between an upgrade, a pin, and an ADR — not only the one the advisory
+scanner happened to name first.
+
 **Scope changes the answer for both.** A dependency present in what ships and
 one used only to build or test it carry different obligations: a licence that
 reaches every consumer of the product versus one that reaches nobody outside the
@@ -491,6 +509,11 @@ pipeline refuses the merge.
       re-validation against its references is invoked on demand at gate 7,
       never on a schedule — a licence's text and OSI classification do not
       drift the way an advisory database does.
+- [ ] A push-back-band advisory's remedy names all three paths — upgrade,
+      an `overrides`/`resolutions` pin to the fixed transitive version, or an
+      Accepted ADR — not only the first two, and a policy judged against a
+      bundled fix's publish date is also checked against the direct fix's
+      own, earlier one before it is refused on age.
 - [ ] Every table entry cites an authoritative reference that resolves, and
       every row whose licence needed a human decision names that decision
       record and its approver on the row itself.

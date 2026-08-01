@@ -3,7 +3,9 @@
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   deriveStackList,
   findStackReferencesOutsideList,
@@ -16,7 +18,7 @@ import {
   checkHardcodedCommitSha,
 } from "../../scripts/check-standards-instantiation.mjs";
 import assert from "node:assert/strict";
-import { ROOT, git, scratchRepo, runScript } from "./support.mjs";
+import { ROOT, CLEAN_ENV, git, scratchRepo, runScript } from "./support.mjs";
 
 // --- scripts/check-standards-instantiation.mjs — reference implementation
 // for two of the seven "instantiated docs are tuned to the repository"
@@ -672,6 +674,60 @@ test("checkHardcodedCommitSha: run for real against this toolkit's own repositor
     ),
     "with the exemption forced off, this repository's own real SHA in hooks/test/hooks.test.mjs must be found — proof the non-exempt path actually runs, not only that the exemption hides it",
   );
+});
+
+// --- Fix 91. `isToolkit()` used to be `() => deriveComponent() !== null`.
+// deriveComponent() derives whatever single component a stack's own
+// manifest groups (components.md) and is deliberately re-targeted per
+// stack when bootstrap ports it — so a correctly-bootstrapped consumer
+// derives a non-null component too. Audit 22, against the real subject
+// (martincjarvis/greet, a consuming repository): its own ported
+// scripts/lib.mjs checks `.claude-plugin/plugin.json` first, exactly this
+// repository's own logic, and falls through to `package.json` when that
+// manifest is absent — the tuning the bootstrap process makes. A
+// consumer's `deriveComponent()` therefore returns non-null there too, and
+// the old `isToolkit()` fired only in the one repository it was designed
+// never to fire in. lib.mjs's `isToolkit()` now checks
+// `.claude-plugin/plugin.json` directly, never through deriveComponent(),
+// so no fallback a ported copy adds can affect it.
+
+test("isToolkit (lib.mjs): false in a repository whose component derives from package.json, not .claude-plugin/plugin.json — the real ported shape audit 22 found", () => {
+  const dir = scratchRepo();
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({ name: "@martincjarvis/greet" }),
+  );
+  git(dir, ["add", "-A"]);
+  const libUrl = pathToFileURL(join(ROOT, "scripts", "lib.mjs")).href;
+  writeFileSync(
+    join(dir, "probe-isToolkit.mjs"),
+    `import { isToolkit } from ${JSON.stringify(libUrl)};\n` +
+      "process.stdout.write(String(isToolkit()));\n",
+  );
+  const r = spawnSync(process.execPath, [join(dir, "probe-isToolkit.mjs")], {
+    cwd: dir,
+    encoding: "utf8",
+    env: CLEAN_ENV,
+  });
+  assert.equal(
+    r.stdout,
+    "false",
+    "a package.json-derived component must not read as the toolkit",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("isToolkit (lib.mjs): true in this toolkit's own repository, run for real, not assumed", () => {
+  const libUrl = pathToFileURL(join(ROOT, "scripts", "lib.mjs")).href;
+  const r = spawnSync(
+    process.execPath,
+    [
+      "-e",
+      `import(${JSON.stringify(libUrl)}).then(m => process.stdout.write(String(m.isToolkit())));`,
+    ],
+    { cwd: ROOT, encoding: "utf8", env: CLEAN_ENV },
+  );
+  assert.equal(r.stdout, "true");
 });
 
 test("regression guard: check-standards-instantiation.mjs run for real, against a scratch tree whose ported test file hard-codes a full commit SHA, refuses and names the file, line and SHA (fix 60)", () => {

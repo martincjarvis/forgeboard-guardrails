@@ -24,7 +24,7 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { pathToFileURL } from "node:url";
-import { trackedFiles, classOf, deriveComponent } from "./lib.mjs";
+import { trackedFiles, classOf, isToolkit as isToolkitRepo } from "./lib.mjs";
 
 /** A tracked file's basename matching the naming convention this toolkit's
  *  own gate and check scripts use — the same names skills/repository-
@@ -43,15 +43,18 @@ export function findGateScripts(files) {
 
 /** file-classes.md: "The class is per repository, not per filename" — a
  *  repository whose product IS the tooling (this one) is exempt outright,
- *  derived the same way deriveComponent() already answers it for packaging
- *  (ADR-0003): a `.claude-plugin/plugin.json` manifest names this
- *  repository's own shipped product. Its absence means this is a consuming
+ *  keyed on lib.mjs's `isToolkit()` (fix 91): `.claude-plugin/plugin.json`
+ *  existing directly, not on `deriveComponent() !== null` — deriveComponent()
+ *  gets re-targeted to a consumer's own manifest when bootstrap ports it, so
+ *  a correctly-bootstrapped consuming repository derives a component too,
+ *  and that old signal fired only in the one repository it was designed
+ *  never to fire in (audit 22). Its absence means this is a consuming
  *  repository, where a ported gate script with no `tooling`-classed file
  *  anywhere is exactly the audit-12 defect. */
 export function checkToolingClassDeclared({
   files = trackedFiles(),
   classify = classOf,
-  isToolkit = () => deriveComponent() !== null,
+  isToolkit = isToolkitRepo,
 } = {}) {
   if (isToolkit()) return [];
   const gateScripts = findGateScripts(files);
@@ -167,7 +170,7 @@ export function checkToolingCoverageLeakage({
 export function checkToolingTestSuiteExists({
   files = trackedFiles(),
   classify = classOf,
-  isToolkit = () => deriveComponent() !== null,
+  isToolkit = isToolkitRepo,
   readFile = (f) => readFileSync(f, "utf8"),
 } = {}) {
   if (isToolkit()) return [];

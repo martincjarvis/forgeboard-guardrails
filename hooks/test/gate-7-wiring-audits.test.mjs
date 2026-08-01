@@ -1,4 +1,4 @@
-// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
+// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited AKIA NLOC
 // Split from hooks.test.mjs (fix 79) — subject group: gate-7-wiring-audits.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
@@ -15,6 +15,7 @@ import {
   checkIndexGateClaims,
 } from "../../scripts/check-script-wiring.mjs";
 import { checkLicenceTableReferences } from "../../scripts/check-licence-table.mjs";
+import { formatFindingBody } from "../../scripts/lib.mjs";
 import assert from "node:assert/strict";
 import { ROOT, scratchRepo, runScript } from "./support.mjs";
 
@@ -204,4 +205,89 @@ test("checkLicenceTableReferences: a reference the network cannot reach at all i
   assert.equal(findings.length, 1);
   assert.match(findings[0].problem, /Unreachable/);
   assert.match(findings[0].problem, /could not be reached/);
+});
+
+// --- Fix 92. gate-7-on-demand.mjs's own print loop used to print only
+// `String(f.problem).split("\n")[0].slice(0, 200)` — a tool's first output
+// line, on the assumption it summarises the finding. Two real tools that
+// tripped it prove otherwise. Both fixtures below are real, unmodified
+// `stdout` (secretlint's own absolute path replaced with `<repo>`, and its
+// matched credential replaced with a shape that will not itself re-trip
+// this repository's own secret scan on commit — the only two edits,
+// host-specific/pattern-shaped rather than content), captured by running
+// each tool for real against a throwaway fixture in this repository:
+//
+//   secretlint tmp-fixture-dir/secret-fixture.js   (a fake AWS access key)
+//   lizard -C 15 -L 100 -a 7 complex-fixture.mjs   (a 21-CCN function)
+
+const REAL_SECRETLINT_STDOUT =
+  "\n<repo>/secret-fixture.js\n" +
+  "  1:13  error  [AWSAccessKeyID] found AWS Access Key ID: AKIA-NOT-A-REAL-KEY-SHAPE  @secretlint/secretlint-rule-preset-recommend > @secretlint/secretlint-rule-aws\n" +
+  "\n" +
+  "✖ 1 problem (1 error, 0 warnings)\n" +
+  "\n";
+
+const REAL_LIZARD_STDOUT =
+  "================================================\n" +
+  "  NLOC    CCN   token  PARAM  length  location  \n" +
+  "------------------------------------------------\n" +
+  "      23     21    248      1      23 complexFn@1-23@complex-fixture.mjs\n" +
+  "1 file analyzed.\n" +
+  "==============================================================\n" +
+  "NLOC    Avg.NLOC  AvgCCN  Avg.token  function_cnt    file\n" +
+  "--------------------------------------------------------------\n" +
+  "     23      23.0    21.0      248.0         1     complex-fixture.mjs\n";
+
+test("formatFindingBody: the pre-fix truncation on real secretlint stdout prints nothing — stdout opens with a blank line", () => {
+  const oldPrint = REAL_SECRETLINT_STDOUT.split("\n")[0].slice(0, 200);
+  assert.equal(
+    oldPrint,
+    "",
+    "reproduces the defect: a finding with no printed body is unactionable",
+  );
+});
+
+test("formatFindingBody: real secretlint stdout — a leading blank line — still yields the actual finding line", () => {
+  const body = formatFindingBody(REAL_SECRETLINT_STDOUT);
+  assert.ok(body.length > 0, "must print something for a real finding");
+  assert.ok(
+    body.some((l) => l.includes("AWSAccessKeyID")),
+    "the actual secretlint finding line must be in the printed body",
+  );
+});
+
+test("formatFindingBody: the pre-fix truncation on real lizard stdout prints only the decorative banner — the per-function row never appears", () => {
+  const oldPrint = REAL_LIZARD_STDOUT.split("\n")[0].slice(0, 200);
+  assert.equal(
+    oldPrint,
+    "================================================",
+    "reproduces the defect: the printed body is a divider, not a finding",
+  );
+});
+
+test("formatFindingBody: real lizard stdout — a decorative banner ahead of the real content — still yields the per-function violation row", () => {
+  const body = formatFindingBody(REAL_LIZARD_STDOUT);
+  assert.ok(
+    body.every((l) => !/^[=-]{5,}$/.test(l.trim())),
+    "no purely decorative divider line should be printed",
+  );
+  assert.ok(
+    body.some((l) => l.includes("complexFn@1-23@complex-fixture.mjs")),
+    "the actual per-function violation row must be in the printed body",
+  );
+});
+
+test("formatFindingBody: caps both the number of lines and each line's length", () => {
+  const problem = Array.from({ length: 10 }, (_, i) =>
+    `line ${i}: `.padEnd(250, "x"),
+  ).join("\n");
+  const body = formatFindingBody(problem, { maxLines: 3, maxLineLength: 20 });
+  assert.equal(body.length, 3);
+  for (const line of body) assert.ok(line.length <= 20);
+});
+
+test("formatFindingBody: an empty or absent problem yields nothing to print, not a crash", () => {
+  assert.deepEqual(formatFindingBody(""), []);
+  assert.deepEqual(formatFindingBody(undefined), []);
+  assert.deepEqual(formatFindingBody(null), []);
 });

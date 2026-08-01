@@ -1,3 +1,4 @@
+// cspell:ignore martincjarvis targetable
 // Shared helpers for the gate scripts. The process helpers come from the same
 // cross-platform module the agent hooks use, so Windows resolving `npx` to
 // `npx.cmd` is handled in one place and these scripts stay shell-free.
@@ -75,6 +76,36 @@ export function touchesComponent(file, paths) {
   return paths.some((p) => file === p || file.startsWith(p + "/"));
 }
 
+/** Fix 91 — true only in this toolkit's own canonical repository, never in a
+ *  correctly-bootstrapped consumer. Several checks need to skip inside this
+ *  repository's own test suite, which legitimately asserts its own history
+ *  and its own instantiation-exempt corpus; they used to key that on
+ *  `deriveComponent() !== null`, reasoning that a `.claude-plugin/
+ *  plugin.json` manifest is what deriveComponent() reads and names this
+ *  repository's own shipped product (ADR-0001, ADR-0003). That reasoning
+ *  held only until deriveComponent() itself started getting re-targeted:
+ *  it derives whatever single component a stack's own manifest already
+ *  groups (components.md), so skills/repository-bootstrap/SKILL.md has a
+ *  consumer tune it to read *its own* manifest — a JS/TS package's
+ *  `package.json`, for one. A correctly bootstrapped consumer then derives
+ *  a non-null component too, and `deriveComponent() !== null` stopped
+ *  meaning "this is the toolkit" and started meaning "a component was
+ *  derived here", true of every single-component repository this standard
+ *  produces. Audit 22: `@martincjarvis/greet`, a consuming repository,
+ *  derived `{"name":"@martincjarvis/greet",…}` — non-null — so the old
+ *  check disabled itself there and fired only in the one repository it was
+ *  designed never to fire in.
+ *
+ *  `.claude-plugin/plugin.json` itself is not part of what bootstrap ports
+ *  into a consumer — nothing in skills/repository-bootstrap/SKILL.md
+ *  produces that file — so checking for it directly, rather than through
+ *  deriveComponent()'s (now re-targetable) read of it, is the signal a
+ *  correctly-bootstrapped consumer cannot collide with. A fork of this
+ *  toolkit still carries the file and is still correctly "the toolkit". */
+export function isToolkit() {
+  return existsSync(".claude-plugin/plugin.json");
+}
+
 const BINARY =
   /\.(png|jpg|jpeg|gif|ico|webp|pdf|zip|gz|tar|woff2?|ttf|eot|mp4|mov|exe|dll|so|dylib|pyc|wasm|lock)$/i;
 
@@ -93,6 +124,35 @@ export function report(gate, findings, skips = []) {
     if (f.remedy) process.stderr.write(`        ${f.remedy}\n`);
   }
   process.exit(findings.length > 0 ? 2 : 0);
+}
+
+const DECORATIVE_LINE_RE = /^[=-]{5,}$/;
+
+/** Fix 92 — gate 7's own print loop used to print only
+ *  `String(f.problem).split("\n")[0].slice(0, 200)`, on the assumption that
+ *  an external tool's first output line summarises it. True for neither
+ *  tool that tripped it: secretlint's stdout opens with a blank line before
+ *  its first real finding (the printed body was empty), and lizard's real
+ *  output opens with a decorative `====…` banner ahead of the per-function
+ *  rows that are the actual finding. Drops every blank line and every
+ *  bare `====…`/`----…` divider line, wherever they occur, and returns up
+ *  to `maxLines` of what is left, each capped at `maxLineLength` — enough
+ *  for a reader to act on, not the first line of whatever the tool
+ *  happened to emit. */
+export function formatFindingBody(
+  problem,
+  { maxLines = 5, maxLineLength = 200 } = {},
+) {
+  const content = [];
+  for (const line of String(problem ?? "").split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed === "" || DECORATIVE_LINE_RE.test(trimmed)) continue;
+    content.push(
+      line.length > maxLineLength ? line.slice(0, maxLineLength) : line,
+    );
+    if (content.length >= maxLines) break;
+  }
+  return content;
 }
 
 export function splitLines(s) {

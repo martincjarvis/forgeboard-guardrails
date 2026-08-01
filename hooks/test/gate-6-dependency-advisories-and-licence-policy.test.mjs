@@ -88,6 +88,33 @@ test("dependency advisory scan pushes back a development-only dependency at high
   );
 });
 
+// --- Fix 93. The push-back remedy used to name only two paths — "upgrade
+// the dependency, or accept it in an Accepted ADR naming the advisory id" —
+// a false binary. Iteration 26 (audit 22's own subject) took the ADR branch
+// in good faith for a js-yaml advisory, reasoning the fixed version only
+// shipped bundled inside markdownlint-cli2, five days inside the
+// repository's own release-age window — missing that js-yaml@5.2.2 itself,
+// pinned directly via `overrides`, was published nine days EARLIER, clears
+// the same window on its own, and `npm audit` reports 0 vulnerabilities
+// with that pin (audit 22, and iteration 25 before it, both verified this).
+// The remedy must name the pin as a real third option, not push every
+// push-back-band advisory toward either an upgrade nobody can do yet or an
+// ADR nobody needed to write.
+
+test("dependency advisory scan's push-back remedy names all three paths — upgrade, an overrides/resolutions pin, and an Accepted ADR — not the false binary iteration 26 acted on", () => {
+  const report = auditReport([
+    ["js-yaml", "high", ["https://github.com/advisories/GHSA-pm4m-ph32-ghv5"]],
+  ]);
+  const findings = classifyAdvisories(report, { runtimeNames: new Set() });
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].remedy, /upgrade/i);
+  assert.match(
+    findings[0].remedy,
+    /overrides.*resolutions|resolutions.*overrides/i,
+  );
+  assert.match(findings[0].remedy, /Accepted ADR/);
+});
+
 test("dependency advisory scan is a visible skip, naming the reason, when not triggered", () => {
   const { findings, skips } = checkDependencyAdvisories(false);
   assert.deepEqual(findings, []);

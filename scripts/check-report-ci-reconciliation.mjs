@@ -43,6 +43,30 @@ import { report } from "./lib.mjs";
 
 const GATE_FAIL_RE = /^([\w .()-]+?): FAIL (.+)$/;
 
+// Fix 90 — a real job log is never the bare "<gate>: FAIL <label>" text
+// GATE_FAIL_RE expects. Two real shapes, both observed against the same run:
+//
+//   REST API job log (`gh api .../logs`, and what a workflow step reads from
+//   its own log): every line is timestamp-prefixed —
+//     2026-08-01T08:10:39.3344402Z gate 6: FAIL dependency licence policy (…)
+//
+//   `gh run view --log`: two more tab-separated columns first, job name then
+//   step name, before that same timestamp —
+//     gate 6 (ubuntu-latest)\tGate 6 — re-run …\t2026-08-01T08:10:39.33…Z gate 6: FAIL …
+//
+// The timestamp's own colons sit inside the `[\w .()-]` class GATE_FAIL_RE
+// requires up to ": FAIL", so the regex never reaches the real marker —
+// audit 22 measured 0 labels extracted from 9 real FAIL lines. Strip
+// whichever job/step columns are present (rightmost tab), then the ISO-8601
+// timestamp, before matching.
+const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s*/;
+
+function stripLogLinePrefix(rawLine) {
+  const lastTab = rawLine.lastIndexOf("\t");
+  const withoutColumns = lastTab === -1 ? rawLine : rawLine.slice(lastTab + 1);
+  return withoutColumns.replace(ISO_TIMESTAMP_RE, "");
+}
+
 /** Every `<gate>: FAIL <label>` line in `logText` — the exact shape
  *  `report()` (this file's own sibling, used by every gate script here)
  *  writes to stderr for a real finding, one line per finding, `label`
@@ -53,7 +77,7 @@ const GATE_FAIL_RE = /^([\w .()-]+?): FAIL (.+)$/;
 export function extractGateFailLabels(logText, gate = "gate 6") {
   const labels = [];
   for (const rawLine of (logText || "").split(/\r?\n/)) {
-    const line = rawLine.trim();
+    const line = stripLogLinePrefix(rawLine).trim();
     const m = GATE_FAIL_RE.exec(line);
     if (!m) continue;
     if (m[1].trim() !== gate) continue;
