@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// cspell:ignore PYTHONUTF nloc symref
+// cspell:ignore PYTHONUTF nloc symref bypassable
 // Gate 6 — Pull request pipeline, local-check surface. Re-runs the gates 2-5
 // checks against the pull request's range, on a clean checkout that has no
 // staged index — see docs/standards/guardrails/gate-6-pull-request.md, "check
@@ -352,6 +352,30 @@ if (have("osv-scanner", ["--version"])) {
 // leaves the broken link in a file nobody staged"); no range adaptation
 // needed, same call as pre-commit.mjs.
 for (const f of checkLinks()) findings.push(f);
+
+// --- Repo-wide markdown structural lint — the server-side half of gate 5's
+// check 5. Per-file prose rules run at gate 2 over the staged subset; the
+// cross-file sweep belongs where the complete tree exists, the same reason
+// checkLinks runs here rather than at gate 2. Gate 5 already sweeps the whole
+// tree pre-push, but pre-push is local and bypassable with --no-verify; this
+// is the enforcement a green merge actually rests on, on every pull request.
+// Without it the structural rules were the exit-0 class in a new form: the
+// check existed, was well tested, and nothing on the server ever ran it. The
+// glob is passed at this call site, not held in .markdownlint-cli2.jsonc, for
+// the same reason gate 5 states: a globs entry there combines with
+// lint-staged's staged-path arguments and widens every commit to the whole
+// tree (docs/specs/2026-08-01-markdown-gate-scope-design.md).
+{
+  const md = run("npx", ["--no-install", "markdownlint-cli2", "**/*.md"]);
+  if (md.status !== 0) {
+    fail(
+      "markdown lint",
+      undefined,
+      (md.stdout || "") + (md.stderr || ""),
+      "fix the structural violation above; run `npm run lint:md` locally",
+    );
+  }
+}
 
 // --- Check 15 (gate 2) — suppression register completeness ------------------
 // Also whole-repository already (pre-commit.mjs calls it with no argument);
