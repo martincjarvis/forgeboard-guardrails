@@ -782,9 +782,11 @@ complete answer to where a gate fires.
 
 ---
 
-## Questions
+## Decisions taken here
 
-These are unresolved. They are not gaps to be filled by whoever implements this.
+Nothing in this slice is open. Each decision below records what was chosen and
+what was rejected, so it can be re-argued from the record rather than
+reconstructed from scratch.
 
 The question that stood first here — whether an opted-out capability is silent or
 reported as suppressed — is decided, along with the header-line compromise this
@@ -803,33 +805,40 @@ written — see
 This slice's requirement is unchanged; what was missing was the act, and it now
 has an owner.
 
-1. **Does `.husky/` survive?** Git's own `core.hooksPath` would let
-   `.guardrails/` hold the git hook scripts directly and remove husky entirely,
-   which is the no-new-dependency line's preference and puts one more thing
-   inside the folder the design says holds everything. Against it: husky is
-   already here and working, `prepare`/lint-staged are wired to it, and swapping
-   it is a dependency decision reserved for a human under the
-   reuse-trusted-tools versus no-new-dependency conflict. **Recommendation: keep
-   husky, out of scope for this slice.** Named here so the decision is visible
-   rather than absent.
+The question that stood third — **does `.husky/` survive?** — is decided:
+**husky stays, and replacing it is out of scope for this slice.** Git's own
+`core.hooksPath` would let `.guardrails/` hold the hook scripts directly and
+remove a dependency, which is the tidier-looking option and the one the
+no-new-dependency line prefers. It was rejected because `core.hooksPath` is
+per-clone local configuration: a clone that never sets it runs no hooks at all,
+and does so silently. That is the exit-0 class — a guardrail that reads fine
+while unable to fire — and it is a worse failure than carrying husky, which is
+already here and already wired to `prepare` and lint-staged.
 
-2. **Forty-eight capabilities may be more than opt-out needs.** The number falls
-   out of the corpus rather than being chosen, and every entry is a property a
-   human could sensibly decide does not apply. But nobody has yet written twenty
-   real opt-out rows against it, which is the only way to find out whether the
-   granularity is right. If slice 2 finds itself writing rows that always come in
-   pairs, that pair is one capability and this list is wrong.
+The question that stood fourth — **should an unmodified copy of the plugin's
+reference be discounted from change size?** — takes **no change**. Bytes
+identical to the plugin's own file carry no author decision for a reviewer to
+review, which is
+[ADR-0005](../ADR/0005-generated-files-discounted-from-change-size.md)'s
+argument almost word for word. But
+[ADR-0008](../ADR/0008-tooling-complexity-band.md) has already rejected the
+nearest version of it, on the grounds that a copy can be edited where a
+generated file cannot, and re-arguing an accepted ADR inside an implementation
+is exactly how a decision gets reversed without anyone noticing. Re-opening it
+needs its own ADR and a measurement of how many copied bytes are actually
+inflating real branches — tracked as a separate ticket, not carried here.
 
-3. **Should an unmodified copy of the plugin's reference be discounted from
-   change size?** Bytes identical to the plugin's own file carry no author
-   decision for a reviewer to review, which is
-   [ADR-0005](../ADR/0005-generated-files-discounted-from-change-size.md)'s
-   argument almost word for word — and
-   [ADR-0008](../ADR/0008-tooling-complexity-band.md) has already rejected the
-   nearest version of it, on the grounds that a copy can be edited where a
-   generated file cannot. This spec proposes **no change**; it is recorded here
-   because it is the obvious next argument and it should be had as its own ADR,
-   with a measurement, rather than settled quietly inside an implementation.
+## What will settle by measurement
+
+These are not open questions. Each has a working answer and a stated trigger
+that would change it; none blocks implementation.
+
+**Forty-eight capabilities may be more than opt-out needs.** The number falls
+out of the corpus rather than being chosen, and every entry is a property a
+human could sensibly decide does not apply. Nobody has yet written twenty real
+opt-out rows against it, which is the only way to find out whether the
+granularity is right. _Trigger: if slice 2 finds itself writing rows that
+always come in pairs, that pair is one capability and this list is wrong._
 
 ---
 

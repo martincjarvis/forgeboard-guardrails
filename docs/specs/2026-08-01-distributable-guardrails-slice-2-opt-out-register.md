@@ -582,7 +582,9 @@ is untouched, because an opt-out was never a rung on that ladder.
       justification quoting a marker name needs the same split-literal treatment
       `check-adr-approver.mjs` already applies to its own marker list.
 
-## Questions
+## Decisions taken here
+
+Nothing in this slice is open.
 
 The row-versus-record question and the reporting question that stood here are
 both decided: an opt-out is a register row **and** a decision record, and a
@@ -611,23 +613,35 @@ kind, not by bootstrap and not as a special case for an opt-out.
   needs no extra guard for a repository that has never adopted ADRs; it
   simply never fires there.
 
-What remains open:
+Two more are decided here.
 
-1. **Which ref is "the protected default branch" on a repository with no
-   remote?** This spec fails closed (no ref, no opt-outs), which is correct for
-   safety and means a purely local repository can never opt out of anything. Is
-   that acceptable, or does a local-only repository need a different admission
-   route? No route that stays inside git alone is known to me.
-2. **Does an opt-out row need a component scope in a multi-component
-   repository?** This spec says no — a capability is disabled repository-wide —
-   on the grounds that a per-component opt-out is a second, finer-grained
-   mechanism nobody has asked for yet. If slice 1's capabilities turn out to be
-   component-scoped, this is wrong and the schema needs a column.
-3. **Reviewer identity matching is a string comparison** between the Approved by
-   cell and a platform login or profile name. It is the weakest link in the
-   admission check. A stricter form — the cell holds the login — reads worse in
-   a document humans consult. Left as the loose form deliberately; flagging it
-   in case the reviewer disagrees.
+**Which ref is "the protected default branch" on a repository with no remote?**
+The check **fails closed**: no ref, no opt-outs. The consequence is worth
+stating plainly rather than leaving to be discovered — **a purely local
+repository cannot opt out of any capability.** That is accepted. An opt-out is
+an assertion that a whole class of check does not apply to this repository, and
+admitting one on evidence that any local clone can fabricate would make the
+mechanism worth nothing. No admission route that stays inside git alone is
+known; if one is wanted later it is a new ticket, not a loosening of this check.
+
+**Reviewer identity matching is a string comparison** between the Approved by
+cell and a platform login or profile name, and it stays that way deliberately.
+It is the weakest link in the admission check. The stricter form — the cell
+holds the login — reads worse in a document humans consult, and this comparison
+is not what stands between the repository and a bad actor: the row has to be on
+the protected default branch, which is the control that actually holds. Tighten
+the comparison and the weak link merely moves.
+
+## What will settle by measurement
+
+Not an open question. It has a working answer and a trigger that would change
+it, and it does not block implementation.
+
+**Does an opt-out row need a component scope in a multi-component repository?**
+No — a capability is disabled repository-wide. A per-component opt-out is a
+second, finer-grained mechanism nobody has asked for yet. _Trigger: if slice 1's
+capabilities turn out to be component-scoped, this is wrong and the schema needs
+a column._
 
 ## References
 

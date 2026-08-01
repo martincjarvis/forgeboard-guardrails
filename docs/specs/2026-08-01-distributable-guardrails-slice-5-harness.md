@@ -76,7 +76,8 @@ the corresponding command runs.
 
 The fix agent is out of scope for this slice: it changes the toolkit
 repository, never the subject, and the loop already keeps it in its own
-session outside any round's artefacts. See [Questions](#questions).
+session outside any round's artefacts. See
+[Decisions taken here](#decisions-taken-here).
 
 ## The round identifier
 
@@ -432,8 +433,8 @@ distinction — two `usage_usec` reads 15 seconds apart and their difference,
 not the running total the container has ever spent. A working process reads
 2–4 s per 15 s window; a hung one reads 0.1–0.5 s. The harness treats
 anything at or below 0.5 s as idle for that tick and anything above as busy;
-see [Questions](#questions) on the unclassified band between the two bands
-the loop's own text gives.
+see [What will settle by measurement](#what-will-settle-by-measurement) on the
+unclassified band between the two bands the loop's own text gives.
 
 ### The sustained window
 
@@ -594,10 +595,9 @@ Then it stops before the reset, printing check-ledger.mjs's own output
   not implement or verify them itself.
 - Multi-repository or organisation-wide rollout of the harness itself.
 
-## Questions
+## Decisions taken here
 
-These are unresolved. They are not gaps to be filled by whoever implements
-this.
+Nothing in this slice is open.
 
 The question that stood fifth here — **where the rendered prompt's hash is
 checked against drift** — is decided, because leaving auto-derivation as the
@@ -606,47 +606,45 @@ neither slice could see alone. The harness now refuses the rotation and takes
 `--new-series` as the confirmation; see
 [a series never rotates silently](#a-series-never-rotates-silently).
 
-1. **Which agent CLI plays each role.** The devcontainer carries three
-   (Claude Code, OpenCode, `agy`); the twenty-six hand-run rounds' three
-   session-boundary hangs were specifically OpenCode's. This spec makes the
-   agent per role a config value rather than fixing one, on the grounds that
-   the harness should not need to change to test a different CLI's
-   hook-parity — but the config's own default is a real choice that should be
-   confirmed, not left to whichever value happened to be typed into the
-   template first.
+**Which agent CLI plays each role** is a config value, and its default is the
+CLI the loop currently drives. The devcontainer carries three (Claude Code,
+OpenCode, `agy`), and fixing one into the harness was rejected: the harness must
+not need changing to test a different CLI's hook parity, which is a large part
+of what the loop is for. Recording the default explicitly matters because the
+twenty-six hand-run rounds' three session-boundary hangs were specifically
+OpenCode's — a result that is only interpretable if the CLI in play is known.
 
-2. **The CPU band between 0.5 s and 2 s per 15 s window is unclassified by
-   the loop's own text**, which gives only the two extremes. This spec
-   treats anything above 0.5 s as busy — the safer direction against a false
-   hang — but that threshold is chosen, not measured, and a series of real
-   rounds may show it is too eager to call a slow-but-working process idle,
-   or the reverse.
+**Reset recreates content and re-applies host-side settings** — branch
+protection, required status checks, secrets — every round. The cheaper reading,
+that "delete and recreate" means content only and protection persists, was
+rejected: slice 3's "a required check only after it has passed once" rule is
+part of what each round tests, so carrying protection over from a previous round
+would prove it against stale state. This costs real round time and buys a result
+that means what it says.
 
-3. **The 60-second poll interval and the 15-second CPU-sampling window are
-   this spec's own choices**, sized to fit ten minutes into roughly ten
-   ticks with headroom, not values stated anywhere in the loop document.
-   They are a tuning knob, not a fixed requirement, and the first few real
-   rounds run through this harness are the only way to learn whether they
-   are too coarse or too fine.
+**`eval/rounds/` stays git-ignored.** A stale capture in the tree looks like a
+result, which is the failure this avoids. Committing a round that becomes the
+subject of a fix was rejected as a second mechanism: slice 6 already requires the
+decisive lines to be copied verbatim into the ledger finding, with `runId` and
+`jobId` beside them, which is what makes the record self-contained without
+tracking the artefacts themselves.
 
-4. **Whether "reset" also has to reconfigure the subject's host-side
-   settings** (branch protection, required status checks, secrets) each
-   round, or whether those persist across resets while only content is
-   recreated. The overarching design's constraint says "delete and
-   recreate," and this spec reads that as content — a fresh empty
-   repository at the same remote — but if branch protection has to be
-   proven fresh every round (slice 3's "a required check only after it has
-   passed once" rule), reset may need to tear down and rebuild more of the
-   host-side repository than this spec assumes, at a real cost in round
-   time.
+## What will settle by measurement
 
-5. **Whether `eval/rounds/` should ever be committed for a specific round**,
-   the way a suppression or opt-out register row is committed evidence of a
-   decision. This spec follows this repository's own `.gitignore` precedent
-   for tool-generated evidence throughout, but a round that becomes the
-   subject of a fix brief may be worth preserving deliberately rather than
-   only locally, and this spec does not resolve how that preservation would
-   happen if wanted.
+These are not open questions. Each has a working answer and a stated trigger;
+none blocks implementation. Both are tuning knobs, and the honest position is
+that they were chosen rather than measured.
+
+**The CPU band between 0.5 s and 2 s per 15 s window is unclassified by the
+loop's own text**, which gives only the two extremes. Anything above 0.5 s
+counts as busy — the safer direction, since a false hang costs a round.
+_Trigger: a series of real rounds showing it calls a slow-but-working process
+idle, or the reverse._
+
+**The 60-second poll interval and 15-second CPU-sampling window** are sized to
+fit ten minutes into roughly ten ticks with headroom, not taken from the loop
+document. _Trigger: the first few real rounds showing them too coarse or too
+fine._
 
 ## References
 

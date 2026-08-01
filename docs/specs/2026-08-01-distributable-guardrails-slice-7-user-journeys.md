@@ -163,23 +163,38 @@ When the spec is reviewed
 Then the spec is decomposed and each piece declares its own journeys
 ```
 
-## Questions
+## Decisions taken here
 
-1. **Where journeys are declared within a spec** — a required section, or
-   frontmatter a checker can read? A section is easier to write and harder to
-   parse; frontmatter is the reverse. The corpus's derive-don't-type principle
-   favours something machine-readable, but a journey is prose by nature.
-2. **What enforces "the test failed first".** A test that has only ever passed is
-   indistinguishable from one written afterwards, unless the failing run is
-   evidenced. Git history shows the test predating the implementation, which is
-   close but not the same claim.
-3. **Whether this applies to a spec that delivers no user-facing behaviour** — a
-   refactor, a corpus change like this one. Slices 1 to 6 declare no journeys;
-   the cross-slice journeys in the design document arguably serve that purpose,
-   which suggests the rule attaches to the design rather than to every spec.
-4. **Whether an existing repository adopting the guardrails must retrofit
-   journeys** for behaviour already built, or only declare them for new work.
-   Retrofitting is the honest reading and the expensive one.
+Nothing in this slice is open.
+
+**Journeys are declared in a required section, not frontmatter.** The corpus's
+derive-don't-type principle favours something machine-readable, and it loses
+here: a journey is prose by nature, and forcing it into a frontmatter field buys
+a checker at the cost of the thing being readable — which is the whole reason a
+journey works. A section is easier to write and harder to parse, and that is the
+right way round for an artefact whose audience is human.
+
+**What enforces "the test failed first": the failing run's output is recorded**
+as an artefact. Git history showing the test predating the implementation is
+cheaper and checkable, and it was rejected because it evidences _ordering_, not
+_failure_ — a test committed first that could never have failed satisfies it
+completely. Since the entire point of a journey test is that it must be able to
+fail, evidencing the failure is the only claim that matches the requirement.
+This is the exit-0 defect class in its purest form.
+
+**The rule attaches to the design, not to every spec.** Slices 1 to 6 declare no
+journeys and the cross-slice journeys in the design document already serve that
+purpose. A spec delivering no user-facing behaviour — a refactor, a corpus
+change like this one — inherits its design's journeys rather than inventing thin
+ones to satisfy a checker.
+
+**An existing repository declares journeys for new work only; retrofitting is
+opt-in.** Retrofitting is the honest reading and the expensive one, and it was
+rejected as the default because it makes a repository non-compliant on day one
+for history it cannot change — the difference between a standard people adopt
+and one they route around. The accepted consequence, stated rather than left to
+be discovered: **behaviour that already exists never gets a journey**, and the
+audit does not count its absence against the repository.
 
 ## References
 

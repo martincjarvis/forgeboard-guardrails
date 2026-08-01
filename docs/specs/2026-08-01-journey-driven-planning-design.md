@@ -197,20 +197,29 @@ design one, and moving it later costs a directory.
 - Any change to the six kinds of test in
   [testing-strategy](../standards/testing-strategy.md)
 
+## Decisions taken here
+
+**What evidence establishes that a test failed first: the failing run's output
+is recorded** as an artefact. Git history showing the test predating the
+implementation is cheaper and checkable, and was rejected because it evidences
+ordering rather than failure — a test committed first that could never have
+failed satisfies it completely. Slice 7 carries the same decision and the same
+reasoning; it is stated once there and applies here unchanged.
+
+**A repository declares journeys for new work only.** Slice 7 takes this
+decision in full, including what it costs: behaviour that already exists never
+gets a journey. An adopting repository is therefore not made non-compliant by
+history it cannot change, which removes most of the reason it would want to
+decline journeys wholesale in the first place.
+
 ## Questions
 
-1. **How a skill reliably composes with a planning skill already running.**
-   Activation is description-matching, and two skills both matching is a hope
-   rather than a guarantee. A hook is more reliable and less portable. This is the
-   central unknown and slice A's spec must settle it.
-2. **What evidence establishes that a test failed first.** Git history showing the
-   test predating the implementation is checkable and is a weaker claim than
-   someone having watched it fail. Recording the failing run's output is stronger
-   and is a new artefact.
-3. **Whether a repository can decline journeys wholesale** — the opt-out question,
-   for a repository that has guardrails and does not want this capability.
-   Presumably yes, through the same register, but it interacts with slice 7 making
-   journeys a corpus rule rather than a capability.
+**How a skill reliably composes with a planning skill already running.**
+Activation is description-matching, and two skills both matching is a hope
+rather than a guarantee. A hook is more reliable and less portable. This is the
+central unknown of this design and **slice A's spec must settle it** — it stays
+here because it is genuinely unresolved and has an owner, which is what this
+section is for.
 
 ## References
 

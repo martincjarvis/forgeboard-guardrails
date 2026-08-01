@@ -590,7 +590,9 @@ signature matched.
 - Writing or approving an opt-out row, or the decision record it cites — the
   audit reads both; it never writes to either, proposed or approved.
 
-## Questions
+## Decisions taken here
+
+Nothing in this slice is open.
 
 The question that stood first here — **can the audit report a capability
 inapplicable on its own evidence, with no row?** — is answered. Inapplicability
@@ -603,14 +605,17 @@ question posed — a row after all, a readable derived fact, or Absent accepted 
 the second is taken, and the reasons the other two were rejected are recorded
 with it.
 
-- **Where should the evidence appendix live for a large repository** — one
-  audit report, or a summary in the report with the full per-capability
-  detail in a separate, generated artefact? Slice 1's catalogue holds
-  forty-eight capabilities, so a compliant repository's appendix is
-  forty-eight lines and this spec assumes one report carries them. That is
-  near the edge of readable rather than comfortably inside it, and a
-  repository whose appendix is the entire report is the case that would
-  settle it.
+## What will settle by measurement
+
+Not an open question. It has a working answer and a trigger that would change
+it, and it does not block implementation.
+
+**Where the evidence appendix lives for a large repository.** One report carries
+it, which is what this spec assumes. Slice 1's catalogue holds forty-eight
+capabilities, so a compliant repository's appendix is forty-eight lines — near
+the edge of readable rather than comfortably inside it. The alternative is a
+summary in the report with per-capability detail in a separate generated
+artefact. _Trigger: an audit whose appendix is effectively the entire report._
 
 ## References
 

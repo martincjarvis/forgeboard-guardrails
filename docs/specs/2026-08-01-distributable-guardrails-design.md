@@ -666,5 +666,11 @@ outside the corpus that defines everything else it keys on. The exception is
 this document and nothing beyond it: the catalogue records what the corpus
 already checks, in the corpus's own terms, and adds no gate, no check and no
 threshold. A slice that wants to change any _other_ standard's content is still
-out of scope, and slice 2's `bypass-and-exceptions.md` amendment and slice 6's
-`docs-style.md` class row are both correctly outside this line.
+out of scope, and slice 2's `bypass-and-exceptions.md` amendment, slice 3's
+`agent-integration.md` carve-out for an interactive session, and slice 6's
+`docs-style.md` class row are all correctly outside this line.
+
+Each is identified by the slice that needs it and tracked as a follow-on. That
+is the point of naming them: an amendment a slice silently assumes is an
+amendment nobody schedules, and the slice then ships against a standard that
+still says the opposite.

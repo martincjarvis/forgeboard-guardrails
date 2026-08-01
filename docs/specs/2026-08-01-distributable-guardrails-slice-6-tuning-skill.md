@@ -470,61 +470,59 @@ a defect already in the ledger. Any check that scores a sentence.
 - Any change to a standard's content.
 - Applying fixes. The skill writes the record and the brief; the fix agent is a
   separate session, per the loop's role separation.
-- Backfilling the twenty-six completed rounds — see [Questions](#questions).
 - Distributing this skill, or the ledger, with the plugin.
 
-## Questions
+## Decisions taken here
 
-These are unresolved and are for review, not for whoever implements this.
+Nothing in this slice is open.
 
-1. **Extra frontmatter, or the body block this spec proposes?**
-   [docs-style](../standards/docs-style.md) permits extra frontmatter fields only
-   where a document class declares them, and its class table currently has one
-   row (ADR). Adding a `tuning finding` row would be a change to a standard's
-   content, which the overarching design puts out of scope — so this spec uses a
-   body table instead, which every register in this corpus already uses and
-   `checkOptOutRegisterStaged` already parses. If reviewers prefer frontmatter,
-   the docs-style change has to be authorised separately.
+**A body table, not extra frontmatter.** Every register in this corpus already
+uses one and `checkOptOutRegisterStaged` already parses it.
+[docs-style](../standards/docs-style.md) permits extra frontmatter fields only
+where a document class declares them, and its class table has one row (ADR), so
+a `tuning finding` row would be a change to a standard's content — which the
+overarching design puts out of scope. Frontmatter remains available later, but
+it needs that docs-style change authorised on its own terms first.
 
-2. **Do the completed twenty-six rounds get backfilled?** Backfilling hypotheses
-   would be fabrication — nobody wrote them, which is the whole finding.
-   **Recommendation:** backfill identity, locus, remedy kind and recurrence from
-   the existing fix-cycle history, with every `Result` set to
-   `Not measured — recorded retrospectively`. That produces the
-   reference-implementation-versus-prose table from real data on day one and
-   states plainly that the results were not predicted. Whether that is worth the
-   effort is a judgement this spec does not make.
+**The twenty-six completed rounds are backfilled** — identity, locus, remedy
+kind and recurrence taken from the existing fix-cycle history, with every
+`Result` set to `Not measured — recorded retrospectively`. Backfilling the
+_hypotheses_ would be fabrication: nobody wrote them, and that absence is the
+finding the ledger exists to fix. Backfilling the rest produces the
+reference-implementation-versus-prose comparison from real data on day one while
+stating plainly that those results were never predicted.
 
-3. **Fix numbering already exists and is cited in the standards.** The corpus's
-   prose cites `fix 56`, `fix 61`, `fix 74`, `fix 88` and others as stable
-   references. A ledger with its own `F-NNNN` ids introduces a second numbering.
-   **Recommendation:** the round section's `Fix` field records the existing fix
-   number where one was assigned, so the two vocabularies are joined in the
-   record rather than competing. Whether new fixes should keep receiving fix
-   numbers at all, once the ledger exists, is not this spec's to decide.
+**The round section's `Fix` field records the existing fix number** where one was
+assigned. The corpus already cites `fix 56`, `fix 61`, `fix 74` and others as
+stable references, and a ledger with its own `F-NNNN` ids would introduce a
+second numbering competing with them. Joining the two vocabularies in the record
+costs one field. Whether new fixes keep receiving fix numbers once the ledger
+exists is a separate question this slice does not settle.
 
-4. **Where does a finding about slice 5's harness go?** This spec routes it to
-   `Scope: loop`, `Loop condition: harness`, on the grounds that it is neither a
-   corpus defect nor an implementer's. If slice 5 would rather own its own defect
-   record, this spec's `harness` value is redundant and should be dropped rather
-   than kept as a second place the same thing might be written.
+**A finding about slice 5's harness goes to `Scope: loop`, `Loop condition:
+harness`.** It is neither a corpus defect nor an implementer's. Letting slice 5
+own its own defect record was rejected: it would be a second place the same
+thing might be written, and a finding filed in either of two places is a finding
+nobody can count.
 
-5. **The ledger is tracked; the artefacts it cites are not.** Slice 5 git-ignores
-   `eval/rounds/`, correctly — a stale capture in the tree looks like a result.
-   But a `Result` line citing a job log that exists only on one machine cannot be
-   re-checked by anyone else, and this spec's whole argument is that a claim
-   should be checkable. **Recommendation:** the quoted line is copied verbatim
-   into the finding file, which is what makes the record self-contained, and the
-   manifest's `runId`/`jobId` are recorded beside it so the log can be re-fetched
-   from the platform rather than from disk. That covers CI, which is the case
-   that matters; it does not cover a quote from an implementer transcript, and
-   whether that needs covering is a real question this spec does not answer.
+**The quoted line is copied verbatim into the finding file**, with the
+manifest's `runId` and `jobId` beside it. Slice 5 git-ignores `eval/rounds/`
+correctly — a stale capture in the tree looks like a result — but a `Result`
+citing a log that exists on one machine cannot be re-checked by anyone else, and
+this slice's whole argument is that a claim should be checkable. The verbatim
+copy is what makes the record self-contained; the ids let the log be re-fetched
+from the platform rather than from disk. **This covers CI and does not cover a
+quote from an implementer transcript**, which has no equivalent re-fetch.
 
-6. **Is `Locus` stable enough to be useful?** It is compared but does not decide
-   a match, so a wrong value costs little — but a finding whose locus moves every
-   time it is fixed may be evidence that the match key needs a fourth component
-   this spec has not found. Twenty real recurrences would answer it; none have
-   been filed yet.
+## What will settle by measurement
+
+Not an open question. It has a working answer and a trigger, and it does not
+block implementation.
+
+**Is `Locus` stable enough to be useful?** It is compared but does not decide a
+match, so a wrong value costs little. _Trigger: a finding whose locus moves every
+time it is fixed is evidence the match key needs a fourth component. Twenty real
+recurrences would answer it; none have been filed yet._
 
 ## References
 

@@ -771,49 +771,60 @@ Then a declaration exists for the harness the session ran in, invoking
 - Changing the nine gates, their order, or what they check.
 - Changing the standards' content.
 
-## Questions
+## Decisions taken here
 
-These are unresolved and need a decision before implementation. None is
-invented to be safe — each is a real fork this spec could not settle from the
-material available.
+Nothing in this slice is open. Each decision records what was rejected as well
+as what was chosen.
 
-The question that stood fourth here — **what the suppression row's Path cell
+The question that stood fifth here — **what the suppression row's Path cell
 holds for a deviation that is not at a path** — is answered without a standards
 change: the tracked file whose content carries the deviation is the path, and a
 deviation with no tracked file is not filed here at all because the gate that
 finds it reports it on every run. See
 [the single rule for a deliberate deviation](#the-single-rule-for-a-deliberate-deviation).
 
-1. **`agent-integration.md` forbids clarifying questions unconditionally; the
-   overarching design requires bootstrap to ask, interactively, on discovery
-   ambiguity.** The opt-out conversation is already inside the existing carve-out
-   ("a decision the standards reserve for a human"). A discovery ambiguity is
-   not — it is a clarifying question by that document's own definition. Either
-   `agent-integration.md` gains a carve-out for an interactive session with a
-   human present, or the interactive path takes the default and reports, the
-   same as unattended, and the design's fourth Gherkin line for slice 3 is wrong.
-   **This is a conflict between two standing directives and is put to the human
-   rather than settled here.** This spec is written to the design's wording;
-   changing that wording changes the interactive column of the matrix.
+The question that stood first — **`agent-integration.md` forbids clarifying
+questions unconditionally, while the overarching design requires bootstrap to
+ask, interactively, on discovery ambiguity** — was a conflict between two
+standing directives and went to the human. The decision: **`agent-integration.md`
+gains a carve-out for an interactive session with a human present.**
 
-2. **Does a survey of a dirty working tree stop the run, or proceed?** This spec
-   says stop, following the repository's own "never start on top of someone
-   else's uncommitted work". A user who says "set this repository up" with work
-   in progress may reasonably expect it to proceed against `HEAD`. Stopping is
-   the conservative reading and is what is specified; it may be wrong for the
-   plugin's actual users.
+The rejected alternative was to collapse the interactive path into the
+unattended one — take the documented default and report, never ask. It was
+rejected because the no-questions rule exists to make _unattended_ runs
+deterministic, not to forbid a human collaborating with the skill in a session
+they are sitting in. The evaluation loop is unattended, so its failure condition
+is untouched by this carve-out.
 
-3. **May the summary omit a capability the repository already implements in
-   full?** Showing it makes the summary longer and mostly noise; omitting it
-   hides a capability the human might want opted out. This spec shows it, marked
-   with what already covers it. A run against a large existing repository will
-   settle whether that is readable.
+The amendment to `agent-integration.md` that this requires is **outside this
+slice's implementation scope**, the same as slice 2's `bypass-and-exceptions.md`
+amendment and slice 6's `docs-style.md` class row. It is identified here and
+tracked as a follow-on, not folded into the work.
 
-4. **Is the change-size override still reserved for a human on a bootstrap
-   branch that is large by nature?** The current skill says yes, at length. That
-   holds unchanged here, but an uplift branch is smaller than a new-repository
-   bootstrap's, and it is worth confirming the threshold is still crossed often
-   enough to justify the paragraph.
+**A survey of a dirty working tree stops the run.** This follows the
+repository's own rule against starting on top of someone else's uncommitted
+work. A user who says "set this repository up" with work in progress may
+reasonably expect it to proceed against `HEAD`, and that reading was rejected:
+bootstrap writes across the tree, so proceeding risks mixing its output into
+changes the user has not committed and cannot cleanly separate afterwards.
+
+**The summary shows a capability the repository already implements in full**,
+marked with what covers it. Omitting it would shorten the summary at the cost of
+hiding a capability the human might want opted out — and the summary exists to
+support exactly that decision.
+
+**The change-size override stays reserved for a human**, unchanged, on an uplift
+branch as on a new-repository bootstrap. An uplift branch is the smaller of the
+two, but the override is reserved because of who may take the decision, not
+because of how often it comes up.
+
+## What will settle by measurement
+
+**Whether the capability summary stays readable at scale.** Slice 1's catalogue
+holds forty-eight capabilities, and a summary that shows every one — including
+those already covered — is near the edge of readable rather than comfortably
+inside it. _Trigger: the first bootstrap run against a large existing
+repository._
 
 ## References
 
@@ -821,7 +832,7 @@ finds it reports it on every run. See
 - [Slice 1 — Foundations](2026-08-01-distributable-guardrails-slice-1-foundations.md) — the flat `.guardrails/` layout every path here resolves under, the carve-out for scripts a consumer never receives, and the populated-versus-stub test this slice's activation reads.
 - `skills/repository-bootstrap/SKILL.md` — the skill this slice reworks.
 - `skills/guardrail-audit/SKILL.md` — the adoption order, the audit states, and the three grounds for replacing a working tool.
-- [Agent integration](../standards/guardrails/agent-integration.md#progress-blockers-and-questions) — the progress, blocker and question rule, and question 1's other half.
+- [Agent integration](../standards/guardrails/agent-integration.md#progress-blockers-and-questions) — the progress, blocker and question rule, and the document the interactive carve-out amends.
 - [Components](../standards/guardrails/components.md) — the component derivation discovery reuses, and the report-what-you-derived obligation.
 - [File classes](../standards/guardrails/file-classes.md) — the `tooling` class the copied scripts take, and the derived `guardrail-generated` declaration.
 - [Registers](../standards/guardrails/registers.md#approval-is-an-event-not-a-field) — why the conversation drafts a row and never approves it.
