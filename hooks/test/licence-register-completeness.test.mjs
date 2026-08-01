@@ -86,7 +86,9 @@ test("licence policy is a visible skip, naming the reason, when not triggered", 
   const { findings, skips } = checkLicencePolicy(false);
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /dependency licence policy/);
+  const skip = skips[0];
+  assert.ok(skip, "expected a skip");
+  assert.match(skip, /dependency licence policy/);
 });
 
 test("licence policy refuses a missing register, and refuses a resolved dependency whose licence has no table entry", () => {

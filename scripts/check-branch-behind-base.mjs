@@ -42,7 +42,9 @@ export function checkBranchBehindBase({
   git: gitFn = git,
   resolveBase: resolveBaseFn = resolveBase,
 } = {}) {
+  /** @type {{ check: string, problem: string, remedy: string }[]} */
   const findings = [];
+  /** @type {string[]} */
   const skips = [];
 
   const base = resolveBaseFn();

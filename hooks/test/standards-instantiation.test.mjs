@@ -40,8 +40,10 @@ test("findStackReferencesOutsideList: a stack keyword absent from the derived li
   const text = "Line one.\nRun `dotnet test` before merging.\n";
   const findings = findStackReferencesOutsideList(text, new Set(["node"]));
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].stack, "dotnet");
-  assert.equal(findings[0].line, 2);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.stack, "dotnet");
+  assert.equal(finding.line, 2);
 });
 
 test("findStackReferencesOutsideList: a keyword for a stack that IS in the derived list raises nothing — a repository naming its own tools is not a finding", () => {
@@ -55,7 +57,9 @@ test("findMultiComponentContent: a multi-component heading is a finding when the
     "# Deployment\n\n## Per-component prerelease (no taint)\n\nRules.\n";
   const findings = findMultiComponentContent(text, 1);
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].line, 3);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.line, 3);
 });
 
 test("findMultiComponentContent: the same heading raises nothing once the repository actually has more than one component", () => {
@@ -168,9 +172,11 @@ test("findMultiComponentContent: the phrase inside a paragraph rather than a hea
         instantiatedDocFiles: [],
       });
       assert.equal(findings.length, 1);
-      assert.equal(findings[0].path, "docs/bootstrap-report.md");
+      const finding = findings[0];
+      assert.ok(finding, "expected one finding");
+      assert.equal(finding.path, "docs/bootstrap-report.md");
       assert.match(
-        findings[0].problem,
+        finding.problem,
         /neither the enforcement map nor any instantiated standard/,
       );
     },

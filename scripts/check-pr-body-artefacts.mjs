@@ -83,6 +83,7 @@ export function adrNumbersProposedOrAccepted(adrDir = ADR_DIR) {
  *  re-parsing the table, the same column convention that module already
  *  established. */
 export function registerRowIdentities(registersDir = REGISTERS_DIR) {
+  /** @type {string[]} */
   const identities = [];
   let files;
   try {
@@ -157,13 +158,16 @@ const ANY_HEADING_RE = /^#{1,6}\s/;
 const BOLD_LABEL_RE = /^\*\*[^*]+\*\*\s*$/;
 
 /** Bullet lines inside a disclosed-findings section of `body`. Returns
- *  [{ line, text }], 1-indexed. */
+ *  [{ line, text }], 1-indexed.
+ *  @param {string} body
+ *  @returns {{ line: number, text: string }[]} */
 export function disclosedFindingLines(body) {
   const lines = body.split(/\r?\n/);
   const findings = [];
   let inSection = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === undefined) continue;
     if (SECTION_HEADING_RE.test(line) || BOLD_LABEL_RE.test(line)) {
       inSection = true;
       continue;
@@ -182,7 +186,8 @@ export function disclosedFindingLines(body) {
 
 /** Every disclosed finding in `body` with no reserved-class artefact
  *  cited. `artefacts` is `{ adrNumbers, registerIdentities }`, both
- *  injectable for testing. */
+ *  injectable for testing.
+ *  @param {string} body */
 export function findUncitedFindings(body, artefacts = {}) {
   return disclosedFindingLines(body)
     .filter((f) => !citesReservedArtefact(f.text, artefacts))
@@ -263,7 +268,7 @@ if (isMain) {
     );
     process.exit(0);
   }
-  const findings = findUncitedFindings(body, {
+  const findings = findUncitedFindings(body ?? "", {
     adrNumbers: adrNumbersProposedOrAccepted(),
     registerIdentities: registerRowIdentities(),
   });

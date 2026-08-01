@@ -25,6 +25,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { run, resolvedDependencyTree, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
+/** @type {Record<string, number>} */
 const SEVERITY_RANK = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 // thresholds.md calls the push-back band "medium"; npm audit's own severities
 // are info/low/moderate/high/critical — "medium" and "moderate" name the same
@@ -32,6 +33,7 @@ const SEVERITY_RANK = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 const BLOCK = { runtime: "high", dev: "critical" };
 const PUSH_BACK = { runtime: "moderate", dev: "high" };
 
+/** @param {string} severity @returns {number} */
 function rank(severity) {
   const normalised = severity === "medium" ? "moderate" : severity;
   return SEVERITY_RANK[normalised] ?? 0;
@@ -68,11 +70,12 @@ export function acceptedAdvisoryIds(adrDir = "docs/ADR") {
 }
 
 /** The GHSA ids an `npm audit --json` vulnerability entry names, lower-cased —
- *  read from each `via` entry's advisory URL (the last path segment). */
+ *  read from each `via` entry's advisory URL (the last path segment).
+ *  @param {{ via?: { url: string }[] }} info @returns {string[]} */
 function advisoryIdsOf(info) {
   return (info.via ?? [])
     .filter((v) => typeof v === "object" && typeof v.url === "string")
-    .map((v) => v.url.trim().split("/").pop().toLowerCase())
+    .map((v) => (v.url.trim().split("/").pop() ?? "").toLowerCase())
     .filter(Boolean);
 }
 
@@ -81,7 +84,8 @@ function advisoryIdsOf(info) {
  *  findings. Kept separate from the impure orchestration below so it can be
  *  tested against a fixed report — `npm audit` is network-bound and its
  *  result changes as new advisories publish, so testing it end to end would
- *  not be a repeatable test. */
+ *  not be a repeatable test.
+ *  @param {{ vulnerabilities?: Record<string, { severity: string, via: { url: string }[] }> }} auditReport */
 export function classifyAdvisories(
   auditReport,
   { runtimeNames = new Set(), acceptedIds = new Set() } = {},
@@ -116,8 +120,10 @@ export function classifyAdvisories(
 /** { findings, skips }. `scanTriggered` is the caller's own scope decision —
  *  the lock file is in the staged/changed set, or this is the scheduled run
  *  — the same shape checkLicenceCompleteness (check-licence.mjs) takes for
- *  the same reason. */
+ *  the same reason.
+ *  @param {boolean} scanTriggered */
 export function checkDependencyAdvisories(scanTriggered) {
+  /** @type {string[]} */
   const skips = [];
   if (!scanTriggered) {
     skips.push(

@@ -43,7 +43,8 @@ const OVERRIDE = "[large-pr]";
 export const REGISTER_PATH = "docs/registers/change-size-override-register.md";
 
 /** True when `logText` — a branch's own commit messages — claims the
- *  change-size override, anywhere in the range. */
+ *  change-size override, anywhere in the range.
+ *  @param {string | null | undefined} logText */
 export function usesOverrideMarker(logText) {
   return (logText || "").includes(OVERRIDE);
 }
@@ -51,7 +52,8 @@ export function usesOverrideMarker(logText) {
 /** Every row in the change-size override register identified by `branch`
  *  (the Branch column, register's first cell) whose Approver cell names a
  *  human. `parseRegisterRows` is the generic reader every other register in
- *  this repository already shares — this module adds no parser of its own. */
+ *  this repository already shares — this module adds no parser of its own.
+ *  @param {string} registerText @param {string} branch */
 export function approvedOverrideRowsForBranch(registerText, branch) {
   const want = `${(branch || "").trim().toLowerCase()}|`;
   return parseRegisterRows(registerText).filter(
@@ -69,7 +71,8 @@ export function approvedOverrideRowsForBranch(registerText, branch) {
  *  silently authorise a different one. An unresolved branch is reported as
  *  a finding rather than a silent skip — the fail-safe direction: nothing
  *  here can tell "genuinely cannot resolve" from "chose a detached HEAD to
- *  dodge the check" apart, so it blocks either way. */
+ *  dodge the check" apart, so it blocks either way.
+ *  @param {{logText: string, registerText: string, branch: string}} opts */
 export function findChangeSizeOverrideFindings({
   logText,
   registerText,
@@ -111,7 +114,9 @@ export function findChangeSizeOverrideFindings({
  *  and the register file from disk. `branch` defaults to `GITHUB_HEAD_REF`
  *  (set on every `pull_request` CI run) or the checked-out branch for a
  *  manual run. `runGit`/`readFile` are injectable, the same shape every
- *  other check here takes. */
+ *  other check here takes.
+ *  @param {string} logRange
+ *  @param {{branch?: string, runGit?: typeof run, readFile?: (p: string) => string}} [opts] */
 export function checkChangeSizeOverride(
   logRange,
   {
@@ -157,6 +162,7 @@ export function checkChangeSizeOverride(
 // commit that only files the register row (its own message never mentions
 // `[large-pr]`) never trips it, so filing a blank-approver row stays exactly
 // as available as ADR-0006 already made it.
+/** @param {string} message */
 export function checkChangeSizeOverrideMessage(
   message,
   {

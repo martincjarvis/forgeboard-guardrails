@@ -39,6 +39,7 @@ const ALLOWED_TYPES = [
 // functions rather than folded into checkCommitMessage so no single function
 // carries every branch (a gate script is held to the same complexity gap-fill
 // this repository runs everywhere else — thresholds.md, 15 per function).
+/** @param {string} type */
 function checkType(type) {
   if (ALLOWED_TYPES.includes(type)) return null;
   return {
@@ -48,6 +49,7 @@ function checkType(type) {
   };
 }
 
+/** @param {string} scope @param {{ name: string, paths: string[] } | null} component */
 function checkScopeDeclared(scope, component) {
   if (!scope || (component && scope === component.name)) return null;
   return {
@@ -62,6 +64,7 @@ function checkScopeDeclared(scope, component) {
 }
 
 // Check 5 — scope agreement: a scope naming the component must touch it.
+/** @param {string} scope @param {string[]} files @param {{ name: string, paths: string[] } | null} component */
 function checkScopeAgreement(scope, files, component) {
   if (!component || scope !== component.name) return null;
   if (
@@ -83,6 +86,7 @@ function checkScopeAgreement(scope, files, component) {
 }
 
 // Check 4 — a breaking marker needs a footer describing the migration.
+/** @param {string} message @param {string | undefined} breaking */
 function checkBreakingFooter(message, breaking) {
   if (!breaking && !/BREAKING CHANGE:/i.test(message)) return null;
   if (/^BREAKING CHANGE:\s*\S.*$/m.test(message)) return null;
@@ -95,6 +99,9 @@ function checkBreakingFooter(message, breaking) {
 
 /** Checks 3, 4 and 5 against one message and the paths its commit touches.
  *  Returns an array of findings; empty means clean.
+ *  @param {string} message
+ *  @param {string[]} files
+ *  @param {{ name: string, paths: string[] } | null} component
  *  @returns {{check: string, path?: string, problem: string, remedy: string}[]} */
 export function checkCommitMessage(message, files, component) {
   const header = message.split("\n")[0] ?? "";
@@ -112,7 +119,7 @@ export function checkCommitMessage(message, files, component) {
   const [, type, scopeRaw, breaking] = parsed;
   const scope = scopeRaw ?? "";
   return [
-    checkType(type),
+    checkType(type ?? ""),
     checkScopeDeclared(scope, component),
     checkScopeAgreement(scope, files, component),
     checkBreakingFooter(message, breaking),
@@ -121,7 +128,9 @@ export function checkCommitMessage(message, files, component) {
 
 /** Every non-merge commit in a two-dot log range (`base..HEAD`), each checked
  *  against the paths that one commit — not the branch as a whole — touched.
- *  Returns findings prefixed with the short SHA they came from. */
+ *  Returns findings prefixed with the short SHA they came from.
+ *  @param {string} logRange
+ *  @param {{ name: string, paths: string[] } | null} component */
 export function checkCommitRange(logRange, component) {
   const findings = [];
   const shas = run("git", ["log", logRange, "--no-merges", "--format=%H"]);

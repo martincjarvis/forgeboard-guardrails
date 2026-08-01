@@ -10,6 +10,7 @@ import { run, git, resolveBase, report } from "./lib.mjs";
 
 const findings = [];
 const skips = [];
+/** @type {Record<string, number | string>} */
 const counts = {};
 
 // Report the derivation: the default branch each check below diffs against.

@@ -135,6 +135,7 @@ test("checkApprovalProvenanceStaged: dispatches an ADR path and a register path 
     "docs/registers/suppression-register.md",
     "scripts/lib.mjs",
   ];
+  /** @type {Record<string, string>} */
   const texts = {
     "docs/ADR/0007-x.md":
       "---\nstatus: Accepted\napprover: Jane Rivera\n---\n\nAccepts GHSA-aaaa-bbbb-cccc.\n",
@@ -142,10 +143,12 @@ test("checkApprovalProvenanceStaged: dispatches an ADR path and a register path 
       REGISTER_HEADER +
       "| my-rule | src/x.mjs | because | never true | Jane Rivera |\n",
   };
+  /** @param {string} p */
+  const readAfter = (p) => texts[p] ?? null;
   const findings = checkApprovalProvenanceStaged({
     stagedFiles,
     readBefore: () => null,
-    readAfter: (p) => texts[p] ?? null,
+    readAfter,
   });
   assert.equal(findings.length, 2, "both the new ADR and the new row refuse");
 });

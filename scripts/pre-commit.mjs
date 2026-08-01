@@ -28,6 +28,7 @@ import { checkApprovalProvenanceStaged } from "./check-approval-provenance.mjs";
 
 const findings = [];
 const skips = [];
+/** @param {string} s */
 const note = (s) => skips.push(s);
 
 // Check 1 — protected branch. Runs first, per gate 2's fixed order (2.1).
@@ -38,6 +39,7 @@ const note = (s) => skips.push(s);
 }
 if (findings.length) report("gate 2", findings, skips);
 
+/** @type {string[]} */
 const staged = stagedFiles();
 if (staged.length === 0) {
   // Nothing staged: the file-scoped gate had nothing to do either. Still run the
@@ -59,6 +61,7 @@ const DEP_FIELDS = [
   "overrides",
   "resolutions",
 ];
+/** @param {string} ref */
 function depsAt(ref) {
   const r = git(["show", ref]);
   if (r.status !== 0) return "";
@@ -197,10 +200,12 @@ for (const row of pendingSuppressionApprovals()) {
 {
   const found = checkApprovalProvenanceStaged({
     stagedFiles: staged,
+    /** @param {string} p */
     readBefore: (p) => {
       const r = git(["show", `HEAD:${p}`]);
       return r.status === 0 ? r.stdout : null;
     },
+    /** @param {string} p */
     readAfter: (p) => {
       const r = git(["show", `:${p}`]);
       return r.status === 0 ? r.stdout : null;
@@ -257,7 +262,7 @@ if (touchedCode || touchedHooks || lintFiles.length) {
     }
     return result;
   });
-  if (outcome.isolationFailed) {
+  if ("isolationFailed" in outcome) {
     report(
       "gate 2",
       [
@@ -271,39 +276,42 @@ if (touchedCode || touchedHooks || lintFiles.length) {
       skips,
     );
   }
-  if (touchedCode && outcome.build.status !== 0) {
+  const build = outcome.build;
+  const tests = outcome.tests;
+  const lint = outcome.lint;
+  if (touchedCode && build && build.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "build (tsc)",
-          problem: (outcome.build.stdout || "") + (outcome.build.stderr || ""),
+          problem: (build.stdout || "") + (build.stderr || ""),
           remedy: "fix the type/analysis error above; a warning is a failure",
         },
       ],
       skips,
     );
   }
-  if (touchedHooks && outcome.tests.status !== 0) {
+  if (touchedHooks && tests && tests.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "unit tests",
-          problem: (outcome.tests.stdout || "") + (outcome.tests.stderr || ""),
+          problem: (tests.stdout || "") + (tests.stderr || ""),
           remedy: "fix the failing test; hooks/ moved on this commit",
         },
       ],
       skips,
     );
   }
-  if (lintFiles.length && outcome.lint.status !== 0) {
+  if (lintFiles.length && lint && lint.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "lint (eslint)",
-          problem: (outcome.lint.stdout || "") + (outcome.lint.stderr || ""),
+          problem: (lint.stdout || "") + (lint.stderr || ""),
           remedy: "fix the lint violation; a warning is a failure",
         },
       ],

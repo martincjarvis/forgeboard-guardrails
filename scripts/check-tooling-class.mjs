@@ -37,6 +37,7 @@ import { trackedFiles, classOf, isToolkit as isToolkitRepo } from "./lib.mjs";
 const GATE_SCRIPT_NAME =
   /^(gate-\d+-[\w-]+|check-[\w-]+|pre-commit|pre-push)\.\w+$/;
 
+/** @param {string[]} files @returns {string[]} */
 export function findGateScripts(files) {
   return files.filter((f) => GATE_SCRIPT_NAME.test(basename(f)));
 }
@@ -50,7 +51,8 @@ export function findGateScripts(files) {
  *  and that old signal fired only in the one repository it was designed
  *  never to fire in (audit 22). Its absence means this is a consuming
  *  repository, where a ported gate script with no `tooling`-classed file
- *  anywhere is exactly the audit-12 defect. */
+ *  anywhere is exactly the audit-12 defect.
+ *  @param {{ files?: string[], classify?: (file: string) => string, isToolkit?: () => boolean }} [opts] */
 export function checkToolingClassDeclared({
   files = trackedFiles(),
   classify = classOf,
@@ -81,7 +83,8 @@ export function checkToolingClassDeclared({
  *  the file list lizard should actually scan, derived from each file's own
  *  declared class rather than its extension — the fix for the accident fix
  *  45 closes: two files of the identical extension are correctly split by
- *  class, which an extension filter cannot do. */
+ *  class, which an extension filter cannot do.
+ *  @param {{ files?: string[], classify?: (file: string) => string }} [opts] */
 export function complexityScanFiles({
   files = trackedFiles(),
   classify = classOf,
@@ -97,7 +100,8 @@ export function complexityScanFiles({
  *  the same weight as this module's other pure readers (lib.mjs's SARIF
  *  helpers), because the only question is which paths appear, not the
  *  coverage figures themselves (classifyTestCoverageOutcome, lib.mjs,
- *  already owns those). */
+ *  already owns those).
+ *  @param {string} xml @returns {string[]} */
 export function coveredFilesFromCobertura(xml) {
   const files = new Set();
   const re = /<class\b[^>]*\bfilename="([^"]+)"/g;
@@ -113,7 +117,8 @@ export function coveredFilesFromCobertura(xml) {
  *  coverage report actually measured, names any classed `tooling` that
  *  leaked in anyway — the checkpoint fix 45 adds because, per audit 12, the
  *  exclusion has never been exercised against a real `tooling`-classed
- *  file. */
+ *  file.
+ *  @param {string[]} coveredFiles @param {{ classify?: (file: string) => string }} [opts] @returns {string[]} */
 export function toolingLeakage(coveredFiles, { classify = classOf } = {}) {
   return coveredFiles.filter((f) => classify(f) === "tooling");
 }
@@ -170,6 +175,7 @@ export function checkToolingCoverageLeakage({
 // excluded from coverage by design, so coverage cannot answer this
 // question). It answers exactly what audit 13 found missing: whether
 // anything that looks like a test even mentions the tooling scripts at all.
+/** @param {{ files?: string[], classify?: (file: string) => string, isToolkit?: () => boolean, readFile?: (file: string) => string }} [opts] */
 export function checkToolingTestSuiteExists({
   files = trackedFiles(),
   classify = classOf,

@@ -34,6 +34,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+/** @type {Record<string, { file: string, contains: string }>} */
 const WIRING = {
   build: {
     file: "scripts/gate-0-baseline.mjs",
@@ -69,7 +70,8 @@ const WIRING = {
 };
 
 /** Scripts with no gate wiring by design, and the gate that would
- *  otherwise own them. */
+ *  otherwise own them.
+ *  @type {Record<string, string>} */
 const ON_DEMAND = {
   "gate:0":
     "is gate 0 itself — invoked directly at the start of a unit of work; a gate does not invoke itself",
@@ -85,7 +87,8 @@ const ON_DEMAND = {
  *  object; `readFile` reads the file a WIRING entry claims to find its
  *  evidence in — injectable so the self-verification is testable without
  *  touching the real tree. Defaults to a real disk read, resolved against
- *  the caller's cwd (gate 7 always runs from the repository root). */
+ *  the caller's cwd (gate 7 always runs from the repository root).
+ *  @param {Record<string, string>} scripts @param {(file: string) => string} [readFile] */
 export function checkScriptWiring(
   scripts,
   readFile = (file) => readFileSync(file, "utf8"),
@@ -94,8 +97,9 @@ export function checkScriptWiring(
   const onDemand = [];
   const unwired = [];
   for (const name of Object.keys(scripts ?? {})) {
-    if (name in WIRING) {
-      const { file, contains } = WIRING[name];
+    const wiring = WIRING[name];
+    if (wiring) {
+      const { file, contains } = wiring;
       let content = "";
       try {
         content = readFile(file);
@@ -134,7 +138,8 @@ export function checkScriptWiring(
  *  repository — a human decision no scan could infer, the same reason
  *  ON_DEMAND above is hand-authored rather than derived. Keyed by filename,
  *  each value the reason, so a false claim here is as visible as the
- *  wiring claims above. */
+ *  wiring claims above.
+ *  @type {Record<string, string>} */
 const SCRIPT_FILE_ON_DEMAND = {
   "check-standards-instantiation.mjs":
     "reference implementation meant to be ported into a consuming repository's own tooling directory and wired into that repository's own gate 7 (docs-style.md#standards-in-a-consuming-repository, and the file's own header) — this repository is the canonical corpus, not an instantiated copy, and correctly documents every stack it supports, so it is not run here",
@@ -156,7 +161,8 @@ const SCRIPT_FILE_ON_DEMAND = {
  *  scripts/ imports it (`from "./<file>"`) — which, transitively, is how
  *  every check that genuinely runs reaches a gate in this repository; a
  *  check-*.mjs file imported by nothing but its own unit test has no such
- *  import to find. */
+ *  import to find.
+ *  @param {string[]} scriptFiles @param {(file: string) => string} readFile */
 export function checkScriptFileWiring(scriptFiles, readFile) {
   const wired = [];
   const onDemand = [];
@@ -198,7 +204,8 @@ export function checkScriptFileWiring(scriptFiles, readFile) {
  *  tooling index makes in prose ("gate 6", "gate 7") — hand-authored for the
  *  same reason WIRING above is: which file implements which gate is a
  *  structural fact about this repository, not something worth deriving from
- *  a naming convention a rename could break silently. */
+ *  a naming convention a rename could break silently.
+ *  @type {Record<number, string>} */
 export const GATE_FILES = {
   0: "gate-0-baseline.mjs",
   2: "pre-commit.mjs",
@@ -214,7 +221,8 @@ export const GATE_FILES = {
  *  "does this gate really invoke it" is answered by import evidence, not by
  *  trusting the index's own prose back to itself. A row naming a gate number
  *  this repository has no file for is also a mismatch — a typo or a stale
- *  gate number reads the same as a false claim to a reader. */
+ *  gate number reads the same as a false claim to a reader.
+ *  @param {string} indexText @param {Record<string, string>} gateSources @returns {string[]} */
 export function checkIndexGateClaims(indexText, gateSources) {
   const findings = [];
   const rowRe = /`([\w-]+\.mjs)`[^\n]*?\bgate\s*(\d+)\b/gi;
@@ -249,6 +257,7 @@ if (isMain) {
     process.stderr.write(`script wiring: UNWIRED ${s}\n`);
 
   const scriptFiles = readdirSync("scripts").filter((f) => f.endsWith(".mjs"));
+  /** @type {(file: string) => string} */
   const readScript = (f) => readFileSync(join("scripts", f), "utf8");
   const files = checkScriptFileWiring(scriptFiles, readScript);
   for (const s of files.wired)

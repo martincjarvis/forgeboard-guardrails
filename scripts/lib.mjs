@@ -32,7 +32,8 @@ export function trackedFiles() {
  *  checkout of a pull request has no staged content (gate-6-pull-request.md:
  *  check 3 adapts `git diff --cached` to `git diff origin/<base>...HEAD`); this
  *  is that adaptation, shared by every check that needs it rather than
- *  reimplemented per check. */
+ *  reimplemented per check.
+ *  @param {string} range */
 export function changedFiles(range) {
   const r = git(["diff", "--name-only", "--diff-filter=ACMR", range]);
   if (r.status !== 0) return [];
@@ -40,12 +41,14 @@ export function changedFiles(range) {
 }
 
 /** The guardrail-class of one path, derived from .gitattributes (ADR-0003). An
- *  unclassified file is production — the fail-safe direction (file-classes.md). */
+ *  unclassified file is production — the fail-safe direction (file-classes.md).
+ *  @param {string} file @returns {string} */
 export function classOf(file) {
   const r = git(["check-attr", "guardrail-class", "--", file]);
   if (r.status !== 0) return "production";
   const m = r.stdout.match(/guardrail-class:\s*(\S+)/);
-  return !m || m[1] === "unspecified" ? "production" : m[1];
+  const cls = m && m[1];
+  return !cls || cls === "unspecified" ? "production" : cls;
 }
 
 /** The single component this repository ships, derived from the plugin manifest
@@ -71,7 +74,8 @@ export function deriveComponent() {
   return { name, paths };
 }
 
-/** Does a changed path fall under the component (its shipped directories)? */
+/** Does a changed path fall under the component (its shipped directories)?
+ *  @param {string} file @param {string[]} paths */
 export function touchesComponent(file, paths) {
   return paths.some((p) => file === p || file.startsWith(p + "/"));
 }
@@ -87,6 +91,10 @@ export function touchesComponent(file, paths) {
  *  plugin, and a consumer of these standards. */
 export const TOOLKIT_PLUGIN_NAME = "forgeboard-guardrails";
 
+/**
+ * @param {(f: string) => string} [readFile]
+ * @param {(p: string) => boolean} [exists]
+ */
 export function isToolkit(
   readFile = (f) => readFileSync(f, "utf8"),
   exists = existsSync,
@@ -105,12 +113,19 @@ export function isToolkit(
 const BINARY =
   /\.(png|jpg|jpeg|gif|ico|webp|pdf|zip|gz|tar|woff2?|ttf|eot|mp4|mov|exe|dll|so|dylib|pyc|wasm|lock)$/i;
 
-/** A gate scans text files; binaries are skipped for content checks. */
+/** A gate scans text files; binaries are skipped for content checks.
+ *  @param {string} file */
 export function isText(file) {
   return !BINARY.test(file);
 }
 
-/** Print a diagnosis (cross-gate rule: name the check, the path, the remedy). */
+/** Print a diagnosis (cross-gate rule: name the check, the path, the remedy).
+ *  Always exits (0 when no findings, 2 otherwise) — typed `never` so callers
+ *  narrow correctly after a failure report rather than reading past it.
+ *  @param {string} gate
+ *  @param {{ check: string, path?: string, problem?: string, remedy?: string }[]} findings
+ *  @param {string[]} [skips]
+ *  @returns {never} */
 export function report(gate, findings, skips = []) {
   for (const s of skips) process.stderr.write(`${gate}: SKIP ${s}\n`);
   for (const f of findings) {
@@ -134,7 +149,8 @@ const DECORATIVE_LINE_RE = /^[=-]{5,}$/;
  *  bare `====…`/`----…` divider line, wherever they occur, and returns up
  *  to `maxLines` of what is left, each capped at `maxLineLength` — enough
  *  for a reader to act on, not the first line of whatever the tool
- *  happened to emit. */
+ *  happened to emit.
+ *  @param {string | null | undefined} problem */
 export function formatFindingBody(
   problem,
   { maxLines = 5, maxLineLength = 200 } = {},
@@ -151,6 +167,7 @@ export function formatFindingBody(
   return content;
 }
 
+/** @param {string} s */
 export function splitLines(s) {
   return s
     .split("\n")
@@ -167,7 +184,8 @@ export function splitLines(s) {
  *  Falls back to the working tree when there is no index entry: an untracked
  *  path, or a whole-repository sweep run outside a commit (gate 7), where
  *  there is no staged/unstaged distinction to protect and the working tree is
- *  the thing actually being swept. */
+ *  the thing actually being swept.
+ *  @param {string} file */
 export function readStaged(file) {
   const r = git(["show", `:${file}`]);
   return r.status === 0 ? r.stdout : readFileSync(file, "utf8");
@@ -197,7 +215,9 @@ export function readStaged(file) {
  *
  *  Returns fn()'s return value, or `{ isolationFailed: true, problem }` when
  *  the isolation itself could not be created or verified — per check 2, an
- *  unverifiable result blocks and says so rather than guessing. */
+ *  unverifiable result blocks and says so rather than guessing.
+ *  @template T
+ *  @param {() => T} fn */
 export function withStagedWorkingTree(fn) {
   const unstaged = git(["diff", "--name-only"]);
   if (unstaged.status !== 0) {
@@ -352,7 +372,8 @@ export function repositoryLicenceId() {
  *  both legs. Every artifact URI in the file is normalised to forward
  *  slashes before the workflow uploads it — a no-op on Linux, where the
  *  paths already are forward slashes. A missing or unreadable file is left
- *  alone; the caller's own status check reports that separately. */
+ *  alone; the caller's own status check reports that separately.
+ *  @param {string} path */
 export function normalizeSarifPaths(path) {
   let sarif;
   try {
@@ -387,8 +408,10 @@ export function normalizeSarifPaths(path) {
  *  reviewer actually reads; the SARIF file's job on the platform is to
  *  surface what is NOT already accounted for. A missing or unreadable file
  *  is left alone, the same as normalizeSarifPaths above — the caller's own
- *  status check reports that separately. */
+ *  status check reports that separately.
+ *  @param {string} path */
 export function filterSuppressedSarif(path) {
+  /** @type {{ runs?: { results?: { suppressions?: { kind?: string }[] }[] }[] }} */
   let sarif;
   try {
     sarif = JSON.parse(readFileSync(path, "utf8"));
@@ -423,7 +446,8 @@ export function filterSuppressedSarif(path) {
  *  - Neither line present, but the command still exited non-zero: the
  *    command itself did not run to completion (a missing file, a crashed
  *    process, a tool not installed) — genuinely unknown, and must not be
- *    reported as though it were a shortfall. */
+ *  reported as though it were a shortfall.
+ *  @param {string} output */
 export function classifyTestCoverageOutcome(output) {
   const failMatch = output.match(/# fail (\d+)|ℹ fail (\d+)/);
   const failCount = failMatch ? Number(failMatch[1] || failMatch[2]) : 0;
@@ -458,7 +482,8 @@ export function classifyTestCoverageOutcome(output) {
  *  not run to completion (the Cobertura report missing, the tool crashing)
  *  both exit non-zero, and the exit code alone cannot tell them apart —
  *  only diff-cover's own "Failure: Coverage (X%) is below the threshold
- *  (Y%)" line distinguishes a real shortfall from a broken run. */
+ *  (Y%)" line distinguishes a real shortfall from a broken run.
+ *  @param {string} output */
 export function classifyDiffCoverOutcome(output) {
   const shortfall = output.match(
     /Failure: Coverage \(([\d.]+)%\) is below the threshold \(([\d.]+)%\)/,
@@ -488,7 +513,8 @@ export function classifyDiffCoverOutcome(output) {
  *  in the sense that matters. Reads diff-cover's own `Total:` line — present
  *  whether the run passed or failed — rather than treating any zero-missing
  *  result as clean. `null` when the line never printed at all (the command
- *  did not get that far), distinct from a genuine `0`. */
+ *  did not get that far), distinct from a genuine `0`.
+ *  @param {string} output */
 export function diffCoverTotalLines(output) {
   const m = output.match(/^Total:\s*(\d+)\s*lines?/m);
   return m ? Number(m[1]) : null;
@@ -512,7 +538,9 @@ export function diffCoverTotalLines(output) {
  *  either into the same flat id list this classifies).
  *  Zero findings on a non-zero exit is `unavailable`, not a pass and not a
  *  finding: the caller reports it as a skip naming what went wrong, the same
- *  as osv-scanner not being on PATH at all. */
+ *  as osv-scanner not being on PATH at all.
+ *  @param {number | null} status @param {string[]} findings
+ *  @returns {{ kind: "clean", findings: string[] } | { kind: "vulnerabilities", findings: string[] } | { kind: "unavailable", detail: string }} */
 export function classifyOsvScannerOutcome(status, findings) {
   if (status === 0) return { kind: "clean", findings: [] };
   if (findings.length > 0) return { kind: "vulnerabilities", findings };
@@ -529,7 +557,8 @@ export function classifyOsvScannerOutcome(status, findings) {
  *  (`results[].packages[].vulnerabilities[].id`, per its documented output).
  *  Unparseable or empty stdout yields no findings — the caller's non-zero
  *  exit plus an empty list is what classifyOsvScannerOutcome reads as
- *  `unavailable` rather than `clean`. */
+ *  `unavailable` rather than `clean`.
+ *  @param {string} stdout */
 export function extractOsvJsonFindings(stdout) {
   let parsed;
   try {
@@ -552,7 +581,8 @@ export function extractOsvJsonFindings(stdout) {
  *  already writes and uploads (`runs[].results[].ruleId`) — read after
  *  normalizeSarifPaths/filterSuppressedSarif so a finding already accepted
  *  by an in-source suppression is not read back as blocking here either. A
- *  missing or unreadable file yields no findings, same as unparseable JSON. */
+ *  missing or unreadable file yields no findings, same as unparseable JSON.
+ *  @param {string} sarifPath */
 export function extractOsvSarifFindings(sarifPath) {
   let sarif;
   try {
@@ -578,7 +608,8 @@ export function extractOsvSarifFindings(sarifPath) {
  *  either reporter printed) rather than a false zero — gate-6-pull-request.md
  *  "coverage legible without a download": a reader must see the number, not
  *  a plausible-looking placeholder standing in for a command that never
- *  finished. */
+ *  finished.
+ *  @param {string} output */
 export function extractCoverageAndTestSummary(output) {
   const testsMatch = output.match(/# tests (\d+)|ℹ tests (\d+)/);
   const passMatch = output.match(/# pass (\d+)|ℹ pass (\d+)/);
@@ -586,6 +617,7 @@ export function extractCoverageAndTestSummary(output) {
   const coverageMatch = output.match(
     /^All files\s*\|\s*[\d.]+\s*\|\s*[\d.]+\s*\|\s*[\d.]+\s*\|\s*([\d.]+)/m,
   );
+  /** @param {RegExpMatchArray | null} m */
   const num = (m) => (m ? Number(m[1] || m[2]) : null);
   return {
     tests: num(testsMatch),

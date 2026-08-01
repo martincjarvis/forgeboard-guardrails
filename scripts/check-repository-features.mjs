@@ -41,7 +41,13 @@ const RUN_SCRIPT = "run `node scripts/configure-repository-features.mjs`";
  *  ambiguous `security_and_analysis` reading, which is reported as a skip
  *  rather than guessed either way. Split out so evaluateRepositoryFeatures
  *  stays a flat sequence of feature classifications, not a chain of ifs each
- *  worth its own point of cyclomatic complexity. */
+ *  worth its own point of cyclomatic complexity.
+ *  @param {string} name
+ *  @param {"enabled" | "disabled" | { unavailable: string } | null | undefined} value
+ *  @param {"public" | "private" | null} visibility
+ *  @param {string} availableMessage
+ *  @param {string[]} skips
+ *  @param {(check: string, problem: string) => void} add */
 function classifyGated(name, value, visibility, availableMessage, skips, add) {
   if (value === "enabled") {
     skips.push(`${name} — enabled`);
@@ -90,10 +96,13 @@ export function evaluateRepositoryFeatures({
   pushProtection = null,
   codeScanning = null,
 } = {}) {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
   const skips = [];
-  const add = (check, problem) =>
+  /** @type {(check: string, problem: string) => void} */
+  const add = (check, problem) => {
     findings.push({ check, path: "", problem, remedy: RUN_SCRIPT });
+  };
 
   skips.push(
     "dependency graph — always on for a supported manifest; the platform exposes no toggle to audit",
@@ -176,6 +185,7 @@ export function evaluateRepositoryFeatures({
   return { findings, skips };
 }
 
+/** @param {(command: string, args: readonly string[], options?: object) => {status: number | null, stdout?: string, stderr?: string}} runFn */
 function alertState(runFn) {
   const r = runFn("gh", ["api", "repos/:owner/:repo/vulnerability-alerts"]);
   if (r.status === 0) return "enabled";
@@ -183,16 +193,18 @@ function alertState(runFn) {
   return null;
 }
 
+/** @param {(command: string, args: readonly string[], options?: object) => {status: number | null, stdout?: string, stderr?: string}} runFn */
 function securityUpdatesState(runFn) {
   const r = runFn("gh", ["api", "repos/:owner/:repo/automated-security-fixes"]);
   if (r.status !== 0) return null;
   try {
-    return JSON.parse(r.stdout).enabled ? "enabled" : "disabled";
+    return JSON.parse(r.stdout ?? "").enabled ? "enabled" : "disabled";
   } catch {
     return null;
   }
 }
 
+/** @param {(command: string, args: readonly string[], options?: object) => {status: number | null, stdout?: string, stderr?: string}} runFn */
 function codeScanningState(runFn) {
   const r = runFn("gh", [
     "api",
@@ -200,7 +212,7 @@ function codeScanningState(runFn) {
   ]);
   if (r.status === 0) {
     try {
-      const body = JSON.parse(r.stdout);
+      const body = JSON.parse(r.stdout ?? "");
       return body.state === "configured" ? "enabled" : "disabled";
     } catch {
       return {
@@ -215,6 +227,7 @@ function codeScanningState(runFn) {
   };
 }
 
+/** @param {Record<string, { status?: string } | null> | null} analysis @param {string} key */
 function statusOf(analysis, key) {
   const v = analysis?.[key]?.status;
   return v === "enabled" || v === "disabled" ? v : null;
@@ -235,6 +248,7 @@ export async function checkRepositoryFeatures({
   have: haveFn = have,
   run: runFn = run,
 } = {}) {
+  /** @type {string[]} */
   const skips = [];
   if (!haveFn("gh", ["--version"])) {
     skips.push(

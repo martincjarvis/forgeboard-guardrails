@@ -58,7 +58,8 @@ import {
  *  documents the same tool misreading a large top-level `if` as one giant
  *  function); adding another inline loop to it only feeds that, where a
  *  named function keeps this leg's own count separate and small. Returns
- *  the number of findings printed. */
+ *  the number of findings printed.
+ *  @param {string[]} files @returns {number} */
 function reportCspellResidue(files) {
   let count = 0;
   for (const f of checkCspellResidue({ files })) {
@@ -70,7 +71,8 @@ function reportCspellResidue(files) {
 
 /** isMain's fix-60 leg, the same reason reportCspellResidue above is its own
  *  function rather than an inline loop. Returns the number of findings
- *  printed. */
+ *  printed.
+ *  @param {string[]} files @returns {number} */
 function reportHardcodedCommitSha(files) {
   let count = 0;
   for (const f of checkHardcodedCommitSha({ files })) {
@@ -84,7 +86,8 @@ function reportHardcodedCommitSha(files) {
  *  and frontmatter/title/lede contradictions, for one doc file. Pulled out
  *  as its own function for the same reason reportCspellResidue and
  *  reportHardcodedCommitSha above are. Returns the number of findings
- *  printed. */
+ *  printed.
+ *  @param {string} file @param {string} text @param {Set<string>} stacks @param {number} componentCount @returns {number} */
 function reportDocFindings(file, text, stacks, componentCount) {
   let count = 0;
   for (const f of findStackReferencesOutsideList(text, stacks)) {
@@ -143,6 +146,7 @@ if (isMain) {
   // project graph — this reference script checks two mechanical properties,
   // not the full component map; a repository already knows its own count.
   const componentCount = Number(process.argv[2] ?? 1);
+  /** @type {string[]} */
   const files = trackedFiles();
   const stacks = deriveStackList(files);
   const docFiles = files.filter(

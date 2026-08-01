@@ -33,6 +33,7 @@ const PARAM_COUNT_ERROR = 7;
 // strictest class rather than silently dropped from every measure. If
 // check-attr itself cannot run the result is unverifiable, and the strictest
 // class is still the safe answer.
+/** @param {string} file @returns {string} */
 function classOf(file) {
   const r = git(["check-attr", "guardrail-class", "--", file]);
   if (r.status !== 0) return "production";
@@ -67,6 +68,7 @@ const COUNTED = new Set(["production", "configuration", "tooling"]);
 // and `unset` (`-guardrail-generated`) both read `<marker><value>` the same
 // as `set` does, so the fail-safe direction is "only `set` counts as
 // generated", the same shape classOf() already uses for guardrail-class.
+/** @param {string} file @returns {boolean} */
 function isGenerated(file) {
   const r = git(["check-attr", "guardrail-generated", "--", file]);
   if (r.status !== 0) return false;
@@ -87,19 +89,25 @@ function isGenerated(file) {
  *  column is `{scripts => .guardrails}/a.mjs` — not a path, so `check-attr`
  *  resolves it `unspecified`, which file classes read as `production`. Under
  *  `-z` a rename instead emits three NUL-terminated fields, old path then
- *  new, and the counts are tab-separated from each other only. */
+ *  new, and the counts are tab-separated from each other only.
+ *  @param {string} stdout
+ *  @returns {[string, string, string][]} */
 export function parseNumstatZ(stdout) {
   const fields = stdout.split("\0");
+  /** @type {[string, string, string][]} */
   const rows = [];
   for (let i = 0; i < fields.length; i++) {
-    if (!fields[i]) continue;
-    const [added, deleted, inline] = fields[i].split("\t");
-    if (deleted === undefined) continue;
+    const field = fields[i];
+    if (!field) continue;
+    const [added, deleted, inline] = field.split("\t");
+    if (added === undefined || deleted === undefined) continue;
     if (inline) {
       rows.push([added, deleted, inline]);
     } else {
       // A rename: this field ended after the counts, and the two paths follow.
-      rows.push([added, deleted, fields[i + 2]]);
+      const renamed = fields[i + 2];
+      if (renamed === undefined) continue;
+      rows.push([added, deleted, renamed]);
       i += 2;
     }
   }
@@ -113,6 +121,7 @@ export function parseNumstatZ(stdout) {
 // contributes nothing here (file-classes.md: "a generated file counts toward
 // neither change size nor the length limit"); its `guardrail-class` still
 // governs every other check.
+/** @param {string} base @param {string[]} findings @param {string[]} warnings */
 function measureChangeSize(base, findings, warnings) {
   const numstat = git(["diff", "-z", "--numstat", `${base}...HEAD`]);
   if (numstat.status !== 0) return;
@@ -144,7 +153,9 @@ function measureChangeSize(base, findings, warnings) {
 }
 
 /** Files this branch added, copied, modified or renamed, relative to base —
- *  shared by the file-length and complexity measures below. */
+ *  shared by the file-length and complexity measures below.
+ *  @param {string} base
+ *  @returns {import("node:child_process").SpawnSyncReturns<string>} */
 function changedFileNames(base) {
   return git(["diff", "--name-only", "--diff-filter=ACMR", `${base}...HEAD`]);
 }
@@ -155,6 +166,7 @@ function changedFileNames(base) {
 // repetitive rather than badly designed. A generated production file (a
 // `*.g.cs`, say) carries the same "no remedy" property a generated lock
 // file does, so it is exempt from this limit too (file-classes.md).
+/** @param {import("node:child_process").SpawnSyncReturns<string>} names @param {string[]} findings @param {string[]} warnings */
 function measureFileLength(names, findings, warnings) {
   if (names.status !== 0) return;
   for (const file of names.stdout.split("\n")) {
@@ -184,6 +196,7 @@ function measureFileLength(names, findings, warnings) {
 // versus block from the number in the message — ESLint's severity is not
 // this table's warn band (thresholds.md: "a tool's own warning severity is
 // not this table's warn band").
+/** @param {string} cls @param {number} actual @param {number} warnThreshold @param {number} errorThreshold @returns {"block" | "warn" | null} */
 function bandVerdict(cls, actual, warnThreshold, errorThreshold) {
   if (actual < warnThreshold) return null;
   return cls === "production" && actual >= errorThreshold ? "block" : "warn";
@@ -213,7 +226,9 @@ const RULES = [
   },
 ];
 
-/** Changed files ESLint can usefully parse, narrowed to production/test. */
+/** Changed files ESLint can usefully parse, narrowed to production/test.
+ *  @param {import("node:child_process").SpawnSyncReturns<string>} names
+ *  @returns {string[]} */
 function codeFilesFrom(names) {
   if (!names || names.status !== 0) return [];
   return names.stdout
@@ -242,7 +257,10 @@ async function loadESLint() {
   }
 }
 
-/** One ESLint message, translated into a push-back/block finding or nothing. */
+/** One ESLint message, translated into a push-back/block finding or nothing.
+ *  @param {string} file @param {string} cls
+ *  @param {{ ruleId: string | null, message: string, line?: number }} message
+ *  @param {string[]} findings @param {string[]} warnings */
 function recordComplexityMessage(file, cls, message, findings, warnings) {
   const rule = RULES.find((r) => r.ruleId === message.ruleId);
   if (!rule) return;
@@ -257,6 +275,7 @@ function recordComplexityMessage(file, cls, message, findings, warnings) {
   else warnings.push(msg);
 }
 
+/** @param {import("node:child_process").SpawnSyncReturns<string>} names @param {string[]} findings @param {string[]} warnings */
 async function measureComplexity(names, findings, warnings) {
   const codeFiles = codeFilesFrom(names);
   if (!codeFiles.length) return;
@@ -316,7 +335,9 @@ async function main() {
     process.exit(0);
   }
 
+  /** @type {string[]} */
   const findings = [];
+  /** @type {string[]} */
   const warnings = [];
 
   // Report what was derived (cross-gate rules): the thresholds in force and

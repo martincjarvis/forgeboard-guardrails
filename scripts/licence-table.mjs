@@ -41,10 +41,14 @@
 // canonical copy, since whether a licence is OSI-approved is not a property
 // of any one repository.
 
+/** @typedef {{ name: string, reference: string, osiApproved: boolean, checked: string, permissions: { commercialUse: boolean, distribution: boolean, modification: boolean, privateUse: boolean, patentGrant: boolean, sublicensing: boolean }, conditions: { notice: boolean, stateChanges: boolean, sourceDisclosure: boolean, sameLicence: boolean, networkUseDisclosure: boolean }, limitations: { noTrademark: boolean, noWarranty: boolean, noLiability: boolean } }} LicenceEntry */
+/** @typedef {string | { op: "AND" | "OR", left: LicenceExpr, right: LicenceExpr, unparseable?: undefined } | { unparseable: true, raw: string }} LicenceExpr */
+
 /** Derived, never asserted directly on an entry: a licence is permissive
  *  when it imposes none of source-disclosure, same-licence (share-alike) or
  *  network-use-disclosure. Notice retention (and, for some permissive
- *  licences, a state-changes note) alone is permissive. */
+ *  licences, a state-changes note) alone is permissive.
+ *  @param {LicenceEntry} entry */
 export function isPermissive(entry) {
   const c = entry.conditions;
   return !c.sourceDisclosure && !c.sameLicence && !c.networkUseDisclosure;
@@ -389,9 +393,11 @@ export const LICENCE_TABLE = {
  *  finding's job (registers.md: "Licence — the licence as resolved", which
  *  means the correct SPDX identifier, not prose about it), not this
  *  function's; correct the register cell rather than adding an alias for
- *  a typo. */
+ *  a typo.
+ *  @param {string} id */
 export function licenceTableEntry(id) {
-  return LICENCE_TABLE[(id ?? "").trim()];
+  const table = /** @type {Record<string, LicenceEntry>} */ (LICENCE_TABLE);
+  return table[(id ?? "").trim()];
 }
 
 // --- SPDX licence expression parsing (fix 8, moved here by fix brief 6 so
@@ -407,6 +413,7 @@ export function licenceTableEntry(id) {
 // into a passing term (an exception clause narrows what the base licence
 // permits; it does not fall away for being unrecognised).
 const TOKEN_RE = /\(|\)|[^\s()]+/g;
+/** @param {string} expr */
 function tokenizeLicenceExpression(expr) {
   return (expr ?? "").trim().match(TOKEN_RE) ?? [];
 }
@@ -420,13 +427,16 @@ function tokenizeLicenceExpression(expr) {
  *  Stopping at the first unrecognised token and calling what was consumed
  *  so far ("CC", "Apache") the identifier would name something that was
  *  never a real licence to begin with; reporting the whole string instead
- *  gives a maintainer something to actually search for. */
+ *  gives a maintainer something to actually search for.
+ *  @param {string} expr
+ *  @returns {LicenceExpr} */
 export function parseLicenceExpression(expr) {
   const tokens = tokenizeLicenceExpression(expr);
   let i = 0;
   const peek = () => tokens[i];
   const next = () => tokens[i++];
 
+  /** @returns {LicenceExpr} */
   function parseOr() {
     let left = parseAnd();
     while (peek() === "OR") {
@@ -435,6 +445,7 @@ export function parseLicenceExpression(expr) {
     }
     return left;
   }
+  /** @returns {LicenceExpr} */
   function parseAnd() {
     let left = parseAtom();
     while (peek() === "AND") {
@@ -443,6 +454,7 @@ export function parseLicenceExpression(expr) {
     }
     return left;
   }
+  /** @returns {LicenceExpr} */
   function parseAtom() {
     if (peek() === "(") {
       next();
@@ -470,7 +482,8 @@ export function parseLicenceExpression(expr) {
  *  completeness check needs (gate 2), as distinct from evaluating whether
  *  the expression as a whole is acceptable (gate 6, check-licence-policy.mjs).
  *  An unparseable expression yields its raw string as a single "leaf" so the
- *  caller still has something to report against. */
+ *  caller still has something to report against.
+ *  @param {LicenceExpr} node @returns {string[]} */
 export function leafIdentifiers(node) {
   if (node && typeof node === "object" && node.unparseable) return [node.raw];
   if (typeof node === "string") return [node];
@@ -483,7 +496,10 @@ export function leafIdentifiers(node) {
  *  for a block — empty when acceptable — so a finding can say which term
  *  failed rather than restating the whole expression. `leafVerdict(id)`
  *  returns `{ acceptable, reason }` for one bare identifier; policy
- *  (check-licence-policy.mjs) supplies the actual decision rule. */
+ *  (check-licence-policy.mjs) supplies the actual decision rule.
+ *  @param {LicenceExpr} node
+ *  @param {(id: string) => { acceptable: boolean, reason: string | undefined }} leafVerdict
+ *  @returns {{ acceptable: boolean, blockers: { id: string, reason: string | undefined }[], acceptedIds: string[] }} */
 export function evaluateLicenceExpression(node, leafVerdict) {
   if (node && typeof node === "object" && node.unparseable) {
     return {

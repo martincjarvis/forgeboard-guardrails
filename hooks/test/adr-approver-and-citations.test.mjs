@@ -37,7 +37,9 @@ test("checkAdrApprover refuses an Accepted ADR that reads as a licence exception
   );
   const findings = checkAdrApprover(dir);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /no approver field/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no approver field/);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -50,7 +52,9 @@ test("checkAdrApprover refuses an Accepted ADR whose approver is a team label, n
   );
   const findings = checkAdrApprover(dir);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /team label, not a person/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /team label, not a person/);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -185,7 +189,9 @@ test("checkAdrApprover: an ADR cited by a register row's Decision record column 
   );
   const findings = checkAdrApprover(adrDir, registersDir);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /no approver field/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no approver field/);
   rmSync(adrDir, { recursive: true, force: true });
   rmSync(registersDir, { recursive: true, force: true });
 });

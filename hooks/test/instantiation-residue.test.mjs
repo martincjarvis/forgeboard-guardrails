@@ -49,6 +49,7 @@ test("findCspellResidue: a word naming a stack that IS in the derived list is no
 
 test("checkCspellResidue: a Node-only repository's cspell.json carrying dead .NET vocabulary is refused, naming the word and the stack (fix 55, audit 14's exact case)", () => {
   const files = ["cspell.json", "package.json", "docs/README.md"];
+  /** @type {Record<string, string>} */
   const contents = {
     "cspell.json": JSON.stringify({
       words: ["Roslynator", "Meziantou", "xunit", "warnaserror"],
@@ -58,7 +59,7 @@ test("checkCspellResidue: a Node-only repository's cspell.json carrying dead .NE
   };
   const findings = checkCspellResidue({
     files,
-    readFile: (f) => contents[f],
+    readFile: (f) => contents[f] ?? "",
     isToolkit: () => false,
   });
   assert.equal(findings.length, 4);
@@ -70,13 +71,14 @@ test("checkCspellResidue: a Node-only repository's cspell.json carrying dead .NE
 
 test("checkCspellResidue: the same word list passes clean once the .NET manifest is actually present — the stack is no longer outside the derived list", () => {
   const files = ["cspell.json", "app.csproj"];
+  /** @type {Record<string, string>} */
   const contents = {
     "cspell.json": JSON.stringify({ words: ["Roslynator"] }),
     "app.csproj": "<Project />",
   };
   const findings = checkCspellResidue({
     files,
-    readFile: (f) => contents[f],
+    readFile: (f) => contents[f] ?? "",
     isToolkit: () => false,
   });
   assert.deepEqual(findings, []);
@@ -126,18 +128,20 @@ test("checkCspellResidue: an occurrence only in a file classed `tooling` does no
     "package.json",
     "scripts/check-standards-instantiation.mjs",
   ];
+  /** @type {Record<string, string>} */
   const contents = {
     "cspell.json": JSON.stringify({ words: ["Roslynator"] }),
     "package.json": JSON.stringify({ name: "x" }),
     "scripts/check-standards-instantiation.mjs":
       "// fixture word used in this ported checker's own tests: Roslynator\n",
   };
+  /** @type {Record<string, string>} */
   const classes = {
     "scripts/check-standards-instantiation.mjs": "tooling",
   };
   const findingsWithClassExcluded = checkCspellResidue({
     files,
-    readFile: (f) => contents[f],
+    readFile: (f) => contents[f] ?? "",
     classify: (f) => classes[f] ?? "production",
     isToolkit: () => false,
   });
@@ -155,7 +159,7 @@ test("checkCspellResidue: an occurrence only in a file classed `tooling` does no
   // flag the word, because the ported checker's own source now "uses" it.
   const findingsWithoutClassExcluded = checkCspellResidue({
     files,
-    readFile: (f) => contents[f],
+    readFile: (f) => contents[f] ?? "",
     classify: () => "production",
     isToolkit: () => false,
   });

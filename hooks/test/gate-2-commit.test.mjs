@@ -359,8 +359,8 @@ test("markdownlint commit scope: lint-staged lints the staged file alone, and a 
   const config = JSON.parse(
     readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
   );
-  const mdCmd = config["*.{md,mdx}"].find((c) =>
-    c.includes("markdownlint-cli2"),
+  const mdCmd = config["*.{md,mdx}"].find(
+    /** @param {string} c */ (c) => c.includes("markdownlint-cli2"),
   );
   assert.ok(
     mdCmd,

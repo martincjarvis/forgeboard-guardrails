@@ -58,7 +58,10 @@ import { pathToFileURL } from "node:url";
  *  repository's own tabled licence carries the same condition (both
  *  share-alike, say) — a same-family check, not a full pairwise
  *  compatibility matrix. Exported so the relation is directly testable
- *  without a register file or a real package.json on disk. */
+ *  without a register file or a real package.json on disk.
+ *  @param {import("./licence-table.mjs").LicenceEntry} entry
+ *  @param {string} scope
+ *  @param {string | null} repoLicenceId */
 export function compatible(entry, scope, repoLicenceId) {
   if (isPermissive(entry)) return true;
   if (!/^runtime$/i.test((scope ?? "").trim())) return true;
@@ -77,7 +80,10 @@ export function compatible(entry, scope, repoLicenceId) {
 /** The decision rule for one bare licence identifier: `{ acceptable, reason
  *  }`. `reason` is `undefined` when acceptable, else one of "no-table-entry"
  *  or "not-compatible" — what evaluateRegisterRow below turns into the
- *  finding's wording. */
+ *  finding's wording.
+ *  @param {string} id
+ *  @param {string} scope
+ *  @param {string | null} repoLicenceId */
 export function leafVerdict(id, scope, repoLicenceId) {
   const entry = licenceTableEntry(id);
   if (!entry) return { acceptable: false, reason: "no-table-entry" };
@@ -87,13 +93,22 @@ export function leafVerdict(id, scope, repoLicenceId) {
 }
 
 /** Parse-then-evaluate in one call — what evaluateRegisterRow actually
- *  wants per register row. */
-export function licenceExpressionAcceptable(licence, scope, repoLicenceId) {
-  return evaluateLicenceExpression(parseLicenceExpression(licence), (id) =>
-    leafVerdict(id, scope, repoLicenceId),
+ *  wants per register row.
+ *  @param {string} licence
+ *  @param {string} scope
+ *  @param {string | null} [repoLicenceId] */
+export function licenceExpressionAcceptable(
+  licence,
+  scope,
+  repoLicenceId = null,
+) {
+  return evaluateLicenceExpression(
+    parseLicenceExpression(licence),
+    (/** @type {string} */ id) => leafVerdict(id, scope, repoLicenceId),
   );
 }
 
+/** @param {string} row @returns {string[]} */
 function cellsOf(row) {
   return row
     .replace(/^\|/, "")
@@ -105,14 +120,15 @@ function cellsOf(row) {
 /** Rows as { dep, version, licence, scope, decisionRecord, approver }, from
  *  the same register check-licence.mjs parses — column order per
  *  registers.md: Dependency, Version, Licence, Direct or transitive, Scope,
- *  Used by, Why, Decision record, Obligations, Expires, Approver. */
+ *  Used by, Why, Decision record, Obligations, Expires, Approver.
+ *  @param {string} md */
 function parseRegisterRows(md) {
   const rows = [];
   for (const line of md.split("\n")) {
     if (!line.startsWith("|") || line.includes("---")) continue;
     const cells = cellsOf(line);
     if (cells.length < 5) continue;
-    const [dep, version, licence, , scope] = cells;
+    const [dep, version = "", licence, , scope] = cells;
     if (!dep || (/dependency/i.test(dep) && /version/i.test(version))) continue;
     if (dep.startsWith("_") || dep.startsWith("No rows")) continue;
     rows.push({
@@ -130,7 +146,9 @@ function parseRegisterRows(md) {
 /** Pure per-row verdict: every finding one already-parsed register row
  *  raises. Exported so the decision rule is directly testable against a
  *  constructed row, without a staged register file on disk. `repoLicenceId`
- *  is injectable (defaults to the real package.json) for the same reason. */
+ *  is injectable (defaults to the real package.json) for the same reason.
+ *  @param {{ dep: string, version: string, licence: string, scope: string, decisionRecord: string, approver: string }} row
+ *  @param {string | null} [repoLicenceId] */
 export function evaluateRegisterRow(
   row,
   repoLicenceId = repositoryLicenceId(),
@@ -163,6 +181,7 @@ export function evaluateRegisterRow(
     return findings;
   }
 
+  /** @type {{ acceptable: boolean, blockers: { id: string, reason: string | undefined }[], acceptedIds: string[] }} */
   const verdict = licenceExpressionAcceptable(
     row.licence,
     row.scope,
@@ -229,8 +248,10 @@ export function evaluateRegisterRow(
  *  once published (change-triggered-checks.md), so this fires only when the
  *  dependency set moved; re-validating the table's own facts against their
  *  references is gate 7's separate, invoked check
- *  (check-licence-table.mjs), never a cron. */
+ *  (check-licence-table.mjs), never a cron.
+ *  @param {boolean} scanTriggered */
 export function checkLicencePolicy(scanTriggered) {
+  /** @type {string[]} */
   const skips = [];
   if (!scanTriggered) {
     skips.push(

@@ -62,6 +62,7 @@ const GATE_FAIL_RE = /^([\w .()-]+?): FAIL (.+)$/;
 // timestamp, before matching.
 const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s*/;
 
+/** @param {string} rawLine @returns {string} */
 function stripLogLinePrefix(rawLine) {
   const lastTab = rawLine.lastIndexOf("\t");
   const withoutColumns = lastTab === -1 ? rawLine : rawLine.slice(lastTab + 1);
@@ -74,7 +75,10 @@ function stripLogLinePrefix(rawLine) {
  *  carrying the check name and, where the finding names a path, its `(path)`
  *  suffix already folded in by `report()` itself. Scoped to `gate` (default
  *  "gate 6" — the authoritative gate this fix exists for) so a job log
- *  covering more than one gate does not cross-attribute a line. */
+ *  covering more than one gate does not cross-attribute a line.
+ *  @param {string} logText
+ *  @param {string} [gate="gate 6"]
+ *  @returns {string[]} */
 export function extractGateFailLabels(logText, gate = "gate 6") {
   const labels = [];
   for (const rawLine of (logText || "").split(/\r?\n/)) {
@@ -93,7 +97,11 @@ export function extractGateFailLabels(logText, gate = "gate 6") {
  *  case-insensitive substring test, the same structural (not prose-honesty)
  *  restraint `citesReservedArtefact` already states for the sibling PR-body
  *  check. A report that genuinely reconciled the finding names it somewhere,
- *  in whichever section fix 66 puts it. */
+ *  in whichever section fix 66 puts it.
+ *  @param {string} reportText
+ *  @param {string} logText
+ *  @param {string} [gate="gate 6"]
+ *  @returns {{ check: string, path: string, problem: string, remedy: string }[]} */
 export function findUnreconciledCiFindings(
   reportText,
   logText,
@@ -116,7 +124,11 @@ export function findUnreconciledCiFindings(
 }
 
 /** Production entry point: reads both files from disk. `readFile` is
- *  injectable for testing, the same shape every other check here takes. */
+ *  injectable for testing, the same shape every other check here takes.
+ *  @param {string} reportPath
+ *  @param {string} logPath
+ *  @param {{ gate?: string, readFile?: (p: string) => string }} [opts]
+ *  @returns {{ check: string, path: string, problem: string, remedy: string }[]} */
 export function checkReportCiReconciliation(
   reportPath,
   logPath,

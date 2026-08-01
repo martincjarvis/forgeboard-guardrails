@@ -78,6 +78,7 @@ const PATTERNS = [
   },
 ];
 
+/** @param {string} name @returns {boolean} */
 function isPlaceholder(name) {
   const lower = name.toLowerCase();
   if (PLACEHOLDERS.has(lower)) return true;
@@ -86,7 +87,9 @@ function isPlaceholder(name) {
   return /^(user|name|username|path|dir|project|repo|app)[0-9]*$/i.test(name);
 }
 
-/** Check files for machine-identifying home paths. Returns findings. */
+/** Check files for machine-identifying home paths. Returns findings.
+ *  @param {string[]} [files]
+ *  @returns {{ check: string, path: string, problem: string, remedy: string }[]} */
 export function checkMachineId(files) {
   const findings = [];
   const scan = files ?? trackedFiles();

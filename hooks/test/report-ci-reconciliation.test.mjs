@@ -168,12 +168,13 @@ test("findUnreconciledCiFindings raises nothing for a clean CI log, whatever the
 });
 
 test("checkReportCiReconciliation reads both files by path, injected for testing", () => {
+  /** @type {Record<string, string>} */
   const files = {
     "report.md": "no mention of anything here",
     "ci.log": "gate 6: FAIL lint (eslint)\n",
   };
   const findings = checkReportCiReconciliation("report.md", "ci.log", {
-    readFile: (p) => files[p],
+    readFile: (p) => files[p] ?? "",
   });
   assert.equal(findings.length, 1);
   const finding = findings[0];

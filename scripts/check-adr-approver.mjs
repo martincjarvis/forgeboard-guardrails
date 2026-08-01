@@ -55,7 +55,8 @@ const SUPPRESSION_MARKER_STRINGS = [
  *  an ADR no register row cites yet. The next ADR will use different words,
  *  and a detector that must anticipate an author's vocabulary is one that
  *  fails silently; see `citedAdrNumbers` below for the structural signal
- *  `checkAdrApprover` checks first. */
+ *  `checkAdrApprover` checks first.
+ *  @param {string} text @returns {boolean} */
 export function acceptsRiskLicenceSuppressionOrOptOut(text) {
   return (
     GHSA_RE.test(text) ||
@@ -68,6 +69,7 @@ export function acceptsRiskLicenceSuppressionOrOptOut(text) {
 
 const REGISTERS_DIR = "docs/registers";
 
+/** @param {string} line @returns {string[]} */
 function cellsOf(line) {
   return line
     .replace(/^\|/, "")
@@ -87,7 +89,8 @@ function cellsOf(line) {
  *  column — located by header name, not a fixed index, since only the
  *  dependency licence register carries this column today (registers.md)
  *  and another register's column order is not this function's business. A
- *  register with no such column contributes nothing. */
+ *  register with no such column contributes nothing.
+ *  @param {string} registerText */
 export function citedAdrNumbers(registerText) {
   const numbers = new Set();
   if (!registerText) return numbers;
@@ -102,7 +105,8 @@ export function citedAdrNumbers(registerText) {
     }
     if (cells.every((c) => /^:?-+:?$/.test(c))) continue; // separator row
     for (const m of (cells[decisionCol] ?? "").matchAll(/ADR-0*(\d+)/gi)) {
-      numbers.add(m[1].padStart(4, "0"));
+      const num = m[1];
+      if (num) numbers.add(num.padStart(4, "0"));
     }
   }
   return numbers;
@@ -145,7 +149,9 @@ export function adrNumbersCitedByRegisters(registersDir = REGISTERS_DIR) {
 // the field lookup this replaced searched the whole file, so a document
 // whose body happened to contain a line starting "status:" outside the
 // frontmatter would have matched that instead.
+/** @param {string} text @returns {Record<string, string>} */
 function parseFrontmatter(text) {
+  /** @type {Record<string, string>} */
   const fields = {};
   const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
   const block = fm?.[1] ?? "";
@@ -162,6 +168,7 @@ function parseFrontmatter(text) {
 // Exported so check-approval-provenance.mjs (fix 49) can read the same two
 // fields off a file's "before" and "after" content without re-implementing
 // frontmatter parsing a second time.
+/** @param {string} text @param {string} field @returns {string} */
 export function frontmatterField(text, field) {
   return parseFrontmatter(text)[field.toLowerCase()] ?? "";
 }
@@ -169,7 +176,8 @@ export function frontmatterField(text, field) {
 /** A team label, not a person — the exact shape audit 8 found
  *  (`owner: greet maintainers`): a role or group noun with no individual
  *  name attached. Heuristic, not exhaustive — a human name is whatever is
- *  left once these read as plainly not one. */
+ *  left once these read as plainly not one.
+ *  @param {string} name @returns {boolean} */
 export function looksLikeTeamLabel(name) {
   if (!name) return true;
   return /\b(team|maintainers?|group|committee|everyone|anyone|bot|automation|agent)\b/i.test(
@@ -191,6 +199,7 @@ export function checkAdrApprover(
   adrDir = "docs/ADR",
   registersDir = REGISTERS_DIR,
 ) {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
   let files;
   try {

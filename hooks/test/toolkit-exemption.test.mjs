@@ -28,8 +28,10 @@ test("findHardcodedCommitSha: a full 40-character commit SHA is found, naming th
     'line one\nconst sha = "daa59d0cf1d039b997b830eb1029a49d2aa7d099";\n';
   const findings = findHardcodedCommitSha(text);
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].line, 2);
-  assert.equal(findings[0].sha, "daa59d0cf1d039b997b830eb1029a49d2aa7d099");
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.line, 2);
+  assert.equal(finding.sha, "daa59d0cf1d039b997b830eb1029a49d2aa7d099");
 });
 
 test("findHardcodedCommitSha: a short-form SHA (8 characters) is not a finding — only a full 40-character one is precise enough to be mechanical", () => {
@@ -47,13 +49,14 @@ test("findHardcodedCommitSha: a 40-character run embedded inside a longer hex st
 
 test("checkHardcodedCommitSha: a full SHA in a file classed `test` is a finding, naming the file, line and SHA (fix 60)", () => {
   const files = ["hooks/test/x.test.mjs"];
+  /** @type {Record<string, string>} */
   const contents = {
     "hooks/test/x.test.mjs":
       'const sha = "daa59d0cf1d039b997b830eb1029a49d2aa7d099";\n',
   };
   const findings = checkHardcodedCommitSha({
     files,
-    readFile: (f) => contents[f],
+    readFile: (f) => contents[f] ?? "",
     classify: () => "test",
     isToolkit: () => false,
   });
@@ -67,13 +70,14 @@ test("checkHardcodedCommitSha: a full SHA in a file classed `test` is a finding,
 
 test("checkHardcodedCommitSha: the identical SHA in a file NOT classed `test` is out of scope — a configuration-classed CI workflow pinning a GitHub Action to its commit SHA is a security practice, not this defect", () => {
   const files = [".github/workflows/pull-request.yml"];
+  /** @type {Record<string, string>} */
   const contents = {
     ".github/workflows/pull-request.yml":
       "uses: actions/checkout@daa59d0cf1d039b997b830eb1029a49d2aa7d099\n",
   };
   const findings = checkHardcodedCommitSha({
     files,
-    readFile: (f) => contents[f],
+    readFile: (f) => contents[f] ?? "",
     classify: () => "configuration",
     isToolkit: () => false,
   });
@@ -208,6 +212,7 @@ test("regression guard: check-standards-instantiation.mjs run for real, against 
 // from the two checks that exist to catch ported content.
 test("isToolkit: true for this plugin, false for another plugin, false for no plugin", () => {
   const manifest = ".claude-plugin/plugin.json";
+  /** @param {string} json */
   const withManifest = (json) =>
     isToolkit(
       () => json,

@@ -27,17 +27,17 @@ const MARKERS = [
   {
     name: "eslint-disable",
     re: /eslint-disable(?:-next-line|-line)?(?:\s+(.+))?/,
-    rules: (m) => splitRules(m[1]),
+    rules: (/** @type {RegExpMatchArray} */ m) => splitRules(m[1]),
   },
   {
     name: "secretlint-disable",
     re: /secretlint-disable(?:\s+(.+))?/,
-    rules: (m) => splitRules(m[1]),
+    rules: (/** @type {RegExpMatchArray} */ m) => splitRules(m[1]),
   },
   {
     name: "markdownlint-disable",
     re: /markdownlint-disable(?:-next-line|-line|-file)?(?:\s+(.+))?/,
-    rules: (m) => splitRules(m[1]),
+    rules: (/** @type {RegExpMatchArray} */ m) => splitRules(m[1]),
   },
   {
     // Captures everything after the colon (not just a comma-free character
@@ -46,7 +46,7 @@ const MARKERS = [
     // marker family.
     name: "nosemgrep",
     re: /nosemgrep(?::\s*(.+))?/,
-    rules: (m) => splitRules(m[1]),
+    rules: (/** @type {RegExpMatchArray} */ m) => splitRules(m[1]),
   },
   {
     // TypeScript has no per-rule form for either directive, so these are
@@ -71,7 +71,8 @@ const MARKERS = [
 ];
 
 /** Every rule a marker names, split on comma or whitespace and filtered to
- *  tokens that look like an identifier. Empty when the marker names none. */
+ *  tokens that look like an identifier. Empty when the marker names none.
+ *  @param {string | undefined} rest */
 function splitRules(rest) {
   if (!rest) return [];
   return rest
@@ -86,6 +87,7 @@ function splitRules(rest) {
  *  completeness (evaluateRegisterRows) needs every column, so all five are
  *  read here in one place rather than the first two being parsed twice. */
 export function suppressionRegisterRows() {
+  /** @type {{ code: string, scope: string, justification: string, removalCondition: string, approver: string }[]} */
   const rows = [];
   let md;
   try {
@@ -97,8 +99,8 @@ export function suppressionRegisterRows() {
     if (!line.startsWith("|") || line.includes("---")) continue;
     const cells = cellsOf(line);
     if (cells.length < 2) continue;
-    const code = cells[0]?.trim();
-    const scope = cells[1]?.trim();
+    const code = (cells[0] ?? "").trim();
+    const scope = (cells[1] ?? "").trim();
     // Skip the header row and the "no rows" sentinel.
     if (!code || (/code/i.test(code) && /scope/i.test(scope))) continue;
     if (code.startsWith("_") || code.startsWith("No rows")) continue;
@@ -125,7 +127,8 @@ export function suppressionRegisterRows() {
  *  approver that reads as a team label or a machine. `pendingApproval` rows
  *  are otherwise complete with only the approver blank — fix 35 gives that
  *  its own verdict per gate (gate 2 pushes back, gate 6 blocks), not a
- *  finding here. */
+ *  finding here.
+ *  @param {{ code: string, scope: string, justification: string, removalCondition: string, approver: string }[]} rows */
 export function evaluateRegisterRows(rows) {
   const blocking = [];
   const pendingApproval = [];
@@ -170,7 +173,8 @@ export function evaluateRegisterRows(rows) {
  *  register. Gate 2 (pre-commit.mjs) prints these as a push back — allowed
  *  to commit, visible, unresolved. Gate 6 (unapprovedSuppressionFindings,
  *  below) reads the same list and blocks instead: two different questions
- *  over one set of rows, not one check behind a mode flag. */
+ *  over one set of rows, not one check behind a mode flag.
+ *  @param {{ code: string, scope: string, justification: string, removalCondition: string, approver: string }[]} [rows] */
 export function pendingSuppressionApprovals(rows) {
   return evaluateRegisterRows(rows ?? suppressionRegisterRows())
     .pendingApproval;
@@ -181,7 +185,8 @@ export function pendingSuppressionApprovals(rows) {
  *  no author present server-side to push back to (guardrail-standards.md's
  *  verdict table — "Where no author is present, the check looks for that
  *  record and fails without it"), so an unapproved suppression fails the
- *  merge rather than merely being printed. */
+ *  merge rather than merely being printed.
+ *  @param {{ code: string, scope: string, justification: string, removalCondition: string, approver: string }[]} [rows] */
 export function unapprovedSuppressionFindings(rows) {
   return pendingSuppressionApprovals(rows).map((row) => ({
     check: "suppression register — approver",
@@ -194,6 +199,7 @@ export function unapprovedSuppressionFindings(rows) {
   }));
 }
 
+/** @param {string} row */
 function cellsOf(row) {
   // Split on unescaped pipes; strip inline code backticks and emphasis.
   return row
@@ -208,7 +214,8 @@ function cellsOf(row) {
  *  non-text file, anything outside the production/test classes inline
  *  suppressions actually live in, and this module's own source — its
  *  MARKERS regex literals contain the marker strings as data, so it would
- *  otherwise flag itself. */
+ *  otherwise flag itself.
+ *  @param {string} file */
 function shouldScanFile(file) {
   if (file === REGISTER || !isText(file)) return false;
   const cls = classOf(file);
@@ -226,7 +233,11 @@ function shouldScanFile(file) {
 /** Findings for one line: zero, or one per rule a marker names that lacks a
  *  register row, plus one for a marker naming no rule at all (more than one
  *  marker, and more than one rule per marker, can legitimately appear on the
- *  same line — fix 33). */
+ *  same line — fix 33).
+ *  @param {string} file
+ *  @param {number} lineNumber
+ *  @param {string} lineText
+ *  @param {{ code: string, scope: string, justification: string, removalCondition: string, approver: string }[]} rows */
 function findingsForLine(file, lineNumber, lineText, rows) {
   const findings = [];
   const path = `${file}:${lineNumber}`;
@@ -271,7 +282,8 @@ function findingsForLine(file, lineNumber, lineText, rows) {
  *  Inline suppressions live in code (production and test classes); prose that
  *  documents a marker, and a tool's own configuration, are not suppressions
  *  (bypass-and-exceptions.md: a wholesale config disable is a documented
- *  decision, not an exception to a rule). */
+ *  decision, not an exception to a rule).
+ *  @param {string[]} [files] */
 export function checkSuppressions(files) {
   const rows = suppressionRegisterRows();
   const scan = files ?? trackedFiles();
@@ -294,6 +306,7 @@ export function checkSuppressions(files) {
   return findings;
 }
 
+/** @param {string} scope @param {string} file */
 function pathMatches(scope, file) {
   if (!scope) return false;
   const s = scope.replace(/\\/g, "/").replace(/\/$/, "");

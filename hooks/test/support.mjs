@@ -57,6 +57,7 @@ export const CLEAN_ENV = Object.fromEntries(
   ]),
 );
 
+/** @param {string} cwd @param {string[]} args */
 export function git(cwd, args) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", env: CLEAN_ENV });
   if (r.status !== 0 && !args.includes("--allow-empty")) {
@@ -87,6 +88,7 @@ export function scratchRepo() {
   return dir;
 }
 
+/** @param {string} name @param {string} cwd @param {string} [stdin] */
 export function runHook(name, cwd, stdin = "") {
   return spawnSync(process.execPath, [join(HOOKS, name)], {
     cwd,
@@ -102,6 +104,7 @@ export function runHook(name, cwd, stdin = "") {
 // against the scratch repository, exactly as it would run from .husky.
 export const ROOT = join(HOOKS, "..");
 
+/** @param {string} relPath @param {string} cwd @param {string[]} [args] */
 export function runScript(relPath, cwd, args = []) {
   return spawnSync(process.execPath, [join(ROOT, relPath), ...args], {
     cwd,
@@ -110,12 +113,14 @@ export function runScript(relPath, cwd, args = []) {
   });
 }
 
+/** @param {number} n @param {string} [text] */
 export function lines(n, text = "x") {
   return `${text}\n`.repeat(n);
 }
 
 /** A function whose cyclomatic complexity is `branches + 1` — one `else if`
- *  chain link per branch, McCabe's own count. */
+ *  chain link per branch, McCabe's own count.
+ *  @param {string} name @param {number} branches */
 export function complexFunction(name, branches) {
   const arms = Array.from(
     { length: branches },

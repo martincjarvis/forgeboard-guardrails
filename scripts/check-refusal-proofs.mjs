@@ -62,7 +62,8 @@ const SAMPLE_OSV_JSON = JSON.stringify({
  *  path to fn(), and always cleans up — even the file-content checks below
  *  read through readStaged (lib.mjs), which falls back to a plain disk read
  *  for a path git has never heard of, so no scratch git repository is
- *  needed for these. */
+ *  needed for these.
+ *  @param {string} relPath @param {string} content @param {(path: string) => boolean} fn */
 function withFixtureFile(relPath, content, fn) {
   mkdirSync(TMP, { recursive: true });
   const full = join(TMP, relPath);
@@ -96,6 +97,7 @@ function refuseSemgrepFixture() {
   // the scratch repo exercises the semgrep step this fixture is actually
   // about, rather than crashing on an unrelated section first.
   writeFileSync(join(dir, ".gitattributes"), "* text=auto eol=lf\n");
+  /** @param {string[]} args */
   const g = (args) => run("git", args, { cwd: dir, env: cleanGitEnv() });
   g(["init", "-q", "."]);
   g(["add", "-A"]);
@@ -275,7 +277,8 @@ const NO_FIXTURE = [
  *  anyway — decorative), or null (the fixture could not be run at all, an
  *  environment gap rather than a wiring one). Exported and tested directly
  *  so the classification rule is verified independently of any one fixture
- *  — CHECKS_WITH_FIXTURES supplies real cases, this supplies the rule. */
+ *  — CHECKS_WITH_FIXTURES supplies real cases, this supplies the rule.
+ *  @param {boolean | null} result */
 export function classifyFixtureResult(result) {
   if (result === null) return "no-fixture";
   return result === true ? "refuses" : "does-not-refuse";

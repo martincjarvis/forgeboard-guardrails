@@ -32,6 +32,19 @@ import { readFileSync } from "node:fs";
 import { have, run, resolveBase, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
+/** @typedef {(command: string, args: readonly string[], options?: object) => { status: number | null, stdout?: string, stderr?: string }} RunFn */
+/** @typedef {{ id: string, name: string | null, matrix: Record<string, string[]> }} Job */
+/** @typedef {{
+ *   required_status_checks?: { checks?: { context: string }[], contexts?: string[], strict?: boolean },
+ *   required_pull_request_reviews: { required_approving_review_count?: number, dismiss_stale_reviews?: boolean } | null,
+ *   enforce_admins?: { enabled?: boolean },
+ *   required_conversation_resolution?: { enabled?: boolean },
+ *   allow_force_pushes?: { enabled?: boolean },
+ *   allow_deletions?: { enabled?: boolean },
+ *   required_linear_history?: { enabled?: boolean },
+ * }} BranchProtection */
+
+/** @param {string} line @returns {number} */
 function indentOf(line) {
   return line.length - line.trimStart().length;
 }
@@ -41,7 +54,11 @@ function indentOf(line) {
  *  which nests deeper under `steps:`), and any flat `key: [a, b, c]` matrix
  *  axis wherever it sits. Mutates `job` in place — split out purely so
  *  parseWorkflowJobs' loop stays about job *boundaries*, not job *content*,
- *  each worth its own share of cyclomatic complexity otherwise. */
+ *  each worth its own share of cyclomatic complexity otherwise.
+ *  @param {Job} job
+ *  @param {string} line
+ *  @param {number} indent
+ *  @param {number} bodyIndent */
 function applyJobBodyLine(job, line, indent, bodyIndent) {
   if (indent === bodyIndent) {
     const nameMatch = /^name:\s*(.+)$/.exec(line);
@@ -62,7 +79,8 @@ function applyJobBodyLine(job, line, indent, bodyIndent) {
  *  `name:`, indented deeper under `steps:`, is never mistaken for the job's.
  *  Split out from deriveRequiredContexts below purely to keep each
  *  function's own branching legible — same shape as evaluateRegisterRow
- *  being split from checkLicencePolicy's loop (check-licence-policy.mjs). */
+ *  being split from checkLicencePolicy's loop (check-licence-policy.mjs).
+ *  @param {string} workflowText */
 function parseWorkflowJobs(workflowText) {
   const lines = (workflowText ?? "")
     .split(/\r?\n/)
@@ -70,21 +88,21 @@ function parseWorkflowJobs(workflowText) {
   const jobsAt = lines.findIndex((l) => /^jobs:\s*$/.test(l));
   if (jobsAt === -1 || jobsAt + 1 >= lines.length) return [];
 
-  const jobIdIndent = indentOf(lines[jobsAt + 1]);
+  const jobIdIndent = indentOf(lines[jobsAt + 1] ?? "");
   const jobs = [];
   let job = null;
   let bodyIndent = null;
 
   for (let i = jobsAt + 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    const indent = indentOf(lines[i]);
+    const line = (lines[i] ?? "").trim();
+    const indent = indentOf(lines[i] ?? "");
     if (indent < jobIdIndent) break; // left the jobs: block
 
     if (indent === jobIdIndent) {
       const idMatch = /^([A-Za-z0-9_-]+):\s*$/.exec(line);
       if (idMatch) {
         if (job) jobs.push(job);
-        job = { id: idMatch[1], name: null, matrix: {} };
+        job = { id: idMatch[1] ?? "", name: null, matrix: {} };
         bodyIndent = null;
       }
       continue;
@@ -99,7 +117,8 @@ function parseWorkflowJobs(workflowText) {
 
 /** One job's reported context string(s): its own name (or job id, GitHub's
  *  own fallback) expanded once per matrix value when the name interpolates
- *  the single axis this parser supports (see the ponytail note above). */
+ *  the single axis this parser supports (see the ponytail note above).
+ *  @param {Job} job */
 function contextsForJob(job) {
   const label = job.name || job.id;
   const varMatch = /\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}/.exec(label);
@@ -125,7 +144,8 @@ function contextsForJob(job) {
  *  expands over — not hand-typed, because a matrix job's reported name
  *  (`gate 6 (ubuntu-latest)`) must match branch protection's required list
  *  character for character. A job with no explicit `name:` reports its job
- *  id instead, the same fallback GitHub itself uses. */
+ *  id instead, the same fallback GitHub itself uses.
+ *  @param {string} workflowText */
 export function deriveRequiredContexts(workflowText) {
   return parseWorkflowJobs(workflowText).flatMap(contextsForJob);
 }
@@ -137,6 +157,9 @@ const RUN_SCRIPT = "run `node scripts/configure-branch-protection.mjs`";
  *  object — data, not a branching function, so evaluateBranchProtection
  *  below stays a single filter/map over it rather than a chain of ifs each
  *  worth its own point of cyclomatic complexity.
+ *  @param {BranchProtection} protection
+ *  @param {string} branch
+ *  @param {string[]} requiredContexts
  *  @returns {{isGap: boolean, problem: string}[]} */
 function policyGaps(protection, branch, requiredContexts) {
   const configured = new Set([
@@ -146,7 +169,7 @@ function policyGaps(protection, branch, requiredContexts) {
   const missing = requiredContexts.filter((c) => !configured.has(c));
   const reviews = protection.required_pull_request_reviews;
   const hasApproval =
-    Boolean(reviews) && (reviews.required_approving_review_count ?? 0) >= 1;
+    Boolean(reviews) && (reviews?.required_approving_review_count ?? 0) >= 1;
 
   return [
     {
@@ -166,7 +189,7 @@ function policyGaps(protection, branch, requiredContexts) {
       problem: `${branch} does not require an approving review before merge`,
     },
     {
-      isGap: hasApproval && !reviews.dismiss_stale_reviews,
+      isGap: hasApproval && !reviews?.dismiss_stale_reviews,
       problem: `${branch} does not dismiss a stale approval on a new push`,
     },
     {
@@ -193,7 +216,10 @@ function policyGaps(protection, branch, requiredContexts) {
  *  for unconfigured) says the platform enforces. Exported and tested
  *  directly against constructed JSON, the same reason classifyAdvisories
  *  (check-dependency-advisories.mjs) is kept separate from its own
- *  gh/network orchestration below. */
+ *  gh/network orchestration below.
+ *  @param {BranchProtection | null} protection
+ *  @param {string} branch
+ *  @param {string[]} requiredContexts */
 export function evaluateBranchProtection(protection, branch, requiredContexts) {
   if (!protection) {
     return [
@@ -220,7 +246,8 @@ export function evaluateBranchProtection(protection, branch, requiredContexts) {
  *  account in the local keyring is stale, even when the active account this
  *  process would actually use is fine (verified directly on this host: two
  *  unrelated invalid keyring entries made `gh auth status` exit 1 while
- *  `gh api user` — what this check actually depends on — exited 0). */
+ *  `gh api user` — what this check actually depends on — exited 0).
+ *  @param {RunFn} runFn */
 function ghAuthenticated(runFn) {
   return runFn("gh", ["api", "user"], { stdio: "ignore" }).status === 0;
 }
@@ -238,7 +265,10 @@ function ghAuthenticated(runFn) {
  *  local ref at all. Returns `{ ok:false, reason }`, naming the one-command
  *  remedy (`git remote set-head origin -a`), only when neither source can
  *  name the branch — a 403 or a missing remote is a genuine "cannot tell"
- *  and is handled by the callers of this function, not folded in here. */
+ *  and is handled by the callers of this function, not folded in here.
+ *  @param {() => string | null} resolveBaseFn
+ *  @param {RunFn} runFn
+ *  @returns {{ ok: true, name: string } | { ok: false, reason: string }} */
 function resolveBranch(resolveBaseFn, runFn) {
   const base = resolveBaseFn();
   if (base) return { ok: true, name: base.replace(/^origin\//, "") };
@@ -267,7 +297,9 @@ function resolveBranch(resolveBaseFn, runFn) {
  *  all (403, an unparseable body) — never a finding standing in for a
  *  result this call could not produce. Split out from checkBranchProtection
  *  so that function's own branching stays about *which skip*, not about
- *  interpreting `gh`'s response shape too. */
+ *  interpreting `gh`'s response shape too.
+ *  @param {RunFn} runFn
+ *  @param {string} branch */
 function fetchProtection(runFn, branch) {
   const get = runFn("gh", [
     "api",
@@ -275,7 +307,7 @@ function fetchProtection(runFn, branch) {
   ]);
   if (get.status === 0) {
     try {
-      return { ok: true, protection: JSON.parse(get.stdout) };
+      return { ok: true, protection: JSON.parse(get.stdout ?? "") };
     } catch {
       return {
         ok: false,
@@ -322,6 +354,7 @@ export async function checkBranchProtection({
   resolveBase: resolveBaseFn = resolveBase,
   readFile = (p) => readFileSync(p, "utf8"),
 } = {}) {
+  /** @type {string[]} */
   const skips = [];
   if (!haveFn("gh", ["--version"])) {
     skips.push(

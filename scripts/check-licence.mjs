@@ -17,6 +17,7 @@ import { pathToFileURL } from "node:url";
 
 export const REGISTER = "docs/registers/dependency-licence-register.md";
 
+/** @param {string} row */
 function cellsOf(row) {
   return row
     .replace(/^\|/, "")
@@ -44,8 +45,8 @@ function parseRegister() {
     if (!line.startsWith("|") || line.includes("---")) continue;
     const cells = cellsOf(line);
     if (cells.length < 3) continue;
-    const dep = cells[0]?.trim();
-    const version = cells[1]?.trim();
+    const dep = (cells[0] ?? "").trim();
+    const version = (cells[1] ?? "").trim();
     if (!dep || (/dependency/i.test(dep) && /version/i.test(version))) continue;
     if (dep.startsWith("_") || dep.startsWith("No rows")) continue;
     known.add(`${dep}@${version}`);
@@ -58,7 +59,8 @@ function parseRegister() {
  *  scripts/licence-table.mjs is a finding at gate 2 (here) as well as gate 6
  *  (check-licence-policy.mjs): "you need an entry precisely when a
  *  dependency introduces the licence, which is when the check already
- *  runs." Exported so it is directly testable against constructed rows. */
+ *  runs." Exported so it is directly testable against constructed rows.
+ *  @param {{dep: string, version: string, licence: string}[]} rows */
 export function missingLicenceTableEntries(rows) {
   const findings = [];
   const reported = new Set();
@@ -80,8 +82,10 @@ export function missingLicenceTableEntries(rows) {
 
 /** { findings, skips }. `lockChanged` is the caller's own scope decision — the
  *  staged set locally, the pull request's changed-file range in CI — so this
- *  module makes no assumption about where the scope came from. */
+ *  module makes no assumption about where the scope came from.
+ *  @param {boolean} lockChanged */
 export function checkLicenceCompleteness(lockChanged) {
+  /** @type {string[]} */
   const skips = [];
   if (!lockChanged) {
     skips.push(

@@ -54,7 +54,8 @@ import { pathToFileURL } from "node:url";
 
 const REGISTERS_DIR = "docs/registers";
 
-/** Is `path` an ADR under `adrDir`, excluding the index? */
+/** Is `path` an ADR under `adrDir`, excluding the index?
+ *  @param {string} path */
 export function isAdrPath(path, adrDir = "docs/ADR") {
   return (
     path.startsWith(`${adrDir}/`) &&
@@ -63,7 +64,8 @@ export function isAdrPath(path, adrDir = "docs/ADR") {
   );
 }
 
-/** Is `path` a register file, excluding an index the directory might carry? */
+/** Is `path` a register file, excluding an index the directory might carry?
+ *  @param {string} path */
 export function isRegisterPath(path, registersDir = REGISTERS_DIR) {
   return (
     path.startsWith(`${registersDir}/`) &&
@@ -72,10 +74,12 @@ export function isRegisterPath(path, registersDir = REGISTERS_DIR) {
   );
 }
 
+/** @param {string[]} cells */
 function isSeparatorRow(cells) {
   return cells.length > 0 && cells.every((c) => /^:?-+:?$/.test(c));
 }
 
+/** @param {string} line */
 function cellsOf(line) {
   return line
     .replace(/^\|/, "")
@@ -92,13 +96,15 @@ function cellsOf(line) {
  *  line ahead for the `| --- |` separator that always follows it, rather
  *  than matching specific column names — a form that works unmodified for
  *  any register this repository or a consumer adds, not only the two named
- *  in the audit. */
+ *  in the audit.
+ *  @param {string} text */
 export function parseRegisterRows(text) {
   if (!text) return [];
   const lines = text.split("\n");
   const rows = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === undefined) continue;
     if (!line.startsWith("|")) continue;
     const cells = cellsOf(line);
     if (isSeparatorRow(cells)) continue;
@@ -121,7 +127,10 @@ export function parseRegisterRows(text) {
  *  Returns one finding or `null`. Deliberately silent on an ADR missing its
  *  approver entirely — check-adr-approver.mjs already owns that finding;
  *  this only fires once an approver is actually present, asking whether the
- *  commit that supplied it is the same one that supplied the file. */
+ *  commit that supplied it is the same one that supplied the file.
+ *  @param {string} path
+ *  @param {string | null | undefined} beforeText
+ *  @param {string | null | undefined} afterText */
 export function newlyApprovedAdrFinding(path, beforeText, afterText) {
   if (afterText === null || afterText === undefined) return null;
   if (beforeText !== null && beforeText !== undefined) return null; // the file already existed — an approval here is a distinct event
@@ -146,7 +155,10 @@ export function newlyApprovedAdrFinding(path, beforeText, afterText) {
 /** The register half of the rule: every row present in `afterText` with a
  *  non-empty, non-team-label approver whose identity does not appear at all
  *  in `beforeText` — a row that is brand new in this commit and already
- *  carries an approver could not have been reviewed by the name it names. */
+ *  carries an approver could not have been reviewed by the name it names.
+ *  @param {string} path
+ *  @param {string} beforeText
+ *  @param {string} afterText */
 export function newlyApprovedRegisterRowFindings(path, beforeText, afterText) {
   const beforeIdentities = new Set(
     parseRegisterRows(beforeText).map((r) => r.identity),
@@ -170,7 +182,11 @@ export function newlyApprovedRegisterRowFindings(path, beforeText, afterText) {
 }
 
 /** One path's findings, dispatched by shape. `readBefore`/`readAfter` each
- *  return the file's text, or `null` when it does not exist at that point. */
+ *  return the file's text, or `null` when it does not exist at that point.
+ *  @param {string} path
+ *  @param {(path: string) => (string | null)} readBefore
+ *  @param {(path: string) => (string | null)} readAfter
+ *  @param {string} adrDir */
 function findingsForPath(path, readBefore, readAfter, adrDir) {
   if (isAdrPath(path, adrDir)) {
     const f = newlyApprovedAdrFinding(path, readBefore(path), readAfter(path));
@@ -190,7 +206,8 @@ function findingsForPath(path, readBefore, readAfter, adrDir) {
  *  `readAfter` are injectable so the pure dispatch above is testable without
  *  a real repository; the production defaults (isMain, below) read `git show
  *  HEAD:<path>` and `git show :<path>` (the staged blob), the same two forms
- *  every other staged-content check in this repository already reads from. */
+ *  every other staged-content check in this repository already reads from.
+ *  @param {{ stagedFiles: string[], readBefore: (path: string) => (string | null), readAfter: (path: string) => (string | null), adrDir?: string }} opts */
 export function checkApprovalProvenanceStaged({
   stagedFiles,
   readBefore,
@@ -210,11 +227,13 @@ export function checkApprovalProvenanceStaged({
  *  which would treat two separate, legitimate commits (one filing a row, a
  *  later one approving it) as a single suspicious change. `git()` is
  *  injectable for the same reason lib.mjs's other range-scoped checks take
- *  one, defaulting to lib.mjs's own cross-platform `run`. */
+ *  one, defaulting to lib.mjs's own cross-platform `run`.
+ *  @param {string} logRange */
 export function checkApprovalProvenanceRange(
   logRange,
   { adrDir = "docs/ADR", runGit = run } = {},
 ) {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
   const shas = runGit("git", ["log", logRange, "--no-merges", "--format=%H"]);
   if (shas.status !== 0) return findings;
@@ -228,6 +247,7 @@ export function checkApprovalProvenanceRange(
     ]);
     const files = diff.status === 0 ? splitLines(diff.stdout) : [];
     const short = sha.slice(0, 8);
+    /** @param {string} ref @returns {(path: string) => (string | null)} */
     const readAt = (ref) => (path) => {
       const r = runGit("git", ["show", `${ref}:${path}`]);
       return r.status === 0 ? r.stdout : null;

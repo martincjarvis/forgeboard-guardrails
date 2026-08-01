@@ -54,6 +54,7 @@ export function checkOsvScanner({
   run: runFn = run,
 } = {}) {
   const skips = [];
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
   if (!haveFn("osv-scanner", ["--version"])) {
     skips.push(

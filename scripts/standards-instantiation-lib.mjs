@@ -118,7 +118,8 @@ const MULTI_COMPONENT_HEADINGS = [
   /cross-component/i,
 ];
 
-/** Which stacks `files` (tracked paths) declare a manifest for. */
+/** Which stacks `files` (tracked paths) declare a manifest for.
+ *  @param {string[]} files */
 export function deriveStackList(files) {
   const found = new Set();
   for (const [stack, markers] of Object.entries(STACK_MARKERS)) {
@@ -130,8 +131,11 @@ export function deriveStackList(files) {
 }
 
 /** Stack keywords in `text` for a stack not in `presentStacks`. Returns
- *  [{ stack, keyword, line }], 1-indexed. */
+ *  [{ stack, keyword, line }], 1-indexed.
+ *  @param {string} text @param {Set<string>} presentStacks
+ *  @returns {{ stack: string, keyword: string, line: number }[]} */
 export function findStackReferencesOutsideList(text, presentStacks) {
+  /** @type {{ stack: string, keyword: string, line: number }[]} */
   const findings = [];
   const lines = text.split("\n");
   for (const [stack, keywords] of Object.entries(STACK_KEYWORDS)) {
@@ -178,7 +182,8 @@ const STACK_WORD_MARKERS = {
 /** True when `word` names one stack's own tooling by containment either
  *  way — an exact match, a marker contained in the word, or the word
  *  contained in a marker — so both a bare tool name ("xunit") and a longer
- *  compound one still match without an exhaustive per-word list. */
+ *  compound one still match without an exhaustive per-word list.
+ *  @param {string} word @param {string[]} markers @returns {boolean} */
 function wordNamesStack(word, markers) {
   const w = word.toLowerCase();
   return markers.some((m) => w === m || w.includes(m) || m.includes(w));
@@ -196,7 +201,9 @@ function wordNamesStack(word, markers) {
  *  detect-non-literal-regexp rule correctly flags any `new RegExp(variable)`
  *  as a ReDoS surface regardless of escaping; `.includes()` needs no escaping
  *  and answers the same "does this occur anywhere" question this check
- *  actually asks. */
+ *  actually asks.
+ *  @param {string[]} words @param {string} corpusText @param {Set<string>} presentStacks
+ *  @returns {{ word: string, stack: string }[]} */
 export function findCspellResidue(words, corpusText, presentStacks) {
   const findings = [];
   const corpusLower = corpusText.toLowerCase();
@@ -234,7 +241,8 @@ export function findCspellResidue(words, corpusText, presentStacks) {
  *  is invisible to any test that only exercises this toolkit's own,
  *  exempt repository — the general lesson is in docs-style.md, and the
  *  next "does this appear elsewhere" check should read it before making the
- *  same mistake. */
+ *  same mistake.
+ *  @param {{ cspellPath?: string, files?: string[], readFile?: (file: string) => string, classify?: (file: string) => string, isToolkit?: () => boolean }} [opts] */
 export function checkCspellResidue({
   cspellPath = "cspell.json",
   files = trackedFiles(),
@@ -291,8 +299,10 @@ export function checkCspellResidue({
  *  token is precise, mechanical, and has no judgement in it. A 40-hex-char
  *  SUBSTRING of a longer hash (a sha256 hex digest, for instance) does not
  *  match: `\b` requires a transition out of a hex/word character on both
- *  sides, which a longer unbroken hex run never offers in its middle. */
+ *  sides, which a longer unbroken hex run never offers in its middle.
+ *  @param {string} text @returns {{ line: number, sha: string }[]} */
 export function findHardcodedCommitSha(text) {
+  /** @type {{ line: number, sha: string }[]} */
   const findings = [];
   const re = /\b[0-9a-f]{40}\b/gi;
   text.split("\n").forEach((line, i) => {
@@ -312,7 +322,8 @@ export function findHardcodedCommitSha(text) {
  *  toolkit's own repository is exempt outright, the same `isToolkit`
  *  reasoning as `checkCspellResidue` above — its own test suite legitimately
  *  asserts its own real history (fix 49, hazard 3: `daa59d0c…`), which is a
- *  fact about this canonical repository, not residue to flag. */
+ *  fact about this canonical repository, not residue to flag.
+ *  @param {{ files?: string[], readFile?: (file: string) => string, classify?: (file: string) => string, isToolkit?: () => boolean }} [opts] */
 export function checkHardcodedCommitSha({
   files = trackedFiles(),
   readFile = (f) => readFileSync(f, "utf8"),
@@ -346,9 +357,12 @@ export function checkHardcodedCommitSha({
 }
 
 /** Multi-component section headings in `text`, when `componentCount` is 1.
- *  Returns [{ heading, line }], 1-indexed. */
+ *  Returns [{ heading, line }], 1-indexed.
+ *  @param {string} text @param {number} componentCount
+ *  @returns {{ heading: string, line: number }[]} */
 export function findMultiComponentContent(text, componentCount) {
   if (componentCount > 1) return [];
+  /** @type {{ heading: string, line: number }[]} */
   const findings = [];
   text.split("\n").forEach((line, i) => {
     if (
@@ -377,18 +391,22 @@ const MULTI_COMPONENT_PHRASE = /\bmulti-component\b/i;
 
 /** The first paragraph right after `lines[titleIndex]` (the H1), before a
  *  blank line or the next heading — the document's lede. `null` when the H1
- *  is followed by nothing (EOF, or a heading with no paragraph between). */
+ *  is followed by nothing (EOF, or a heading with no paragraph between).
+ *  @param {string[]} lines @param {number} titleIndex */
 function ledeAfter(lines, titleIndex) {
   let i = titleIndex + 1;
-  while (i < lines.length && lines[i].trim() === "") i++;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line === undefined || line.trim() !== "") break;
+    i++;
+  }
   const paraStart = i;
   const paraLines = [];
-  while (
-    i < lines.length &&
-    lines[i].trim() !== "" &&
-    !/^#{1,6}\s/.test(lines[i])
-  ) {
-    paraLines.push(lines[i]);
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line === undefined || line.trim() === "" || /^#{1,6}\s/.test(line))
+      break;
+    paraLines.push(line);
     i++;
   }
   return paraLines.length
@@ -401,16 +419,19 @@ function ledeAfter(lines, titleIndex) {
  *  spots, never the body generally (docs-style.md: "a crude proxy, and
  *  deliberately so"). Fix 81 — audit 19: deployment-strategy.md's
  *  frontmatter was tuned but its lede still read "multi-component"; the
- *  frontmatter/title scan alone could not see it. */
+ *  frontmatter/title scan alone could not see it.
+ *  @param {string} text */
 function frontmatterOrTitleLines(text) {
   const lines = text.split("\n");
   const result = [];
   const fmEnd = lines[0] === "---" ? lines.indexOf("---", 1) : -1;
   for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === undefined) continue;
     if (fmEnd > 0 && i > 0 && i < fmEnd) {
-      result.push({ line: i + 1, text: lines[i], field: "frontmatter" });
-    } else if (/^#\s/.test(lines[i])) {
-      result.push({ line: i + 1, text: lines[i], field: "title" });
+      result.push({ line: i + 1, text: line, field: "frontmatter" });
+    } else if (/^#\s/.test(line)) {
+      result.push({ line: i + 1, text: line, field: "title" });
       const lede = ledeAfter(lines, i);
       if (lede) result.push(lede);
       break; // the first `# ` heading is the title; nothing past its lede counts
@@ -424,7 +445,9 @@ function frontmatterOrTitleLines(text) {
  *  [{ field, line, text }], 1-indexed. Deliberately narrow to the one
  *  demonstrated phrase ("multi-component") and the three structural
  *  locations — widening to body prose reopens the judgement call this
- *  check exists to avoid. */
+ *  check exists to avoid.
+ *  @param {string} text @param {number} componentCount
+ *  @returns {{ field: string, line: number, text: string }[]} */
 export function findComponentCountContradiction(text, componentCount) {
   if (componentCount > 1) return [];
   return frontmatterOrTitleLines(text)
@@ -441,7 +464,8 @@ const PROVENANCE_HEADING = /^#{1,6}\s*PROVENANCE\b/i;
 
 /** Does `text` carry a heading naming a removal (`## Removals`, `### What was
  *  removed`, ...) or a `PROVENANCE` note? Both are docs-style.md's own two
- *  accepted locations, read structurally rather than for what they say. */
+ *  accepted locations, read structurally rather than for what they say.
+ *  @param {string} text @returns {boolean} */
 function hasRemovalRecord(text) {
   return text
     .split("\n")
@@ -456,7 +480,9 @@ function hasRemovalRecord(text) {
  *  recorded a removal and the durable location docs-style.md actually
  *  requires — never a judgement about whether the removal itself was
  *  reasoned correctly, which stays out of scope for this function the same
- *  as it does for the two checks above. */
+ *  as it does for the two checks above.
+ *  @param {{ reportFiles: { path: string, text: string }[], enforcementMapText: string | null, instantiatedDocFiles: { path: string, text: string }[] }} opts
+ *  @returns {{ path: string, problem: string, remedy: string }[]} */
 export function findRemovalsOutsideEnforcementMap({
   reportFiles,
   enforcementMapText,

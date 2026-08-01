@@ -24,12 +24,12 @@ import {
   evaluateBranchProtection,
 } from "./check-branch-protection.mjs";
 
-/** @returns {never} */
+/** @param {string} msg @returns {never} */
 function skip(msg) {
   process.stderr.write(`configure-branch-protection: SKIP ${msg}\n`);
   process.exit(0);
 }
-/** @returns {never} */
+/** @param {string} msg @returns {never} */
 function fail(msg) {
   process.stderr.write(`configure-branch-protection: ${msg}\n`);
   process.exit(1);

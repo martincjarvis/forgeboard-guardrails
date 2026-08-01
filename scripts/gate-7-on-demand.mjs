@@ -40,8 +40,10 @@ import {
   complexityScanFiles,
 } from "./check-tooling-class.mjs";
 
+/** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
 const findings = [];
 const skips = [];
+/** @param {string} c @param {string} p @param {string} problem @param {string} remedy */
 const add = (c, p, problem, remedy) =>
   findings.push({ check: c, path: p, problem, remedy });
 
@@ -228,6 +230,7 @@ for (const f of checkLinks()) findings.push(f);
 // npm tools are verified by their bin in node_modules/.bin rather than a
 // `--version` probe: several (markdownlint-cli2) do not implement --version and
 // would false-report as missing. semgrep and lizard live on PATH, not npm.
+/** @param {string} name */
 function npmBin(name) {
   return (
     existsSync(join("node_modules", ".bin", name)) ||
@@ -426,12 +429,14 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
 // anything that runs without ever tripping that audit. This scans scripts/
 // itself for every check-*.mjs file, independent of the manifest.
 {
+  /** @type {string[]} */
   let scriptFiles = [];
   try {
     scriptFiles = readdirSync("scripts").filter((f) => f.endsWith(".mjs"));
   } catch {
     skips.push("script-file wiring — scripts/ directory not found, skipped");
   }
+  /** @param {string} f */
   const readScript = (f) => readFileSync(join("scripts", f), "utf8");
   const { wired, onDemand, unwired } = scriptFiles.length
     ? checkScriptFileWiring(scriptFiles, readScript)
@@ -461,6 +466,7 @@ if (!process.env.REFUSAL_PROOF_FIXTURE) {
   // re-checking that claim against the gate's actual imports.
   const indexPath = join("scripts", "README.md");
   if (existsSync(indexPath)) {
+    /** @type {Record<string, string>} */
     const gateSources = {};
     for (const f of Object.values(GATE_FILES)) {
       try {

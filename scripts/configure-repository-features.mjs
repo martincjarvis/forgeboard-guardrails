@@ -24,10 +24,12 @@
 import { have, run } from "./lib.mjs";
 import { checkRepositoryFeatures } from "./check-repository-features.mjs";
 
+/** @param {string} msg */
 function skip(msg) {
   process.stderr.write(`configure-repository-features: SKIP ${msg}\n`);
   process.exit(0);
 }
+/** @param {string} msg */
 function note(msg) {
   process.stderr.write(`configure-repository-features: ${msg}\n`);
 }

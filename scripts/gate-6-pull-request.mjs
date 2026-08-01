@@ -60,8 +60,10 @@ import { normalizeSarifPaths, filterSuppressedSarif } from "./lib.mjs";
 /** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
 const findings = [];
 const skips = [];
+/** @param {string} check @param {string | undefined} path @param {string} problem @param {string} remedy */
 const fail = (check, path, problem, remedy) =>
   findings.push({ check, path, problem, remedy });
+/** @param {string} s */
 const skip = (s) => skips.push(s);
 
 // Populated once the test/coverage command below has run, pass or fail —
@@ -103,6 +105,7 @@ const range = `${base}...HEAD`; // three-dot: merge-base to HEAD, gate-6's own f
 const logRange = `${base}..HEAD`; // two-dot: every commit the branch actually added
 process.stderr.write(`gate 6: base ${base}, range ${range}\n`);
 
+/** @type {string[]} */
 const changed = changedFiles(range);
 const changedText = changed.filter(isText);
 process.stderr.write(`gate 6: ${changed.length} file(s) changed in range\n`);
@@ -121,6 +124,7 @@ const DEP_FIELDS = [
   "overrides",
   "resolutions",
 ];
+/** @param {string} ref */
 function depsAt(ref) {
   const r = git(["show", ref]);
   if (r.status !== 0) return "";
@@ -664,11 +668,12 @@ for (const f of checkChangeSizeOverride(logRange)) findings.push(f);
 // artefact download needed for the checks this script owns directly (the
 // SARIF upload step in the workflow covers semgrep the same native way).
 const onActions = process.env.GITHUB_ACTIONS === "true";
+/** @param {{check: string, path?: string, problem?: string, remedy?: string}} f */
 function annotate(f) {
   if (!onActions) return;
   const m = /^(.*):(\d+)$/.exec(f.path || "");
   const loc = m ? `file=${m[1]},line=${m[2]}` : f.path ? `file=${f.path}` : "";
-  const msg = `${f.check}: ${(f.problem || "").toString().split("\n")[0].slice(0, 400)}`;
+  const msg = `${f.check}: ${((f.problem || "").toString().split("\n")[0] ?? "").slice(0, 400)}`;
   console.log(loc ? `::error ${loc}::${msg}` : `::error::${msg}`);
 }
 

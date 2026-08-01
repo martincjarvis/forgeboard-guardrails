@@ -28,11 +28,12 @@ import { ROOT, scratchRepo, runScript } from "./support.mjs";
 
 test("checkScriptFileWiring: a check-*.mjs file no other script imports and no declaration covers is unwired, naming it", () => {
   const files = ["check-orphan.mjs", "gate-9-fictional.mjs"];
+  /** @param {string} f */
   const readFile = (f) =>
-    ({
+    /** @type {Record<string, string>} */ ({
       "check-orphan.mjs": "export function checkOrphan() {}\n",
       "gate-9-fictional.mjs": "// nothing imports check-orphan.mjs here\n",
-    })[f];
+    })[f] ?? "";
   const { wired, onDemand, unwired } = checkScriptFileWiring(files, readFile);
   assert.deepEqual(wired, []);
   assert.deepEqual(onDemand, []);
@@ -44,12 +45,13 @@ test("checkScriptFileWiring: a check-*.mjs file no other script imports and no d
 
 test("checkScriptFileWiring: a check-*.mjs file another tracked script imports is wired", () => {
   const files = ["check-orphan.mjs", "gate-9-fictional.mjs"];
+  /** @param {string} f */
   const readFile = (f) =>
-    ({
+    /** @type {Record<string, string>} */ ({
       "check-orphan.mjs": "export function checkOrphan() {}\n",
       "gate-9-fictional.mjs":
         'import { checkOrphan } from "./check-orphan.mjs";\n',
-    })[f];
+    })[f] ?? "";
   const { wired, unwired } = checkScriptFileWiring(files, readFile);
   assert.deepEqual(wired, ["check-orphan.mjs"]);
   assert.deepEqual(unwired, []);
@@ -59,6 +61,7 @@ test("checkScriptFileWiring: this toolkit's own check-standards-instantiation.mj
   const files = readdirSync(join(ROOT, "scripts")).filter((f) =>
     f.endsWith(".mjs"),
   );
+  /** @param {string} f */
   const readFile = (f) => readFileSync(join(ROOT, "scripts", f), "utf8");
   const { onDemand, unwired } = checkScriptFileWiring(files, readFile);
   assert.deepEqual(unwired, []);

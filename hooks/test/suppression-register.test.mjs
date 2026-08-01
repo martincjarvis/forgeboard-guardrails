@@ -212,7 +212,9 @@ test("evaluateRegisterRows: a blank approver alone is a pending approval, not a 
   const { blocking, pendingApproval } = evaluateRegisterRows(rows);
   assert.deepEqual(blocking, []);
   assert.equal(pendingApproval.length, 1);
-  assert.equal(pendingApproval[0].code, "no-console");
+  const pending = pendingApproval[0];
+  assert.ok(pending, "expected a pending approval");
+  assert.equal(pending.code, "no-console");
 });
 
 test("evaluateRegisterRows: a missing justification and a 'never' removal condition each block outright, even with a named approver", () => {

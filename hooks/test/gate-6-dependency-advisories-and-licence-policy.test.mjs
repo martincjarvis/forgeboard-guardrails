@@ -21,7 +21,9 @@ import assert from "node:assert/strict";
 // not a live `npm audit` run — the same reason check-dependency-advisories.mjs
 // splits classifyAdvisories out from the impure orchestration around it.
 
+/** @param {[string, string, string[]?][]} entries */
 function auditReport(entries) {
+  /** @type {Record<string, { name: string, severity: string, via: { url: string }[] }>} */
   const vulnerabilities = {};
   for (const [name, severity, urls = []] of entries) {
     vulnerabilities[name] = {
@@ -117,8 +119,10 @@ test("dependency advisory scan is a visible skip, naming the reason, when not tr
   const { findings, skips } = checkDependencyAdvisories(false);
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /dependency advisory scan/);
-  assert.match(skips[0], /no dependency change and not a scheduled run/);
+  const skip = skips[0];
+  assert.ok(skip, "expected a skip");
+  assert.match(skip, /dependency advisory scan/);
+  assert.match(skip, /no dependency change and not a scheduled run/);
 });
 
 // --- scripts/licence-table.mjs and scripts/check-licence-policy.mjs — gate
@@ -221,7 +225,7 @@ test("SPDX expression evaluation: OR passes if any disjunct is acceptable — au
   assert.equal(blocked.acceptable, false);
   assert.equal(blocked.blockers.length, 2);
   assert.deepEqual(
-    blocked.blockers.map((b) => b.id),
+    blocked.blockers.map(/** @param {{ id: string }} b */ (b) => b.id),
     ["GPL-3.0-only", "AGPL-3.0-only"],
   );
 });
@@ -243,7 +247,7 @@ test("SPDX expression evaluation: AND requires every conjunct to be acceptable",
     "one unacceptable conjunct blocks the whole AND expression",
   );
   assert.deepEqual(
-    verdict.blockers.map((b) => b.id),
+    verdict.blockers.map(/** @param {{ id: string }} b */ (b) => b.id),
     ["GPL-3.0-only"],
     "only the failing conjunct is named — MIT is not the reason this blocks",
   );
@@ -279,8 +283,10 @@ test("SPDX expression evaluation: WITH is one identifier, not silently split int
   );
   assert.equal(verdict.acceptable, false);
   assert.equal(verdict.blockers.length, 1);
+  const blocker = verdict.blockers[0];
+  assert.ok(blocker, "expected one blocker");
   assert.equal(
-    verdict.blockers[0].id,
+    blocker.id,
     "GPL-2.0-only WITH Classpath-exception-2.0",
     "the exception clause must not be dropped from the identifier looked up",
   );

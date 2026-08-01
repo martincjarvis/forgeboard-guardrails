@@ -34,6 +34,7 @@ import {
 // backslash paths GitHub's ingestion treats as a different file from the
 // Linux leg's forward-slash ones).
 
+/** @param {string} uri */
 function sarifWith(uri) {
   return {
     runs: [
@@ -91,6 +92,7 @@ test("normalizeSarifPaths does not throw when the SARIF file is missing", () => 
 // already-registered suppression turns the pull request red on the
 // platform even though gate 6's own check honours it and exits 0.
 
+/** @param {{ ruleId: string, suppressions?: { kind: string }[] }[]} results */
 function sarifWithResults(results) {
   return { runs: [{ results }] };
 }
@@ -177,29 +179,35 @@ test("fix 25: a finding suppressed in source is present in raw semgrep SARIF and
     ["--config", "rule.yaml", "--sarif", "--output", "results.sarif", "bad.py"],
     { cwd: dir, env: { ...CLEAN_ENV, PYTHONUTF8: "1" } },
   );
+  /** @type {{ runs: { results: { suppressions?: { kind: string }[] }[] }[] }} */
   const raw = JSON.parse(readFileSync(sarif, "utf8"));
+  const rawRun = raw.runs[0];
+  assert.ok(rawRun, "expected a run");
   assert.equal(
-    raw.runs[0].results.length,
+    rawRun.results.length,
     2,
     "semgrep's own SARIF must still carry both findings, suppressed and not",
   );
   assert.ok(
-    raw.runs[0].results.some((r) =>
+    rawRun.results.some((r) =>
       (r.suppressions ?? []).some((s) => s.kind === "inSource"),
     ),
     "the marked line must be present, marked suppressed inSource",
   );
   filterSuppressedSarif(sarif);
+  /** @type {{ runs: { results: { suppressions?: { kind: string }[] }[] }[] }} */
   const filtered = JSON.parse(readFileSync(sarif, "utf8"));
+  const filteredRun = filtered.runs[0];
+  assert.ok(filteredRun, "expected a run");
   assert.equal(
-    filtered.runs[0].results.length,
+    filteredRun.results.length,
     1,
     "only the unsuppressed finding survives filtering",
   );
+  const filteredResult = filteredRun.results[0];
+  assert.ok(filteredResult, "expected a result");
   assert.ok(
-    !(filtered.runs[0].results[0].suppressions ?? []).some(
-      (s) => s.kind === "inSource",
-    ),
+    !(filteredResult.suppressions ?? []).some((s) => s.kind === "inSource"),
   );
   rmSync(dir, { recursive: true, force: true });
 });
@@ -314,7 +322,9 @@ test("regression guard: .lintstagedrc.json's cspell invocation uses a flag cspel
     "*.{md,mdx}",
     "*.{js,mjs,cjs,ts,tsx,json,jsonc,yml,yaml}",
   ]) {
-    const spellCmd = config[key].find((c) => c.includes("cspell"));
+    const spellCmd = config[key].find(
+      /** @param {string} c */ (c) => c.includes("cspell"),
+    );
     assert.ok(spellCmd, `${key} has no cspell invocation`);
     assert.match(spellCmd, /--no-must-find-files\b/);
     assert.doesNotMatch(
@@ -344,7 +354,7 @@ test("cspell actually reads code files, not only Markdown — a misspelling in a
     readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
   );
   const spellCmd = config["*.{js,mjs,cjs,ts,tsx,json,jsonc,yml,yaml}"].find(
-    (c) => c.includes("cspell"),
+    /** @param {string} c */ (c) => c.includes("cspell"),
   );
   const [, ...cspellArgs] = spellCmd.split(" "); // drop the leading "cspell"
   const r = run(
@@ -688,7 +698,9 @@ test("checkOsvScanner: a real advisory in osv-scanner's JSON output is a finding
   });
   assert.equal(skips.length, 0);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /GHSA-aaaa-bbbb-cccc/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /GHSA-aaaa-bbbb-cccc/);
 });
 
 test("link integrity at push: a broken cross-document anchor in the pushed set is refused", () => {

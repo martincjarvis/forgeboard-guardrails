@@ -46,9 +46,11 @@ test("checkBranchBehindBase: an unresolvable base is a visible skip naming the r
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /branch behind base/);
-  assert.match(skips[0], /origin\/HEAD could not be resolved/);
-  assert.match(skips[0], /git remote set-head/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /branch behind base/);
+  assert.match(skip, /origin\/HEAD could not be resolved/);
+  assert.match(skip, /git remote set-head/);
 });
 
 test("checkBranchBehindBase: HEAD behind its base is a finding naming the distance and the rebase remedy", () => {
@@ -62,14 +64,16 @@ test("checkBranchBehindBase: HEAD behind its base is a finding naming the distan
   });
   assert.equal(skips.length, 0);
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].check, "branch behind base");
-  assert.match(findings[0].problem, /3 commit\(s\) behind origin\/main/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.equal(finding.check, "branch behind base");
+  assert.match(finding.problem, /3 commit\(s\) behind origin\/main/);
   assert.doesNotMatch(
-    findings[0].problem,
+    finding.problem,
     /stale/,
     "a successful fetch must not be reported as a possibly-stale comparison",
   );
-  assert.match(findings[0].remedy, /git rebase origin\/main/);
+  assert.match(finding.remedy, /git rebase origin\/main/);
 });
 
 test("checkBranchBehindBase: level with the base is clean — zero commits behind is not a finding", () => {
@@ -96,9 +100,11 @@ test("checkBranchBehindBase: a fetch failure does not refuse the push by itself 
   });
   assert.equal(skips.length, 0);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /2 commit\(s\) behind origin\/main/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /2 commit\(s\) behind origin\/main/);
   assert.match(
-    findings[0].problem,
+    finding.problem,
     /stale/,
     "a failed fetch must be disclosed rather than presenting the comparison as current",
   );
@@ -129,8 +135,10 @@ test("checkBranchBehindBase: rev-list itself failing is a visible skip, not a fi
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /branch behind base/);
-  assert.match(skips[0], /bad revision/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /branch behind base/);
+  assert.match(skip, /bad revision/);
 });
 
 test("checkBranchBehindBase: a zero exit carrying no count is a visible skip — an unreadable count must not read as level with the base", () => {
@@ -146,8 +154,10 @@ test("checkBranchBehindBase: a zero exit carrying no count is a visible skip —
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /branch behind base/);
-  assert.match(skips[0], /no readable commit count/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /branch behind base/);
+  assert.match(skip, /no readable commit count/);
 });
 
 test('checkBranchBehindBase: a zero exit with blank output is the same skip — `Number("")` is 0, and 0 would pass', () => {
@@ -161,7 +171,9 @@ test('checkBranchBehindBase: a zero exit with blank output is the same skip — 
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /no readable commit count/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /no readable commit count/);
 });
 
 // Regression guards: the real module (default git/resolveBase), run against
@@ -346,7 +358,9 @@ test("checkBranchProtection is a visible skip, naming gh, when gh is not on PATH
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /gh not on PATH/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /gh not on PATH/);
 });
 
 test("checkBranchProtection is a visible skip, naming gh, when gh is not authenticated", async () => {
@@ -356,7 +370,9 @@ test("checkBranchProtection is a visible skip, naming gh, when gh is not authent
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /not authenticated/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /not authenticated/);
 });
 
 test("checkBranchProtection is a visible skip when origin/HEAD cannot be resolved locally and gh's own default-branch field is also unavailable", async () => {
@@ -369,9 +385,11 @@ test("checkBranchProtection is a visible skip when origin/HEAD cannot be resolve
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /origin\/HEAD could not be resolved/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /origin\/HEAD could not be resolved/);
   assert.match(
-    skips[0],
+    skip,
     /git remote set-head origin -a/,
     "an unset local symref is a fixable local-metadata gap — the skip must name the remedy, not just report an unknown",
   );
@@ -433,7 +451,9 @@ test("checkBranchProtection is a visible skip when gh cannot resolve a GitHub re
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /no GitHub remote/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /no GitHub remote/);
 });
 
 test("checkBranchProtection refuses unconfigured protection (404) end to end, with the derived contexts it would have required", async () => {
@@ -491,7 +511,9 @@ test("checkBranchProtection is a visible skip, not a finding, when gh cannot rea
     "a token that cannot read branch protection must not be reported as 'unconfigured' — it genuinely does not know",
   );
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /could not read branch protection/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /could not read branch protection/);
 });
 
 test("checkBranchProtection passes when the live protection JSON matches the derived required checks with no gaps", async () => {
@@ -670,7 +692,9 @@ test("checkRepositoryFeatures is a visible skip, naming gh, when gh is not on PA
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /gh not on PATH/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /gh not on PATH/);
 });
 
 test("checkRepositoryFeatures is a visible skip, naming gh, when gh is not authenticated", async () => {
@@ -680,7 +704,9 @@ test("checkRepositoryFeatures is a visible skip, naming gh, when gh is not authe
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /not authenticated/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /not authenticated/);
 });
 
 test("checkRepositoryFeatures is a visible skip when gh cannot resolve a GitHub repository (no GitHub remote)", async () => {
@@ -696,7 +722,9 @@ test("checkRepositoryFeatures is a visible skip when gh cannot resolve a GitHub 
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /no GitHub remote/);
+  const skip = skips[0];
+  assert.ok(skip, "expected one skip");
+  assert.match(skip, /no GitHub remote/);
 });
 
 test("checkRepositoryFeatures reads a live private repository end to end: Dependabot alerts on, everything else read as an ambiguous skip", async () => {
@@ -870,6 +898,7 @@ test("quality-script wiring: every script in this repository's own package.json 
   // because fix 15 extended cspell to the code glob; before that fix this
   // same assertion would have put `spell` in `unwired`.
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+  /** @param {string} file */
   const readFile = (file) => readFileSync(join(ROOT, file), "utf8");
   const { wired, onDemand, unwired } = checkScriptWiring(pkg.scripts, readFile);
   assert.deepEqual(unwired, []);

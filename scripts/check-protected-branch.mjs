@@ -18,7 +18,9 @@ import { pathToFileURL } from "node:url";
  *  all (no remote configured) — there is nothing to compare against, so the
  *  check says so rather than guessing. */
 export function checkProtectedBranch() {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
+  /** @type {string[]} */
   const skips = [];
   const base = resolveBase();
   if (!base) {

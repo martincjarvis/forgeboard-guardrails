@@ -153,6 +153,7 @@ test("complexityScanFiles: production and test files pass, every other class is 
     "skills/foo/SKILL.md",
     "tools/check-foo.mjs",
   ];
+  /** @param {string} f */
   const classify = (f) => {
     if (f === "src/app.mjs") return "production";
     if (f === "src/app.test.mjs") return "test";
@@ -169,6 +170,7 @@ test("complexityScanFiles: production and test files pass, every other class is 
 
 test("complexityScanFiles: a tooling-classed file is excluded even in the identical language as the production file beside it — the case extension filtering can never prove", () => {
   const files = ["src/app.mjs", "tools/check-foo.mjs"];
+  /** @param {string} f */
   const classify = (f) =>
     f === "tools/check-foo.mjs" ? "tooling" : "production";
   assert.deepEqual(complexityScanFiles({ files, classify }), ["src/app.mjs"]);
@@ -187,6 +189,7 @@ test("coveredFilesFromCobertura: every <class filename> in the report is named, 
 });
 
 test("toolingLeakage: a tooling-classed file in the coverage report is named even with a same-extension production file measured cleanly beside it", () => {
+  /** @param {string} f */
   const classify = (f) =>
     f === "tools/check-foo.mjs" ? "tooling" : "production";
   const covered = ["src/app.mjs", "tools/check-foo.mjs"];
