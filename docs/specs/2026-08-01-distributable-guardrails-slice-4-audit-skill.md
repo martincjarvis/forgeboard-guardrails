@@ -43,7 +43,7 @@ for any other: report every capability's state. Where the report's ordering
 implies a sequence a human might implement in, [The report](#the-report)
 covers that — it does not need a second, separate ordering section.
 
-## The five states, and the two that are not among them
+## The states a capability can be reported in
 
 The design fixes the report's vocabulary as states, not booleans: **present,
 absent, partial, suppressed, opted out**. The existing skill's states map
@@ -55,15 +55,20 @@ register) and an entire _capability_ excluded by an approved opt-out row
 brief names explicitly, and a state model that cannot tell the two apart
 cannot avoid it.
 
-| State          | Means                                                                                             | What the audit must have seen before reporting it                                                                                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Present**    | The capability's requirement is enforced and blocks as its gate membership requires               | A live refusal — the capability's own negative probe was tried and something in the pipeline stopped it — or, failing that, the check's own output naming the file it judged in an ordinary run |
-| **Partial**    | It runs but does not block, or blocks locally with no gate-6 equivalent                           | Configuration or a job definition showing the check runs, without a refusal seen, or a local-only hook with nothing named at gate 6                                                             |
-| **Absent**     | Nothing enforces it, and no opted-out row covers it                                               | A negative probe was tried and nothing stopped it, or no mechanism — of any name — could be found at all                                                                                        |
-| **Suppressed** | One specific finding, at one rule and one path, is excluded via the ordinary suppression register | The register row was read; the finding it names is the one not firing. The capability's mechanism otherwise runs — this is not a capability-level exclusion                                     |
-| **Opted out**  | The whole capability is excluded via an **approved** row in Slice 2's opt-out register            | The row was read, its approver is filled, it names this capability, and the decision record it cites resolves                                                                                   |
-| **Tuned out**  | Nothing implements it, and the enforcement map records that discovery derived it does not apply   | The map's row for this capability, plus its `Derived from` command re-run and still producing the fact the row states                                                                           |
-| **Unknown**    | The audit could not determine the state at all                                                    | Nothing — and that absence of evidence is the entire report for that line                                                                                                                       |
+| State               | Means                                                                                                                                                                  | What the audit must have seen before reporting it                                                                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Present**         | The capability's requirement is enforced and blocks as its gate membership requires                                                                                    | A live refusal — the capability's own negative probe was tried and something in the pipeline stopped it — or, failing that, the check's own output naming the file it judged in an ordinary run |
+| **Partial**         | It runs but does not block, or blocks locally with no gate-6 equivalent                                                                                                | Configuration or a job definition showing the check runs, without a refusal seen, or a local-only hook with nothing named at gate 6                                                             |
+| **Absent**          | Nothing enforces it, and no opted-out row covers it                                                                                                                    | A negative probe was tried and nothing stopped it, or no mechanism — of any name — could be found at all                                                                                        |
+| **Suppressed**      | One specific finding, at one rule and one path, is excluded via the ordinary suppression register                                                                      | The register row was read; the finding it names is the one not firing. The capability's mechanism otherwise runs — this is not a capability-level exclusion                                     |
+| **Opted out**       | The whole capability is excluded via an **approved** row in Slice 2's opt-out register                                                                                 | The row was read, its approver is filled, it names this capability, and the decision record it cites resolves                                                                                   |
+| **Stale opt-out**   | An approved opt-out row exists, but its `Removable when` condition has since become true — the decision no longer matches the facts it was accepted under              | The row was read, its approver is filled, it names this capability, its citation resolves, and its `Removable when` condition now holds                                                         |
+| **Backfill needed** | An approved opt-out row for this capability existed and no longer does — the repository once decided the capability did not apply, and that decision has been reversed | `removedOptOutRows()` returns an entry for this capability                                                                                                                                      |
+| **Tuned out**       | Nothing implements it, and the enforcement map records that discovery derived it does not apply                                                                        | The map's row for this capability, plus its `Derived from` command re-run and still producing the fact the row states                                                                           |
+| **Stale tuning**    | The enforcement map records that discovery derived this capability does not apply, but re-running the row's `Derived from` command no longer reproduces that           | The map's row for this capability was read, and its `Derived from` command was re-run and now produces output contradicting the row                                                             |
+| **Unknown**         | The audit could not determine the state at all                                                                                                                         | Nothing — and that absence of evidence is the entire report for that line                                                                                                                       |
+
+**Four of these never carry a rank or a `State:` field.** Present, Suppressed, Opted out and Tuned out appear only in the [evidence appendix](#evidence-appendix) — they need no action. The other six — Backfill needed, Absent, Stale opt-out, Stale tuning, Partial, Unknown — are the actionable states, each carrying a tier in [the ranked findings](#ordering-within-actionable-findings) and the per-finding `State:` field. Layout findings are a separate category for files, not a capability state.
 
 **Tuned out is the answer to "a successful uplift is never quiet".** Slice 3
 derives that a capability cannot apply here — `package.json` declaring
@@ -599,7 +604,7 @@ inapplicable on its own evidence, with no row?** — is answered. Inapplicabilit
 asserted by a **human** is an opt-out row and a record, and the audit still
 derives none of it. Inapplicability **derived** by bootstrap is the third path
 slice 3 always had, and it now has a state and an artefact to read it from:
-[Tuned out](#the-five-states-and-the-two-that-are-not-among-them), taken from
+[Tuned out](#the-states-a-capability-can-be-reported-in), taken from
 the enforcement map and re-derived on every audit. Of the three options this
 question posed — a row after all, a readable derived fact, or Absent accepted —
 the second is taken, and the reasons the other two were rejected are recorded
