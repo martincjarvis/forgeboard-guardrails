@@ -78,6 +78,17 @@ the path rewriting it exists to avoid.
 **`.guardrails/opt-out-register.md`.** One file, one table, one row per
 capability.
 
+**It arrives by being written, never by being copied.** Bootstrap copies the
+scripts and the `README.md` byte-identical and
+[copies this file to nobody](2026-08-01-distributable-guardrails-slice-3-bootstrap-skill.md#what-bootstrap-copies-and-what-it-writes):
+the plugin's own register holds the toolkit's own rows, and a copy would import
+them into every consumer as approved decisions nobody there made. A repository's
+register is created by the first row filed in it — the same first-need
+convention `docs/ADR/` follows — so a repository that has never opted out of
+anything has no register, which is the correct representation of no opt-outs and
+is why [the reader](#the-reader) treats an absent register as the empty set
+rather than as an error.
+
 | Column          | Holds                                                                                                                                                                                        |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Capability      | Exactly one capability identifier from slice 1's vocabulary — never a gate, never a list, never a wildcard, and never one of [the two excluded](#two-capabilities-that-may-not-be-opted-out) |

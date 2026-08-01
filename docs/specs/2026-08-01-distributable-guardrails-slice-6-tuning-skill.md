@@ -155,6 +155,15 @@ Findings with `Scope: capability` **key on slice 1's vocabulary and nothing
 else**. An id that does not resolve against `capabilities.mjs` is a defect in the
 finding, not a reason to invent a value.
 
+**Including a capability an uplift met with a tool this toolkit did not
+choose.** Slice 1's format is the gate's, not the tool's — the gate entry point
+invokes the kept tool and writes the result line itself, carrying the capability
+id and quoting the tool's own output — so the id is present for those
+capabilities exactly as it is for any other, and the map of capability to tool
+is in
+[the enforcement map](2026-08-01-distributable-guardrails-slice-1-foundations.md#the-enforcement-map)
+when a finding needs to name what was enforcing it.
+
 ## Recurrence
 
 A finding observed in rounds 3, 7 and 12 is one file with three sections. It is
@@ -208,10 +217,38 @@ where the corpus permitted it.
 | `corpus`       | The corpus said the wrong thing, or said nothing at all  | A fix in the toolkit, with a hypothesis |
 | `execution`    | The implementer did something the corpus did not require | A record, and no toolkit fix            |
 
+### Where the classification appears in the report
+
+**One line, last in each finding block, in this exact form:**
+
+```text
+Defect class: corpus
+```
+
+`corpus` or `execution`, lower case, nothing else on the line. Position and
+spelling are fixed here because this skill is the only reader of the field and
+a required line no reader specified is a required line nobody can rely on: the
+fallback below then becomes the normal path rather than the exception, and every
+finding arrives `execution` by default — which is the classification that
+produces no fix.
+
+**The audit brief carries the requirement, verbatim**, since the brief is what
+the auditor is actually given and nothing templates it beyond this one line:
+
+> Every finding you raise ends with a line reading `Defect class: corpus` or
+> `Defect class: execution` — corpus where the standards said the wrong thing
+> or said nothing, execution where the implementer did something the corpus did
+> not require.
+
+**This is specified here rather than in slice 5** because slice 5 stores the
+brief and the report as opaque files and reads neither; the two class names are
+this slice's vocabulary and appear nowhere else in the pack. A format is owned
+by the slice that has to parse it.
+
 Three rules keep the distinction honest:
 
 - **The auditor's classification is carried, not re-derived.** The skill reads
-  the class from the audit report; where the report does not state one, the
+  the class from the line above; where the report does not carry one, the
   finding is recorded `execution` and the missing classification is itself raised
   as a `harness` finding. Guessing at it would be the coordinator re-deriving a
   fact the loop already forbids.
@@ -304,6 +341,16 @@ the ordering rule that makes the brief's stated failure — _several fixes' effe
 were never measured_ — structurally impossible rather than discouraged. It is
 also the [check](#the-one-mechanical-check)'s main job.
 
+**What enforces it is slice 5, not this skill.** The check is wired at this
+repository's gate 7, which fires on a commit — never before a round, which is
+the one moment the rule is about. So
+[the round command runs it as a precondition](2026-08-01-distributable-guardrails-slice-5-harness.md#preconditions-before-the-subject-is-touched)
+and stops before the reset when it reports an unsettled fix. Same script, second
+caller: this slice owns the rule and the check, and the harness owns the moment.
+`--ignore-ledger` overrides it and the manifest records that it was used, so an
+overridden round is visible as one rather than indistinguishable from a clean
+one.
+
 ## The skill's own procedure
 
 The skill runs once per completed round, in the order below. **The ordering is
@@ -344,28 +391,27 @@ records what
 [slice 5 as drafted](2026-08-01-distributable-guardrails-slice-5-harness.md) actually provides — so review
 sees the gaps rather than an assumption of fit.
 
-| #   | Slice 5 must provide                                                                                                                                  | Because                                                                                                                                      | Reconciles                                                                                                       |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| R1  | A **round manifest**, machine-readable, at a path derivable from the round id alone                                                                   | Step 1 must find it without being told where it is                                                                                           | Met — `eval/rounds/<round-id>/manifest.json`                                                                     |
-| R2  | In the manifest: **round id, prompt hash, toolkit repository, branch and HEAD sha, subject repository, branch and pull request number**               | The series guard, and the hypothesis-ancestry check, both read this                                                                          | Met, and better — `series.id` **is** `sha256(renderedPrompt)[0:12]`, so the prompt hash is the series identity   |
-| R3  | In the manifest: the **path of every captured artefact** — implementer log, audit report, CI job logs, final repository state, each gate's own output | A hypothesis's Artefact field names a manifest key, not a guessed filename                                                                   | Met for the first four. Gate output is not a named artefact — see R7                                             |
-| R4  | CI logs captured as **raw job logs**, with the run id and job id recorded so they can be re-fetched                                                   | The annotations endpoint caps at 10 and truncates silently — it reported 10 findings where the log had 16                                    | Met — `ci.runs[].logPath`, with `checks.json` explicitly marked non-authoritative                                |
-| R5  | An explicit **hung or aborted status**, and the reason                                                                                                | An absent finding in an aborted round is not evidence a fix worked. Without this the record produces false `Confirmed` results               | Met — `roles.<role>.status` of `hung`/`failed`/`not-started`, plus `hang.json`                                   |
-| R6  | **Missing captures named explicitly** in the manifest, rather than the file merely being absent                                                       | A capture that failed and a capture that found nothing are different facts, and only one of them is evidence                                 | Met — `verify.checks[]` records each completeness check by name and result                                       |
-| R7  | Gate output captured **verbatim**, in slice 1's line format, so every finding line carries its capability id                                          | Step 5 keys on capability without parsing prose                                                                                              | **Gap** — gate output exists only inside the implementer log and the job log, neither named as gate output       |
-| R8  | **Round ids monotonic and never reused**, and a manifest immutable once written                                                                       | A finding's round sections are ordered by it, and a rewritten manifest silently rewrites history                                             | Monotonic and unique by construction (`<seriesId>-<seq>`, next seq from a directory scan). Immutability unstated |
-| R9  | The audit report carrying a **per-finding defect classification** — `corpus` or `execution` — in a fixed position                                     | The skill carries the auditor's classification rather than re-deriving it, and cannot do that if the classification is only implied by prose | **Gap** — `auditor/report.md` is captured; nothing fixes where the classification appears inside it              |
-| R10 | The **fix brief and dispatch** for round N recorded as artefacts of round N                                                                           | A finding's Fix field cites what was actually dispatched, not what was intended                                                              | **Gap** — the layout captures the auditor's brief, not the fix brief                                             |
+| #   | Slice 5 must provide                                                                                                                                  | Because                                                                                                                                      | Reconciles                                                                                                                                                        |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | A **round manifest**, machine-readable, at a path derivable from the round id alone                                                                   | Step 1 must find it without being told where it is                                                                                           | Met — `eval/rounds/<round-id>/manifest.json`                                                                                                                      |
+| R2  | In the manifest: **round id, prompt hash, toolkit repository, branch and HEAD sha, subject repository, branch and pull request number**               | The series guard, and the hypothesis-ancestry check, both read this                                                                          | Met, and better — `series.id` **is** `sha256(renderedPrompt)[0:12]`, so the prompt hash is the series identity                                                    |
+| R3  | In the manifest: the **path of every captured artefact** — implementer log, audit report, CI job logs, final repository state, each gate's own output | A hypothesis's Artefact field names a manifest key, not a guessed filename                                                                   | Met — the first four, plus `gateOutput[]` and `subjectFinal`                                                                                                      |
+| R4  | CI logs captured as **raw job logs**, with the run id and job id recorded so they can be re-fetched                                                   | The annotations endpoint caps at 10 and truncates silently — it reported 10 findings where the log had 16                                    | Met — `ci.runs[].logPath`, with `checks.json` explicitly marked non-authoritative                                                                                 |
+| R5  | An explicit **hung or aborted status**, and the reason                                                                                                | An absent finding in an aborted round is not evidence a fix worked. Without this the record produces false `Confirmed` results               | Met — `roles.<role>.status` of `hung`/`failed`/`not-started`, plus `hang.json`                                                                                    |
+| R6  | **Missing captures named explicitly** in the manifest, rather than the file merely being absent                                                       | A capture that failed and a capture that found nothing are different facts, and only one of them is evidence                                 | Met — `verify.checks[]` records each completeness check by name and result                                                                                        |
+| R7  | Gate output captured **verbatim**, in slice 1's line format, so every finding line carries its capability id                                          | Step 5 keys on capability without parsing prose                                                                                              | Met — `subject-final/gate-7.log`, named in the manifest's `gateOutput[]`. Gate 7 sweeps the whole tree, so its output is the one that enumerates capability state |
+| R8  | **Round ids monotonic and never reused**, and a manifest immutable once written                                                                       | A finding's round sections are ordered by it, and a rewritten manifest silently rewrites history                                             | Monotonic and unique by construction (`<seriesId>-<seq>`, next seq from a directory scan). Immutability unstated                                                  |
+| R9  | The audit report carrying a **per-finding defect classification** — `corpus` or `execution` — in a fixed position                                     | The skill carries the auditor's classification rather than re-deriving it, and cannot do that if the classification is only implied by prose | Met, and not by slice 5 — [the position is fixed in this spec](#where-the-classification-appears-in-the-report), by the only slice that parses it                 |
+| R10 | The **fix brief and dispatch** for round N recorded as artefacts of round N                                                                           | A finding's Fix field cites what was actually dispatched, not what was intended                                                              | **Gap** — the layout captures the auditor's brief, not the fix brief                                                                                              |
 
-**R7 and R9 are the two that decide how much prose this skill has to read.**
-Without R7, step 5 parses capability ids out of a session transcript rather than
-reading them from a named artefact. Without R9, the auditor is a model writing
-prose and its
-[brief in the loop](../prompts/toolkit-improvement-loop.md) asks it to
-_distinguish_ the two classes without fixing where it says so — which makes this
-spec's "record `execution` and raise a `harness` finding" fallback the normal path
-rather than the exception. Both close cheaply: one named capture in the layout,
-one required line in the audit report template.
+**R7 and R9 were the two that decided how much prose this skill has to read,
+and both are closed.** R7 by a named capture in slice 5's layout — the subject's
+own gate 7, run after the implementer exits and kept verbatim — so step 5 reads
+capability ids from an artefact the manifest names instead of parsing them out
+of a session transcript. R9 here, because the two class names are this slice's
+and a format is owned by whoever parses it. The fallback that records
+`execution` and raises a `harness` finding survives as the exception it was
+meant to be.
 
 **R10 is small and worth taking.** Slice 5's own hand-off prints the next command;
 capturing the fix brief beside the auditor's costs one file and removes the only

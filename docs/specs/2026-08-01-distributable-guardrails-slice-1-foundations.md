@@ -36,6 +36,7 @@ A consuming repository ends up with one directory it owns:
   check-*.mjs                   the individual checks the gates import
   licence-table.mjs
   opt-out-register.md           slice 2's register
+  enforcement-map.md            what implements each capability here, and what that was derived from
   test/
     *.test.mjs  support.mjs     the ported test suite
 ```
@@ -182,6 +183,40 @@ None of them is compared against the plugin reference or expected in a
 consumer. That is one extra constant beside the directory constant the
 migration below introduces, not a second check.
 
+### The enforcement map
+
+**`.guardrails/enforcement-map.md`.** One row per capability, recording what
+implements it in this repository and the command that answer was derived from.
+Slice 3 already names this artefact — _"record the mapping in the enforcement
+map"_ — without anything defining it; this is the definition, and it lives here
+because this slice owns what a consuming repository carries.
+
+| Column           | Holds                                                                                                                                                                |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Capability`     | One id from `capabilities.mjs`. Every id appears exactly once                                                                                                        |
+| `Implemented by` | The tool or script that enforces it here, named as it names itself — including a tool this toolkit did not choose — or `not implemented`                             |
+| `Derived from`   | The command whose output produced that answer, per [slice 3's reporting rule](2026-08-01-distributable-guardrails-slice-3-bootstrap-skill.md#reporting-a-derivation) |
+| `Wired at`       | Which of [the four firing places](#the-four-way-grouping) invokes it, or `—` where nothing does                                                                      |
+
+**It is a report, not an input.** No gate reads it to decide whether to run.
+A gate that did would turn a derived fact into configuration, which
+[ADR-0003](../ADR/0003-derive-configuration.md) refuses, and would let a stale
+row silently disable a check — the exit-0 defect class this corpus keeps
+finding. Its readers are people, slice 4 and slice 6, and all three treat a row
+as a claim to be re-checked rather than as a fact.
+
+Three consequences, stated here so no other slice re-derives them:
+
+- **It is never copied from the plugin.** Every cell states something about the
+  repository it sits in, so the plugin's own copy describes the toolkit and
+  nothing else. Bootstrap writes it; an uplift rewrites it.
+- **Its absence is not a failure anywhere.** `isPopulated()` does not read it,
+  so a repository whose `.guardrails/` predates it is populated as before, and
+  slice 4 reports what it can determine without it.
+- **A row whose `Derived from` no longer reproduces its answer is a finding**,
+  not a fact — the map records what was true when it was written, and only
+  re-running the command says whether it still is.
+
 ### The `guardrail-class` declaration
 
 One pattern, in `.gitattributes`, and its value differs by repository:
@@ -197,6 +232,18 @@ toolkit's product _is_ the tooling, which
 per-repository rule and `isToolkit()` already resolves mechanically. No new
 machinery, and no per-file patterns — one directory, one class, which is the
 whole reason the design puts everything in it.
+
+**The hook manager's own files are `configuration`, whatever the manager is.**
+This repository's `.gitattributes` names `.husky/**` because husky is what this
+repository uses. A consuming repository declares the path **its** manager
+occupies instead — `lefthook.yml`, `.pre-commit-config.yaml`, the directory
+`core.hooksPath` resolves to — and nothing else about the declaration changes.
+The pattern is discovered, not copied: slice 3's survey already reads which
+manager is in use, and writing that one pattern is part of its wiring step.
+A repository with no hook manager declares no such pattern, and
+`file-classification` has nothing to key on there — correct rather than a gap,
+because there is no file to class. The two `.guardrails/**` patterns above are
+the same in every repository and are the ones the copy carries.
 
 The directory carries the `README.md` file classes requires of a tooling
 directory. It carries **no** directory-level agent instruction file: nothing
@@ -220,6 +267,13 @@ and needs a human-approved row in
 [the change-size override register](../standards/guardrails/registers.md#the-change-size-override-register).
 That is [fix 74](../standards/guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)
 working, not failing.
+
+**Filing that row is slice 3's**, and so is creating the register a new
+repository does not have yet — on the same first-need convention as
+`docs/ADR/` above, and at the same moment as the pull request the row is
+approved with. See
+[how the work lands](2026-08-01-distributable-guardrails-slice-3-bootstrap-skill.md#how-the-work-lands).
+This slice states the requirement and the figure; it does not own the act.
 
 What this slice does change is the **composition**, which that register's own
 column requires to be "named, not merely totalled". Today the bulk is spread
@@ -622,6 +676,25 @@ Push: SKIP cross-stack dependency scan [dependency-advisories]
         Install osv-scanner to enable this check
 ```
 
+**A capability implemented by a tool this toolkit did not choose emits the same
+format, because the format is the gate's and not the tool's.** The gate entry
+point invokes the kept tool and writes the result line itself, naming the tool
+as it names itself and quoting the tool's own output as the `<problem>`:
+
+```text
+Commit: FAIL secret scan [secret-scanning] (config/settings.yaml)
+        scan-secrets.sh: high-entropy string at line 14 matches rule aws-key
+        Remove the credential and rotate it; the scanner's own rule name is above
+```
+
+A tool no gate entry point invokes emits nothing in this format, and is
+therefore not an implementation of the capability — slice 4 reports it Partial
+at best, on its own evidence rules. This is what keeps "every result line's
+capability resolves against `capabilities.mjs`" true in an uplifted repository,
+where the tool is the repository's and the line is still ours, and it is why
+[the enforcement map](#the-enforcement-map) records which tool a capability
+resolved to rather than leaving it to be inferred from output nobody wrapped.
+
 **The verdict tokens** are the corpus's own vocabulary, not a new set:
 
 | Token         | Is                                                              | From                                       |
@@ -692,15 +765,16 @@ false claim this corpus keeps finding.
 
 ### Success and failure criteria — gate names
 
-| Criterion                                                                                 | Verified by                                                                                                                   |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| No result line matches `gate \d`                                                          | A test over the output of every gate run against its fixtures                                                                 |
-| Each gate prints its header exactly once, with number and name                            | The same test                                                                                                                 |
-| Every result line's capability resolves against `capabilities.mjs`                        | The same test                                                                                                                 |
-| A disabled capability contributes no line anywhere in the run, header included            | The same test, comparing a run with the capability opted out against a run whose fixture never had it — byte-identical output |
-| A reader can name the gate and the property from one line, without a table                | Read the worked example above; there is nothing left to look up                                                               |
-| `check-report-ci-reconciliation.mjs` still extracts every `FAIL` line from a real job log | Its own fixtures, re-captured against the new format                                                                          |
-| Every document quoting gate output verbatim quotes the new format                         | A search across `docs/` for a `gate <digit>:` result line                                                                     |
+| Criterion                                                                                 | Verified by                                                                                                                              |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| No result line matches `gate \d`                                                          | A test over the output of every gate run against its fixtures                                                                            |
+| Each gate prints its header exactly once, with number and name                            | The same test                                                                                                                            |
+| Every result line's capability resolves against `capabilities.mjs`                        | The same test                                                                                                                            |
+| A disabled capability contributes no line anywhere in the run, header included            | The same test, comparing a run with the capability opted out against a run whose fixture never had it — byte-identical output            |
+| A capability met by a tool the toolkit did not choose still emits a result line           | A fixture whose secret scanning is an unrecognised local script: the gate's own output carries `[secret-scanning]` and names that script |
+| A reader can name the gate and the property from one line, without a table                | Read the worked example above; there is nothing left to look up                                                                          |
+| `check-report-ci-reconciliation.mjs` still extracts every `FAIL` line from a real job log | Its own fixtures, re-captured against the new format                                                                                     |
+| Every document quoting gate output verbatim quotes the new format                         | A search across `docs/` for a `gate <digit>:` result line                                                                                |
 
 **Failure.** Gate output a human has to consult a table to read. A finding line
 that names a capability the list does not contain. A grouping presented as the
@@ -718,6 +792,17 @@ spec recommended. See
 [an opted-out capability has no token](#output-format); the reasoning is slice
 2's and is not restated here.
 
+The question that stood second — **agent hooks running from the plugin rather
+than from the copy** — is closed too, by the slice it was flagged against.
+Slice 3 now writes the consuming repository's own agent-hook declaration,
+pointing at `.guardrails/gate-1-edit.mjs` and
+`.guardrails/gate-4-task-completion.mjs` repository-relative, for every harness
+its survey found in use, and carries a criterion that fails when none was
+written — see
+[what bootstrap writes](2026-08-01-distributable-guardrails-slice-3-bootstrap-skill.md#what-bootstrap-copies-and-what-it-writes).
+This slice's requirement is unchanged; what was missing was the act, and it now
+has an owner.
+
 1. **Does `.husky/` survive?** Git's own `core.hooksPath` would let
    `.guardrails/` hold the git hook scripts directly and remove husky entirely,
    which is the no-new-dependency line's preference and puts one more thing
@@ -728,23 +813,14 @@ spec recommended. See
    husky, out of scope for this slice.** Named here so the decision is visible
    rather than absent.
 
-2. **Agent hooks currently run from the plugin, not from the copy.** The plugin's
-   hook manifest invokes `${CLAUDE_PLUGIN_ROOT}/…`, so a developer without the
-   plugin gets no Edit gate and no Task-completion gate — which contradicts the
-   design's own success criterion that every gate runs without the plugin. This
-   slice states the requirement (a consumer's harness configuration points at its
-   own `.guardrails/` copy) but the wiring is slice 3's. Flagged because if slice
-   3 does not close it, two of the nine gates are plugin-only and this slice's
-   criterion is unmet.
-
-3. **Forty-eight capabilities may be more than opt-out needs.** The number falls
+2. **Forty-eight capabilities may be more than opt-out needs.** The number falls
    out of the corpus rather than being chosen, and every entry is a property a
    human could sensibly decide does not apply. But nobody has yet written twenty
    real opt-out rows against it, which is the only way to find out whether the
    granularity is right. If slice 2 finds itself writing rows that always come in
    pairs, that pair is one capability and this list is wrong.
 
-4. **Should an unmodified copy of the plugin's reference be discounted from
+3. **Should an unmodified copy of the plugin's reference be discounted from
    change size?** Bytes identical to the plugin's own file carry no author
    decision for a reviewer to review, which is
    [ADR-0005](../ADR/0005-generated-files-discounted-from-change-size.md)'s

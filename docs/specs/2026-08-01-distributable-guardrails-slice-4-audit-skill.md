@@ -22,10 +22,10 @@ Two vocabularies this spec consumes rather than defines, because inventing
 either here would either duplicate or contradict the slice actually
 specifying it:
 
-| Depends on  | For                                                                                                                          | Named, not invented, here                                                                                                                                                                                                                                                              |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Slice 1** | The capability list, what each capability spans, and the four places a gate fires (git hooks, agent hooks, CI, by hand)      | Findings below key on **capability**, never on a check number. Where a capability's requirement, its exact id, or its gate membership is referenced, it is Slice 1's catalogue that resolves it — this spec describes the shape the audit reads that catalogue into, not its contents. |
-| **Slice 2** | The opt-out register's location, columns, approval rule, the `removedOptOutRows()` contract and the meaning of a removed row | This spec describes what the audit does with an opt-out row once read, never what the row's schema is. Removal detection is not derived here either: Slice 2 supplies it as a function and names it "the contract slice 4 consumes", so this spec calls it.                            |
+| Depends on  | For                                                                                                                                                    | Named, not invented, here                                                                                                                                                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Slice 1** | The capability list, what each capability spans, the four places a gate fires (git hooks, agent hooks, CI, by hand), and the enforcement map's columns | Findings below key on **capability**, never on a check number. Where a capability's requirement, its exact id, or its gate membership is referenced, it is Slice 1's catalogue that resolves it — this spec describes the shape the audit reads that catalogue into, not its contents. |
+| **Slice 2** | The opt-out register's location, columns, approval rule, the `removedOptOutRows()` contract and the meaning of a removed row                           | This spec describes what the audit does with an opt-out row once read, never what the row's schema is. Removal detection is not derived here either: Slice 2 supplies it as a function and names it "the contract slice 4 consumes", so this spec calls it.                            |
 
 Everything else this skill already does and this spec does not mention —
 establishing the stacks, reading pipeline definitions, the tooling ladder in
@@ -43,7 +43,7 @@ for any other: report every capability's state. Where the report's ordering
 implies a sequence a human might implement in, [The report](#the-report)
 covers that — it does not need a second, separate ordering section.
 
-## The five states, and a sixth that is not one of them
+## The five states, and the two that are not among them
 
 The design fixes the report's vocabulary as states, not booleans: **present,
 absent, partial, suppressed, opted out**. The existing skill's states map
@@ -62,7 +62,40 @@ cannot avoid it.
 | **Absent**     | Nothing enforces it, and no opted-out row covers it                                               | A negative probe was tried and nothing stopped it, or no mechanism — of any name — could be found at all                                                                                        |
 | **Suppressed** | One specific finding, at one rule and one path, is excluded via the ordinary suppression register | The register row was read; the finding it names is the one not firing. The capability's mechanism otherwise runs — this is not a capability-level exclusion                                     |
 | **Opted out**  | The whole capability is excluded via an **approved** row in Slice 2's opt-out register            | The row was read, its approver is filled, it names this capability, and the decision record it cites resolves                                                                                   |
+| **Tuned out**  | Nothing implements it, and the enforcement map records that discovery derived it does not apply   | The map's row for this capability, plus its `Derived from` command re-run and still producing the fact the row states                                                                           |
 | **Unknown**    | The audit could not determine the state at all                                                    | Nothing — and that absence of evidence is the entire report for that line                                                                                                                       |
+
+**Tuned out is the answer to "a successful uplift is never quiet".** Slice 3
+derives that a capability cannot apply here — `package.json` declaring
+`private: true`, so nothing publishes to a registry — and files no opt-out row,
+deliberately: tuning is derived from the manifests with no human involved, and
+an opt-out is a human's decision about the repository. An audit with no state
+for that reports Absent, and this slice's own success criterion — an audit of a
+compliant repository is quiet — becomes unreachable for **any** repository with
+a tuning decision. That is not a demanding criterion; it is one nothing can
+satisfy.
+
+It is read from
+[the enforcement map](2026-08-01-distributable-guardrails-slice-1-foundations.md#the-enforcement-map),
+and it is **re-derived, never taken on trust**: the map records what was true
+when bootstrap ran, so the audit re-runs the row's `Derived from` command and
+compares. Two outcomes, the same shape an opt-out already has:
+
+- The fact still holds → **Tuned out**, one line in the evidence appendix,
+  naming the repository fact and the command that proves it. Not actionable.
+- The fact no longer holds — `private: true` is gone, the stack the row named
+  has been added — → **Stale tuning**, an actionable finding ranked with Stale
+  opt-out, naming the map row, the command, and what its output says now.
+
+**This grants no silence an agent can help itself to.** A capability with no map
+row is Absent as before; a row whose command cannot be re-run is Unknown, not
+Tuned out; and a row whose own recorded evidence contradicts it is Stale tuning,
+which is a finding. The two alternatives were rejected on their own terms:
+giving a tuning decision an opt-out row would make an agent the author of the
+artefact the design reserves for a human, and accepting Absent would leave one
+of the two branches of slice 3's criterion 12 — a capability not implemented has
+_either_ a row _or_ an evidenced tuning decision — invisible to the only skill
+that reads the outcome.
 
 **Unknown is retained beyond the design's five, deliberately.** It is not a
 compliance state competing with the other five for a place in the ranking —
@@ -280,6 +313,34 @@ opinion about, twice over: once when it was implemented, and again when it
 was deliberately opted out. The audit's job is to point at what already
 existed, not to open a design question that was already closed.
 
+### Who performs the backfill
+
+**This skill does, and only when asked.** The design's decision table says the
+auditor _"reports the gap **and** backfills from the plugin reference, as an
+uplift"_, and slice 3 routes a single-capability restore here; this section
+claims that half rather than leaving it to fall between the two skills.
+
+The audit's standing rule — _"do not fix anything during an audit unless
+asked"_ — is unchanged and is what makes this workable:
+
+- **An audit run never backfills.** It produces the Backfill-needed finding,
+  whose Fix field already names the exact path, the source and the firing point
+  to wire it into. That finding is the ask, phrased so it can be granted.
+- **A request to restore that capability is a second invocation**, and it is the
+  one the activation table sends here rather than to bootstrap. It restores what
+  the finding names, wires it at the firing point the finding names, and reports
+  what it wrote. It re-derives nothing through the tooling ladder — that is the
+  bootstrap path this section exists to be distinct from.
+- **It still writes to neither register.** Restoring the implementation is the
+  opt-back-in taking effect; the row is already gone, and the decision record it
+  cited stays where it is. Nothing about a backfill needs an approval, because
+  it only ever causes more checks to run.
+
+Success is that a Backfill-needed finding and the act that closes it are the
+same vocabulary: the paths the finding named are the paths that exist
+afterwards. Failure is a repository where every audit reports the same backfill
+and no invocation can perform it.
+
 ## An existing `.guardrails/` from an older plugin
 
 **This case is slice 4's, and slice 3 says so.** Bootstrap does not fire on a
@@ -328,10 +389,29 @@ human's call and not a finding's remedy. What it recommends per line is the
 narrow act — restore this file, delete this retired one, review this diverged
 one against the reference.
 
+**One source of divergence is now excluded, which narrows what a Diverged line
+means.** Slice 3 never edits a copied file — adaptation to a repository's own
+mechanism happens at
+[the invocation layer](2026-08-01-distributable-guardrails-slice-3-bootstrap-skill.md#a-divergent-adaptation-never-edits-a-copied-file),
+never in the bytes of a check. So a diverged file is a human's edit or an
+upgrade that never happened, not a tuning decision bootstrap made. The audit
+still names rather than judges: nothing readable from the two files tells a
+deliberate local edit from a missed upgrade, and both remain possible. What is
+gone is the third possibility that made the line permanently unresolvable by
+construction.
+
 **Without the plugin present there is no reference**, and the whole section
 reports Unknown with that as its reason. An audit run without the plugin is
 still a complete audit of everything else; it simply cannot compare against a
 thing it does not have, and saying so is the honest result.
+
+**And where the repository _is_ the reference, the section reports Unknown
+too**, with `subject is the reference` as the stated reason. Running this audit
+against the toolkit compares `.guardrails/` with itself, so every Layout line
+is clean by construction — a comparison that cannot fail, which is this corpus's
+most-found recurring defect class and not something to report as a pass. The
+condition is the `isToolkit()` signal slice 3's activation table already reads;
+no new derivation, and one line of output instead of a section of false green.
 
 ### The Layout section
 
@@ -368,14 +448,14 @@ Ranked by what a silent gap costs, and by how much of a decision it
 overturns — not by how easy each is to close, which the existing skill
 already refuses as a ranking basis:
 
-| Tier | State                         | Why it ranks here                                                                                                                                                                                 |
-| ---- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | **Backfill needed**           | A human decision was reversed without anyone deciding that; the repository believes it is protected where it is not, which is worse than never having decided                                     |
-| 2    | **Absent**, no opt-out at all | An ordinary, undecided gap. Ranked internally by blast radius — a missing secret scan outranks a missing spell check regardless of effort, exactly as the current skill already states            |
-| 3    | **Stale opt-out**             | A decision that was reasonable once and no longer matches its own stated condition — real, but something already stands between production and the gap, which is why it ranks below an active one |
-| 4    | **Partial**                   | Something already runs; the gap is scope (no blocking, no server-side twin), not absence                                                                                                          |
-| 5    | **Unknown**                   | Not itself a compliance gap — an audit gap. Ranked below every compliance gap because it demands re-auditing, not a fix, but it must appear here rather than being silently dropped               |
-| 6    | **Layout**                    | Retired and diverged files, and missing files carrying no capability. Every capability actually going unenforced has already been reported through its own state, so nothing here is a live gap   |
+| Tier | State                               | Why it ranks here                                                                                                                                                                                                                                                                                                       |
+| ---- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | **Backfill needed**                 | A human decision was reversed without anyone deciding that; the repository believes it is protected where it is not, which is worse than never having decided                                                                                                                                                           |
+| 2    | **Absent**, no opt-out at all       | An ordinary, undecided gap. Ranked internally by blast radius — a missing secret scan outranks a missing spell check regardless of effort, exactly as the current skill already states                                                                                                                                  |
+| 3    | **Stale opt-out**, **Stale tuning** | A decision that was reasonable once and no longer matches its own stated condition — real, but something already stands between production and the gap, which is why it ranks below an active one. A stale tuning ranks here for the same reason and on the same evidence: its recorded derivation no longer reproduces |
+| 4    | **Partial**                         | Something already runs; the gap is scope (no blocking, no server-side twin), not absence                                                                                                                                                                                                                                |
+| 5    | **Unknown**                         | Not itself a compliance gap — an audit gap. Ranked below every compliance gap because it demands re-auditing, not a fix, but it must appear here rather than being silently dropped                                                                                                                                     |
+| 6    | **Layout**                          | Retired and diverged files, and missing files carrying no capability. Every capability actually going unenforced has already been reported through its own state, so nothing here is a live gap                                                                                                                         |
 
 Within Tier 2, rank by what the gap admits — the same rule the current skill
 states and this slice keeps: a missing secret scan outranks a missing spell
@@ -386,12 +466,13 @@ check regardless of which is cheaper to close.
 ```text
 Capability: <capability id/name, from Slice 1>
 Gate(s):    <named, not numbered — e.g. "Commit, Push">
-State:      Backfill needed | Absent | Stale opt-out | Partial | Unknown
+State:      Backfill needed | Absent | Stale opt-out | Stale tuning | Partial | Unknown
 Evidence:   what was run, and what happened
 Risk:       what reaches production because this does not run
 Fix:        Absent/Partial — concrete tool and invocation, from the stack reference
             Backfill needed — the exact path to restore and its source (history or plugin reference)
             Stale opt-out — the row's path, its removal condition, and what changed
+            Stale tuning — the map row, its Derived from command, and that command's output now
 Note:       present only where one applies — a proposed row awaiting approval, a row
             whose decision record does not resolve, or a record no row indexes
 ```
@@ -413,6 +494,7 @@ on:
 Present    <capability> — <what proved it: probe result or gate output cited>
 Suppressed <capability> — <rule> at <path>, register row <path>
 Opted out  <capability> — register row <path>, ADR-nnnn, approver <name>
+Tuned out  <capability> — enforcement map row, <fact>, re-derived by <command>
 ```
 
 **Every opted-out capability appears here, every run, one line each.** No
@@ -445,12 +527,29 @@ skipped, or if Absent is reported for a capability actually met by a tool
 the audit did not expect (the third failure mode).
 
 **A compliant repository.** Every capability is Present, Suppressed (with a
-valid row) or Opted out (with an approved row citing a record that resolves).
-The actionable section is empty and every opted-out capability appears in the
-appendix with its row, its record and its approver. Fails if a single Opted-out
-or Suppressed capability appears in the actionable section — that is the
-re-raising failure the brief names first — and fails equally if an opted-out
-capability appears nowhere at all, since gate output does not mention it either.
+valid row), Opted out (with an approved row citing a record that resolves) or
+Tuned out (with a map row whose derivation still reproduces). The actionable
+section is empty and every opted-out and tuned-out capability appears in the
+appendix with its evidence. Fails if a single Opted-out or Suppressed capability
+appears in the actionable section — that is the re-raising failure the brief
+names first — and fails equally if an opted-out capability appears nowhere at
+all, since gate output does not mention it either.
+
+**A repository immediately after a successful uplift.** The case the tuned-out
+state exists for: at least one capability discovery declined with evidence, and
+the actionable section is empty on the very next audit. Fails if a tuned-out
+capability is reported Absent, and fails equally if it is reported Tuned out
+without the audit having re-run the map row's own derivation — a state taken on
+the map's word is a check that cannot fail.
+
+**A repository whose tuning has since gone stale.** The same repository, with
+`private: true` removed from `package.json`. Success is one Stale tuning finding
+quoting the command's new output, ranked in tier 3. Fails if the capability
+still reports Tuned out from a map row nothing re-checked.
+
+**The toolkit itself.** The Layout section reports Unknown with `subject is the
+reference`. Fails if it reports every file clean, which is what comparing a
+directory with itself would otherwise produce.
 
 **A repository mid-uplift.** A mix: some capabilities Present, at least one
 Opted out, at least one Absent with no opt-out, and — the case this slice
@@ -493,21 +592,16 @@ signature matched.
 
 ## Questions
 
-- **Can the audit report a capability inapplicable on its own evidence, with no
-  row?** Half of this is now settled: inapplicability is a real category — it is
-  exactly what an opt-out asserts — but it is a **human's** decision, recorded as
-  a row and a record, not something the audit derives. So a release-pipeline
-  capability in a repository with no publish step is Absent until somebody files
-  the opt-out, and the state table needs no seventh entry for it.
-
-  What is left open is the collision with Slice 3, which already has a third
-  path: a capability discovery **tuned out** with evidence (`private: true`, so
-  no registry publishing) produces no row at all, deliberately. The audit has no
-  state for that, so it will report Absent for a capability bootstrap
-  legitimately declined to implement. Either tuned-out capabilities get a row
-  after all, or the audit gains a way to read the derived fact, or Absent is
-  accepted as the honest answer with the tuning decision quoted as evidence.
-  Slice 3's criterion 12 assumes one of these and does not say which.
+The question that stood first here — **can the audit report a capability
+inapplicable on its own evidence, with no row?** — is answered. Inapplicability
+asserted by a **human** is an opt-out row and a record, and the audit still
+derives none of it. Inapplicability **derived** by bootstrap is the third path
+slice 3 always had, and it now has a state and an artefact to read it from:
+[Tuned out](#the-five-states-and-the-two-that-are-not-among-them), taken from
+the enforcement map and re-derived on every audit. Of the three options this
+question posed — a row after all, a readable derived fact, or Absent accepted —
+the second is taken, and the reasons the other two were rejected are recorded
+with it.
 
 - **Where should the evidence appendix live for a large repository** — one
   audit report, or a summary in the report with the full per-capability

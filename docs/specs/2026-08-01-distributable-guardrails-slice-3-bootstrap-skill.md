@@ -18,12 +18,13 @@ behaviour that contradicts a decision recorded there is wrong, not creative.
 
 ## What this slice depends on and does not define
 
-| Depended on                                                               | Owner   | Referred to here as                             |
-| ------------------------------------------------------------------------- | ------- | ----------------------------------------------- |
-| The capability vocabulary — the names an opt-out row and a finding key on | Slice 1 | "a capability", "the capability list"           |
-| The `.guardrails/` layout — folder structure, script paths, class         | Slice 1 | `.guardrails/`, "the script path slice 1 fixes" |
-| The four places gates fire, as the grouping a human is shown              | Slice 1 | "the four firing places"                        |
-| The opt-out register's columns, lifecycle and enforcement                 | Slice 2 | "a register row", "slice 2's schema"            |
+| Depended on                                                                  | Owner   | Referred to here as                             |
+| ---------------------------------------------------------------------------- | ------- | ----------------------------------------------- |
+| The capability vocabulary — the names an opt-out row and a finding key on    | Slice 1 | "a capability", "the capability list"           |
+| The `.guardrails/` layout — folder structure, script paths, class            | Slice 1 | `.guardrails/`, "the script path slice 1 fixes" |
+| The four places gates fire, as the grouping a human is shown                 | Slice 1 | "the four firing places"                        |
+| The enforcement map's path and columns — this slice fills it, not defines it | Slice 1 | "the enforcement map"                           |
+| The opt-out register's columns, lifecycle and enforcement                    | Slice 2 | "a register row", "slice 2's schema"            |
 
 This spec names those and builds on them. Where it needs a concrete path or a
 concrete capability name to make a rule testable, it writes a placeholder and
@@ -247,6 +248,63 @@ setup scripts carved out of it, per
   fixed path to name. Slice 1 fixes it; the reworked skill writes the literal
   path.
 
+## What bootstrap copies, and what it writes
+
+The phase table above says how a path is _spelled_ in each phase. This one says
+**which artefacts arrive by copy and which are written fresh**, because the two
+are not the same act and a file in the wrong column is either an import of the
+toolkit's own facts or a byte the drift comparison can never match.
+
+| Artefact                                   | How it arrives                | Rule                                                                                                                                                                                                                               |
+| ------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.guardrails/*.mjs`, `.guardrails/test/**` | **Copied, byte-identical**    | Same file name at source and destination; no path rewritten, no line edited. That is the property slice 4's backfill and drift comparison rest on                                                                                  |
+| `.guardrails/README.md`                    | **Copied, byte-identical**    | It indexes the scripts, and the consumer receives the same scripts. A rewritten index is a second statement of the same facts, drifting from the first                                                                             |
+| `.guardrails/opt-out-register.md`          | **Never copied**              | The plugin's copy holds the toolkit's own rows, and copying it would import them into every consumer. The register is created by the first row filed here — the same first-need convention as `docs/ADR/`                          |
+| `.guardrails/enforcement-map.md`           | **Written, from discovery**   | Every cell is a fact about this repository. One row per capability, each carrying the command it was derived from, per [reporting a derivation](#reporting-a-derivation)                                                           |
+| Git hook files                             | **Written, one line each**    | In the manager the survey found, in that manager's own syntax. Never a second manager, never a repointed `core.hooksPath`                                                                                                          |
+| The agent-hook declaration                 | **Written, per harness**      | See below — this is the step that decides whether two of the nine gates exist for a developer without the plugin                                                                                                                   |
+| CI workflow files                          | **Written, from discovery**   | Written for the discovered CI platform, invoking `.guardrails/` repository-relative                                                                                                                                                |
+| `.gitattributes` class patterns            | **Written, from discovery**   | Slice 1's two `.guardrails/**` patterns verbatim, plus the one pattern naming **this** repository's hook manager, per [its class rule](2026-08-01-distributable-guardrails-slice-1-foundations.md#the-guardrail-class-declaration) |
+| `scripts/configure-*.mjs`                  | **Never copied, never wired** | Run once from the plugin, per [the carve-out](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-guardrails-is-and-what-therefore-stays-out-of-it-here)                                                               |
+
+### The agent-hook declaration
+
+Slice 1 states the requirement — a consumer's harness configuration points at
+its own `.guardrails/` copy — and assigns the wiring here. This is that wiring,
+and without it the Edit gate and the Task-completion gate run only for a
+developer who happens to have the plugin, which contradicts the design's first
+decision.
+
+- **For every agent harness the survey found in use**, bootstrap writes that
+  harness's own hook declaration, at the path that harness fixes, invoking
+  `node .guardrails/gate-1-edit.mjs` and
+  `node .guardrails/gate-4-task-completion.mjs` — repository-relative, never
+  `${CLAUDE_PLUGIN_ROOT}`, which is the same rule every other committed
+  invocation follows.
+- **Where the survey found none, the harness running this session is the one in
+  use**, and its declaration is written. A bootstrap that writes no agent-hook
+  declaration at all has left two gates unwired, and criterion 9 below is
+  written so that outcome fails rather than passing vacuously.
+- **An existing declaration is extended, not replaced** — the same rule as the
+  hook manager. Where it already invokes something at those two gates, the
+  toolkit's invocation is added beside it.
+
+### The CI checkout resolves the default branch
+
+Every workflow job that runs a gate checks out with the default branch fetched
+and `origin/HEAD` resolvable — `git remote set-head origin --auto` after the
+checkout step is enough, and it is derivation rather than configuration.
+
+This is not tidiness. Slice 2's reader resolves opt-outs from the default-branch
+ref and
+[fails safe to the empty set](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md#the-reader)
+when that ref does not resolve — which is right for safety and wrong for
+agreement: on a shallow CI checkout with `origin/HEAD` unset, CI re-runs an
+opted-out capability and reports findings a developer's clone does not, breaking
+slice 1's "same finding set as CI" precisely when an opt-out exists. The fix
+belongs here because this slice writes the checkout, not because slice 2's
+fail-safe is wrong.
+
 ## Uplift
 
 An existing repository has commit history, a pipeline people depend on,
@@ -309,6 +367,28 @@ it cannot meet the standard (name the check it fails), it is demonstrably
 unmaintained, or the repository is new. The third is unavailable in uplift by
 definition, which leaves two.
 
+#### A divergent adaptation never edits a copied file
+
+> **Adaptation happens at the invocation layer. No `.guardrails/*.mjs` file in a
+> consuming repository differs from the plugin's, ever, for any reason this
+> skill has.**
+
+"Adapt the plugin's script to its mechanism" means write the invocation in that
+mechanism's own configuration — `lefthook.yml` calling
+`node .guardrails/gate-2-commit.mjs`, where the reference wiring would have used
+`.husky/pre-commit`. It does not mean editing the gate script. Tuning that
+genuinely cannot be expressed at the invocation layer is a finding naming what
+could not be wired, not a local edit.
+
+Two things depend on this, and both break silently without it. Slice 4's drift
+comparison is a **file comparison** against the plugin reference, which is only
+meaningful while an unedited copy is byte-identical; and a locally edited copy
+is overwritten by the next backfill or upgrade with no trace of what was lost.
+The design's own "copied and tuned to the target" is met by tool configuration —
+which slice 1 keeps
+[outside `.guardrails/`](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-is-not-in-it)
+for exactly this reason — and by the wiring, not by the bytes of a check.
+
 #### The single rule for a deliberate deviation
 
 > **An existing repository's deliberate deviation from a capability is an
@@ -333,6 +413,34 @@ with the deviation quoted from the repository's own configuration as its
 justification and the approver left for a human. The capability is still
 implemented where it can be; the conflicting part is recorded, not silently
 dropped and not forced through.
+
+**What the row's Path cell holds.** The suppression register is keyed on rule
+and path, and a contradictory conflict is a behaviour rather than a line of
+source, so the key has to be stated rather than assumed:
+
+> **The Path cell holds the tracked file whose content carries the deviation** —
+> the workflow file, the hook manager's configuration, the tool configuration.
+> The Rule cell holds the check the deviation defeats, named as that check names
+> itself.
+
+A release workflow publishing untagged from the default branch is filed at
+`.github/workflows/release.yml`, quoting the job. That is not a stretch of the
+register's key: the deviation _is_ that file's content, and a reviewer sent to
+that path finds the thing being tolerated.
+
+**A deviation with no tracked file is not filed here at all.** Branch
+protection missing a required review, a repository feature switched off at the
+host — these live in host configuration, and the toolkit already reports them on
+every run through `check-branch-protection.mjs` and
+`check-repository-features.mjs` at gate 7. A suppression register exists to stop
+a silenced finding going unmentioned; a finding that is reported on every run is
+not silenced, so a row would record nothing the repository does not already say
+out loud. Uplift quotes gate 7's own output into its report and leaves it there.
+
+This needs no change to
+[registers.md](../standards/guardrails/registers.md#the-suppression-register)
+and adds no register: it states which of the register's existing two keys the
+case resolves to, and names the one case that resolves to neither.
 
 **The opt-out route stays open, and only a human opens it.** If the human's
 answer is that the class of check does not apply here at all, that is the
@@ -449,6 +557,78 @@ becomes the row's justification cell; the approver is still blank and the record
 is still `Proposed`, because both are slice 2's to enforce. Nothing else in the
 unattended path produces a row, and nothing in it asks.
 
+## How the work lands
+
+**Bootstrap works on a branch and ends at an open pull request. It never
+commits to the default branch, and it never merges.** Both modes, both
+repository states.
+
+This is the step the rest of the design assumed and nothing stated. Slice 2's
+entire enforcement is that
+[a row reaches the protected default branch only through a pull request carrying an approving review](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md#enforcement)
+— so a bootstrap committing straight to the default branch makes an opt-out
+impossible to approve, and one that opens no pull request makes it impossible to
+propose. It is also what slice 5's verify reads when it fails a round whose
+`pr.json` is null.
+
+The order, once discovery and the summary are done:
+
+| #   | Step                                                                                                                                                                                                           | Why here                                                                                                                                                           |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Branch from the discovered default branch                                                                                                                                                                      | Nothing is written to a protected branch, so protection can be tightened at step 4 without the run having to defeat it                                             |
+| 2   | Implement, in the adoption order under [Ordering](#ordering)                                                                                                                                                   | Unchanged                                                                                                                                                          |
+| 3   | Commit, through the gates the commit itself installs                                                                                                                                                           | A bootstrap whose own commit cannot pass its own gate 2 has installed something that does not work                                                                 |
+| 4   | Configure the host, per the table below                                                                                                                                                                        | The last write of the run, and before the pull request exists, so the first pull request is judged under the protection it will merge under                        |
+| 5   | Push the branch and **open the pull request**, its body carrying the report: every discovery with its command, the capabilities implemented, the tuning decisions, the findings, and each drafted opt-out pair | The report is what the human reviews. A report that exists only in a session transcript is not reviewable by the person who has to approve the rows                |
+| 6   | File the change-size override row, blank                                                                                                                                                                       | See below                                                                                                                                                          |
+| 7   | Stop                                                                                                                                                                                                           | Approving and merging are the human's acts. An unattended run therefore **ends at an open pull request**, which is the correct end state and not an incomplete one |
+
+### When host configuration runs
+
+`configure-branch-protection.mjs` and `configure-repository-features.mjs` run
+plugin-relative, once — and **when depends on what is already there**, because
+the same command that establishes the review requirement a first opt-out needs
+would, run at the wrong moment, replace protection somebody depends on:
+
+| State                              | When                                                                                                                                                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New**                            | At step 4. There is no pipeline history to protect, so [the evidence rule](#adding-gates-without-breaking-a-working-pipeline) has nothing to defer for, and the checks this run just wrote are the ones to require  |
+| **Uplift, no protection today**    | At step 4, on the same reasoning — nothing is being replaced                                                                                                                                                        |
+| **Uplift, protection already set** | **Not during the run.** The existing protection stands untouched. Extending it with the checks this uplift added happens after the merge, once each has passed on the default branch — the evidence rule, unchanged |
+
+Where the configure script cannot derive the required contexts from the workflow
+it is given, that is a finding naming what is left unconfigured. Never a guess,
+and never a partially applied protection.
+
+**This is what makes a first opt-out mergeable at all.** Slice 2 blocks a merge
+that would land a register change while protection does not require a review;
+step 4 puts that requirement in place before the pull request carrying the row
+exists. In the third row it either already exists or the uplift reports that it
+does not and the opt-out waits — the designed behaviour, visible rather than
+silent.
+
+### The change-size override row
+
+A new-repository bootstrap commit carries roughly 8,900 counted lines against an
+800-line error band, which
+[slice 1](2026-08-01-distributable-guardrails-slice-1-foundations.md#change-size)
+states and leaves unresolved. This is where it resolves:
+
+- **The run files a row in the change-size override register with Approved by
+  blank**, its Composition cell naming `.guardrails/` as the bulk — derived from
+  gate 4's own output, not written from memory.
+- **It creates that register if the repository has none**, on the same
+  first-need convention `docs/ADR/` already follows. Bootstrap creates no
+  register ahead of time; the first row that needs one creates it.
+- **It does not apply the `[large-pr]` marker.**
+  [ADR-0010](../ADR/0010-large-pr-marker-refused-without-approved-row.md)
+  refuses a marker with no approved row already in place, so an agent applying
+  its own marker is refused at the commit-message gate — correctly. The marker
+  is the human's, applied with the approval.
+- **Unattended, the row stays blank and the pull request stays unmergeable.**
+  That is the same outcome as every other reserved-class decision an unattended
+  run reaches: drafted, visible, and waiting on the person who can decide it.
+
 ## Success criteria
 
 Each is checkable against a completed run.
@@ -471,7 +651,13 @@ Each is checkable against a completed run.
    right.
 8. **No committed file resolves through the plugin.** `git grep
 CLAUDE_PLUGIN_ROOT` over the consuming repository returns nothing.
-9. **Every gate invocation in a committed file resolves under `.guardrails/`.**
+9. **Every gate invocation in a committed file resolves under `.guardrails/`,
+   and every one of the four firing places has at least one.** The second half
+   is what stops this passing vacuously: specifically, an agent-hook declaration
+   exists for every harness the survey found in use — or, where it found none,
+   for the harness this session runs in — naming both `gate-1-edit.mjs` and
+   `gate-4-task-completion.mjs`. A run that wrote no such declaration fails
+   this criterion rather than satisfying it by writing nothing.
 10. **At most one question turn interactively** before implementation begins,
     plus at most one clarification of an unmappable opt-out.
 11. **Every opt-out row's capability first appears in a human turn** — or, in
@@ -481,6 +667,21 @@ CLAUDE_PLUGIN_ROOT` over the consuming repository returns nothing.
     Never neither, and never a row without its record.
 13. **Every drafted opt-out is a pair, and neither half carries an approval** —
     the row's approver cell blank, the record `Proposed` with no `approver`.
+14. **The run ends at an open pull request, and the default branch is
+    untouched.** The branch the run started on has no new commit; the pull
+    request exists, its body carries the report, and nothing was merged.
+15. **No `.guardrails/` file differs from the plugin reference.**
+    `diff -r "${CLAUDE_PLUGIN_ROOT}/.guardrails" .guardrails` reports no
+    difference in any copied file — including `README.md`, and excluding
+    `opt-out-register.md` and `enforcement-map.md`, which are never copied.
+16. **The enforcement map covers every capability**, each row naming what
+    implements it here or `not implemented`, with the command the answer was
+    derived from.
+17. **A change-size override row exists for the branch, with Approved by
+    blank**, and no commit message on the branch carries `[large-pr]`.
+18. **`origin/HEAD` resolves in the CI checkout.**
+    `git symbolic-ref refs/remotes/origin/HEAD` succeeds in the gate job, so
+    slice 2's reader resolves the same register CI's developers do.
 
 ## Failure criteria
 
@@ -500,6 +701,12 @@ CLAUDE_PLUGIN_ROOT` over the consuming repository returns nothing.
 - Discovery blending two evidence sources rather than taking the first that
   answered.
 - A derived fact stated in the report with no command behind it.
+- A commit on the default branch, or a merge, performed by the run.
+- A completed run with no pull request open.
+- A copied `.guardrails/` file edited to suit the repository.
+- The plugin's own `opt-out-register.md` copied into the consumer.
+- Two of the nine gates left with no committed declaration, because no agent
+  harness was written to.
 
 ## Indicative behaviour
 
@@ -536,6 +743,18 @@ Given a human who says "we do not deploy anything"
 When the skill maps that to capabilities
 Then it reads back the single capability it mapped to, and drafts one row and one
   Proposed decision record quoting the human's own words, with no approver on either
+
+Given an empty repository with a remote and no branch protection
+When bootstrap runs unattended to completion
+Then the default branch carries no new commit, branch protection requires one
+  approving review, and a pull request is open carrying the report and a blank
+  change-size override row
+
+Given a repository with no agent-hook declaration of any kind
+When bootstrap completes
+Then a declaration exists for the harness the session ran in, invoking
+  .guardrails/gate-1-edit.mjs and .guardrails/gate-4-task-completion.mjs
+  repository-relative
 ```
 
 ## Out of scope
@@ -557,6 +776,13 @@ Then it reads back the single capability it mapped to, and drafts one row and on
 These are unresolved and need a decision before implementation. None is
 invented to be safe — each is a real fork this spec could not settle from the
 material available.
+
+The question that stood fourth here — **what the suppression row's Path cell
+holds for a deviation that is not at a path** — is answered without a standards
+change: the tracked file whose content carries the deviation is the path, and a
+deviation with no tracked file is not filed here at all because the gate that
+finds it reports it on every run. See
+[the single rule for a deliberate deviation](#the-single-rule-for-a-deliberate-deviation).
 
 1. **`agent-integration.md` forbids clarifying questions unconditionally; the
    overarching design requires bootstrap to ask, interactively, on discovery
@@ -583,16 +809,7 @@ material available.
    with what already covers it. A run against a large existing repository will
    settle whether that is readable.
 
-4. **What is the suppression row's Path cell for a deviation that is not at a
-   path?** The suppression register is keyed on rule and path, and an uplift's
-   contradictory conflict is often neither — a workflow job's behaviour, a branch
-   protection setting, a repository-level configuration. The routing above is
-   right (there is a violation, so it is not an opt-out), but the register it
-   routes to may not have a key that fits. Either the workflow file counts as the
-   path, or this class of accepted finding needs somewhere else to live, and this
-   spec cannot settle that without changing a standard.
-
-5. **Is the change-size override still reserved for a human on a bootstrap
+4. **Is the change-size override still reserved for a human on a bootstrap
    branch that is large by nature?** The current skill says yes, at length. That
    holds unchanged here, but an uplift branch is smaller than a new-repository
    bootstrap's, and it is worth confirming the threshold is still crossed often

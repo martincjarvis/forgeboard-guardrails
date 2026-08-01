@@ -27,6 +27,12 @@ One boundary rule aside: **where `eval/` sits relative to `.guardrails/` is
 slice 1's to decide**, and this slice takes its answer rather than asserting
 one — see [The artefact contract](#the-artefact-contract).
 
+It does invoke one script from slice 6 — `check-ledger.mjs`, as a precondition
+of the round command — and reads nothing that script reads. That is a caller
+relationship, not a shared vocabulary: the rule the check enforces is slice 6's,
+and this slice supplies the one moment at which enforcing it means anything. See
+[Preconditions](#preconditions-before-the-subject-is-touched).
+
 It depends on:
 
 | From                                                                                                                                                        | Used as                                                                                                                                 |
@@ -46,7 +52,7 @@ the corresponding command runs.
 | **Reset**    | Script   | Delete-and-recreate the subject repository. No cleaning, ever                                                                                                                               |
 | **Launch**   | Script   | Start an ephemeral container from a devcontainer profile, mount the subject and the toolkit, run the role's agent CLI headlessly against a prompt or brief file that already exists on disk |
 | **Wait**     | Script   | Poll the three hang signals until the session exits, or until they are quiet for ten sustained minutes                                                                                      |
-| **Capture**  | Script   | Write the session transcript, detect the pull request, poll CI to a conclusion, fetch the raw job log                                                                                       |
+| **Capture**  | Script   | Write the session transcript, detect the pull request, poll CI to a conclusion, fetch the raw job log, run the subject's own gate 7 and keep its output verbatim                            |
 | **Verify**   | Script   | Confirm the artefacts a round is supposed to produce actually exist and are non-empty — completeness, not compliance                                                                        |
 | **Hand off** | Script   | Print the round id, the artefact root, and the next command — nothing here is invented, only assembled                                                                                      |
 
@@ -93,9 +99,37 @@ differently is, without anyone having to say so.
 
 **Round discovery is a directory scan.** The next `seq` for a series is one
 past the highest existing `eval/rounds/<seriesId>-*/` directory; there is no
-separate counter file to fall out of sync with the directories it counts. A
-prompt that has never been rendered before starts a new series at `-001`
-automatically — nobody names a series.
+separate counter file to fall out of sync with the directories it counts.
+
+### A series never rotates silently
+
+**Where `eval/rounds/` already holds rounds and none of them belongs to the
+series this prompt renders to, the round command stops and reports the
+rotation.** It does not start `-001` of a new series on its own.
+
+```text
+Prompt changed: rounds exist for series 4f2a9c1e0b7d; this prompt renders to
+9b18c00a4e62. Every open finding was filed under the first, and a result from
+the second is not comparable to it.
+
+Re-run with --new-series to start one deliberately.
+```
+
+`--new-series` is the confirmation, and it is the only thing that starts one.
+A repository with no rounds at all needs no flag: the first series is not a
+rotation.
+
+**This was left as a question and is now decided, because the two defaults
+compose into a deadlock.** Auto-derivation looks harmless from here — the hash
+changed, so it is a different experiment, and the loop's own text says as much.
+From slice 6's side it is not: a one-character edit to the prompt template
+strands every open finding with no result, and slice 6's rule that
+[a round does not start while a previous round's fix has no Result](2026-08-01-distributable-guardrails-slice-6-tuning-skill.md#results)
+then blocks every subsequent round. The two rules are each correct and together
+they stop the loop. Refusing the rotation is the cheaper half to change: it
+costs one flag, it is the failure direction the loop's "check the hash every
+round" already implies, and it keeps the decision to abandon a series with the
+person making it rather than with a typo.
 
 ## The artefact contract
 
@@ -157,9 +191,36 @@ eval/
         report.md                  the auditor's own written report, if the role produces one as a file rather than only a transcript
         hang.json
       subject-final/
+        gate-7.log                 the subject's own on-demand gate, run by the harness — see below
         HEAD.txt                   the subject repository's final commit sha
         diff.patch                 the round's branch diffed against its pre-round base
 ```
+
+**`subject-final/gate-7.log` is the round's named gate-output artefact.** After
+the implementer exits and before the final snapshot, the harness runs the
+subject's own `node .guardrails/gate-7-on-demand.mjs` in one more ephemeral
+container and captures its stdout and stderr verbatim. Gate 7 sweeps the whole
+tree and only reports, so it is the one gate whose output enumerates capability
+state across the repository, in
+[slice 1's line format](2026-08-01-distributable-guardrails-slice-1-foundations.md#output-format)
+— every finding line carrying its capability id.
+
+Without it, the only gate output a round holds is inside the implementer
+transcript and the CI job log, neither named as gate output, and slice 6 ends up
+parsing capability ids out of prose. That is its R7, and this is the whole close:
+one command, one file, one manifest key.
+
+Three properties, so the capture cannot quietly become a second audit:
+
+- **Verbatim, never interpreted.** The harness runs the command and writes what
+  came back. It does not read it, count it, or decide anything from it.
+- **Best-effort, and named when it fails.** A subject with no
+  `.guardrails/gate-7-on-demand.mjs` — a round whose implementer never got that
+  far — records the capture as a failed `verify` check and the round continues.
+  A missing capture and an empty one are different facts, which is R6.
+- **It runs before `HEAD.txt` and `diff.patch` are taken**, so anything gate 7
+  writes to the subject appears in the round's own diff rather than being
+  invisible. If it writes at all, that is a finding about the gate.
 
 ### `manifest.json`
 
@@ -178,6 +239,7 @@ guessing a filename.
   "subject": { "path": "...", "remote": "...", "defaultBranch": "..." },
   "startedAt": "2026-08-01T09:00:00Z",
   "harnessHeartbeatAt": "2026-08-01T09:41:00Z",
+  "preconditions": { "ledgerSettled": true, "overrides": [] },
   "roles": {
     "implementer": {
       "status": "completed | hung | failed | not-started",
@@ -204,6 +266,13 @@ guessing a filename.
         "logPath": "ci/run-123-job-456.log"
       }
     ]
+  },
+  "gateOutput": [
+    { "gate": "on-demand", "logPath": "subject-final/gate-7.log" }
+  ],
+  "subjectFinal": {
+    "headPath": "subject-final/HEAD.txt",
+    "diffPath": "subject-final/diff.patch"
   },
   "verify": {
     "ranAt": "...",
@@ -296,11 +365,37 @@ When the harness is run with no arguments
 Then it resets the subject, runs the implementer, captures CI, and stops for the audit
 ```
 
-Concretely, in order: **reset** the subject; **render** the prompt from the
-template and this series' values, fixing the round id; **launch** the
-implementer; **wait** through the hang detector until it exits or is
-declared hung; if it exited, **capture** the pull request it opened and poll
-CI to a conclusion, fetching the raw job log; **verify** artefact
+### Preconditions, before the subject is touched
+
+Two checks run first, and either stops the command before anything is reset.
+They are preconditions rather than warnings because both describe a round whose
+result could not be read afterwards, and a reset is unrecoverable:
+
+| Precondition                                                             | Read from                                                                                                      | On failure                                                                                                        |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **No previous round's fix is still unmeasured**                          | `node .claude/skills/toolkit-tuning/check-ledger.mjs` — slice 6's own check, invoked rather than reimplemented | Stop, printing the check's own output. `--ignore-ledger` overrides, and the override is recorded in the manifest  |
+| **The prompt still renders to the series the existing rounds belong to** | The round id derivation above                                                                                  | Stop, per [a series never rotates silently](#a-series-never-rotates-silently). `--new-series` is the confirmation |
+
+**The first is what makes slice 6's ordering rule real.** Slice 6 states that
+_a round does not start while a previous round's fix has no Result_, and calls
+it structurally impossible rather than discouraged — but the check that would
+know is wired at **this repository's gate 7**, which fires on a commit, not
+before a round. Nothing consulted the ledger at the one moment the rule is
+about. This is that moment. The check is still slice 6's and is run here: two
+callers of one script, not two implementations of one rule, and the harness
+reads no finding file itself.
+
+`--ignore-ledger` exists because a harness that refuses to run while the ledger
+is imperfect is a harness people route around by deleting findings. Recording
+the override in the manifest is what keeps it visible: the round runs, and its
+own record says the rule was overridden for it.
+
+Concretely, in order: check the two preconditions; **reset** the subject;
+**render** the prompt from the template and this series' values, fixing the
+round id; **launch** the implementer; **wait** through the hang detector until
+it exits or is declared hung; if it exited, **capture** the pull request it
+opened and poll CI to a conclusion, fetching the raw job log, then run the
+subject's own gate 7 and snapshot the subject; **verify** artefact
 completeness; **hand off** — print the round id, the artefact root, and:
 
 ```text
@@ -387,12 +482,13 @@ Then the harness does not declare a hang, because the files-changed signal is no
 Mechanical completeness, never compliance — the auditor judges compliance,
 this only confirms the round produced what it claims to have produced:
 
-| Check                                                    | Fails when                                                                                                                      |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `implementer/log.txt` exists and is non-empty            | The launch never wrote anything                                                                                                 |
-| `implementer/pr.json` is non-null if `status: completed` | The session exited without opening a pull request                                                                               |
-| Every `ci/run-*.log` file is non-empty                   | A conclusion was recorded but the raw log fetch produced nothing — never substitute the `checks.json` summary for a missing log |
-| `manifest.json` parses and every path it names exists    | A partial write left the index pointing at nothing                                                                              |
+| Check                                                    | Fails when                                                                                                                                      |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `implementer/log.txt` exists and is non-empty            | The launch never wrote anything                                                                                                                 |
+| `implementer/pr.json` is non-null if `status: completed` | The session exited without opening a pull request                                                                                               |
+| Every `ci/run-*.log` file is non-empty                   | A conclusion was recorded but the raw log fetch produced nothing — never substitute the `checks.json` summary for a missing log                 |
+| `subject-final/gate-7.log` exists and is non-empty       | The subject had no gate 7 entry point to run, or running it produced nothing. Named, not silent — this is the round's only gate-output artefact |
+| `manifest.json` parses and every path it names exists    | A partial write left the index pointing at nothing                                                                                              |
 
 A failing check sets the round's overall status to `"incomplete"` in the
 manifest rather than `"ready-for-audit"` — hand-off still happens (the round
@@ -435,6 +531,19 @@ instead of inviting an audit brief for a round that has nothing to audit.
    (set once, in config) and the audit brief (written per round).** No other
    step in a round's transcript requires a model's judgement about what to
    do next.
+7. **A changed prompt never starts a series by itself.** Against a fixture
+   holding rounds of one series and a prompt rendering to another, `round`
+   exits without resetting the subject and names both series ids; the same
+   invocation with `--new-series` proceeds.
+8. **An unsettled ledger stops a round before the reset.** Against a fixture
+   ledger carrying a `Fix` with no `Result` and a later manifest present,
+   `round` exits with `check-ledger.mjs`'s own output and the subject's `HEAD`
+   is unchanged; `--ignore-ledger` proceeds and the manifest records that it
+   was used.
+9. **Gate output is a named artefact.** `manifest.json`'s `gateOutput` names
+   `subject-final/gate-7.log`, and that file carries result lines in slice 1's
+   format — so a consumer reads a capability id from a named capture rather
+   than from a transcript.
 
 **Failure.** A harness that pauses mid-round to ask what to do. A round
 whose artefacts a consumer has to search the filesystem for. A hang detector
@@ -463,7 +572,13 @@ Then both resolve to the same series id and increment the same sequence
 
 Given a prompt template edited to fix a placeholder typo, resolving to different rendered text
 When the next round runs
-Then it starts a new series at sequence 001, without anyone naming a new series by hand
+Then it stops without resetting the subject, names the series the existing
+  rounds belong to and the one this prompt renders to, and starts neither until
+  --new-series says so
+
+Given a finding file carrying a Fix with no Result, and a later round's manifest
+When the round command runs
+Then it stops before the reset, printing check-ledger.mjs's own output
 ```
 
 ## Out of scope
@@ -483,6 +598,13 @@ Then it starts a new series at sequence 001, without anyone naming a new series 
 
 These are unresolved. They are not gaps to be filled by whoever implements
 this.
+
+The question that stood fifth here — **where the rendered prompt's hash is
+checked against drift** — is decided, because leaving auto-derivation as the
+default composed with slice 6's settle-before-next-round rule into a deadlock
+neither slice could see alone. The harness now refuses the rotation and takes
+`--new-series` as the confirmation; see
+[a series never rotates silently](#a-series-never-rotates-silently).
 
 1. **Which agent CLI plays each role.** The devcontainer carries three
    (Claude Code, OpenCode, `agy`); the twenty-six hand-run rounds' three
@@ -518,16 +640,7 @@ this.
    host-side repository than this spec assumes, at a real cost in round
    time.
 
-5. **Where the rendered prompt's series id is checked against drift is not
-   specified beyond derivation.** The loop's own text says to check the hash
-   "every round"; this spec derives a new series automatically on a
-   different hash rather than flagging the change as an error. That may be
-   the wrong default — a silently started new series discards the
-   comparability the loop's cadence reporting depends on, and an explicit
-   refusal ("the prompt changed; confirm a new series was intended") might
-   be the safer failure mode.
-
-6. **Whether `eval/rounds/` should ever be committed for a specific round**,
+5. **Whether `eval/rounds/` should ever be committed for a specific round**,
    the way a suppression or opt-out register row is committed evidence of a
    decision. This spec follows this repository's own `.gitignore` precedent
    for tool-generated evidence throughout, but a round that becomes the
