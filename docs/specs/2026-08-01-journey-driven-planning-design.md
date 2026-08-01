@@ -32,11 +32,12 @@ model, or `.guardrails/` existing.
 
 ## What planning skills already do
 
-| Skill                    | Does                                                              | Missing                             |
-| ------------------------ | ----------------------------------------------------------------- | ----------------------------------- |
-| `brainstorming`          | Produces a spec, section by section, with user approval           | Never asks for user journeys        |
-| `writing-plans`          | Per-task TDD: write the failing test, watch it fail, make it pass | No outer bracket around the feature |
-| speckit, built-in others | Their own artefacts and layouts                                   | The same two gaps                   |
+| Skill                            | Does                                                              | Missing                                                            |
+| -------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `brainstorming`                  | Produces a spec, section by section, with user approval           | Never asks for user journeys                                       |
+| `writing-plans`                  | Per-task TDD: write the failing test, watch it fail, make it pass | No outer bracket around the feature                                |
+| `verification-before-completion` | Demands evidence before work is claimed complete                  | Verifies what the plan specifies — nothing tells it journeys exist |
+| speckit, built-in others         | Their own artefacts and layouts                                   | The same gaps                                                      |
 
 The inner loop already exists. What is missing is the outer bracket — and there is
 nothing for it to test, because no journeys are declared.
@@ -66,19 +67,40 @@ with a planning skill already running; the interactive sequence, derive → mark
 gaps → human answers → draft remaining; the autonomous sequence, deriving from a
 parent scope's journeys and refusing when there is no parent; what a declared
 journey must contain, per [slice 7](2026-08-01-distributable-guardrails-slice-7-user-journeys.md);
-recognising a spec or plan artefact without knowing which tool wrote it; and
-producing the failing end-to-end tests at the point implementation starts.
+recognising a spec or plan artefact without knowing which tool wrote it; and both
+plan-time outputs below.
+
+#### Two outputs at plan time, not one
+
+A plan the skill has touched carries **both**:
+
+- **A first task that writes the end-to-end test for every declared journey, and
+  watches each one fail.** `writing-plans` already does this per task — write the
+  failing test, run it, see it fail, then implement. The journey tests are the
+  same discipline one level out, bracketing the feature rather than the task.
+- **Completion criteria naming those tests.** This is the half that is easy to
+  omit and the one that carries the weight.
+
+The second matters because of what already exists downstream.
+`verification-before-completion` fires when work is about to be claimed done and
+demands evidence — but it runs the verifications **the plan specifies**. A plan
+that never named its journey tests passes its own criteria with every journey red,
+and the verification skill has done exactly what it was asked. The skill does not
+replace that mechanism; it supplies the criteria that make it bite.
 
 **Success.** A planning session in a repository with no guardrails ends with
 declared journeys. An autonomous slice delivery derives journeys naming the
 parent they decompose. A spec whose journeys cannot be settled stops with specific
-unanswered questions, committable and resumable.
+unanswered questions, committable and resumable. A plan the skill touched cannot
+be verified complete while a journey test is red, because its own criteria say so.
 
 **Failure.** The skill does nothing because a planning tool wrote its spec
 somewhere unexpected. Journeys drafted before the human has answered anything, so
 the agent's assumptions become the acceptance criteria. A verdict — "this spec is
 underspecified" — where a specific question was needed. Refusing to stop, so a
-session runs long and gets routed around next time.
+session runs long and gets routed around next time. **A plan that opens with the
+failing journey tests and never names them in its completion criteria** — the
+tests exist, nothing checks them, and the plan closes green.
 
 ```gherkin
 Given a planning session in a repository with no guardrails installed
@@ -92,6 +114,15 @@ Then each names the parent journey it decomposes
 Given an autonomous session whose parent scope declares no journeys
 When it starts
 Then it stops and reports the parent spec as the defect
+
+Given a spec declaring three journeys
+When a plan is written to deliver it
+Then the plan's first task writes three failing end-to-end tests
+And the plan's completion criteria name those three tests
+
+Given a plan whose completion criteria name its journey tests
+When work is claimed complete with one of them red
+Then verification-before-completion refuses the claim, on the plan's own criteria
 
 Given a spec with three unanswered journey questions
 When the session ends

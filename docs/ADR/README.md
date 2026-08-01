@@ -95,3 +95,17 @@ account in its own repository.
   whose own message introduces `[large-pr]` is refused at the commit-msg
   hook unless the change-size override register already carries a
   human-approved row for the branch; supersedes 0006.
+- [0011](0011-reconciliation-matches-labels-not-details.md) — the report/CI
+  reconciliation check matches a gate's `FAIL` labels and never the detail
+  beneath them; matching the detail too was rejected as prose-honesty
+  scoring.
+- [0012](0012-residue-corpus-derived-from-file-class.md) — the cspell
+  residue check derives its "used elsewhere" corpus from files not classed
+  `tooling` and carries the toolkit exemption itself; a tree-wide corpus and
+  an externally configured exemption were rejected.
+- [0013](0013-hardcoded-sha-detects-a-shape.md) — the ported-test check
+  flags a 40-character hex SHA in a `test`-classed file and nothing else;
+  semantic detection and a tree-wide search were rejected.
+- [0014](0014-one-command-one-transcript.md) — a report's finding list is
+  the verbatim output of one command, never an assembly of individually
+  chosen checks or a platform's summary of them.

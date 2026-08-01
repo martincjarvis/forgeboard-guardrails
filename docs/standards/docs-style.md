@@ -638,12 +638,11 @@ and its own `cspell.json`. It is not run against this corpus's own
 `docs/standards/` or `cspell.json`: this repository is the canonical source,
 not an instantiated copy, and correctly documents and lists every stack it
 supports — do not copy that exemption along with the file.
-`checkCspellResidue` carries the exemption itself (`deriveComponent()` naming
-this repository's own shipped product, the same signal
-`check-tooling-class.mjs` already uses), rather than relying on a consumer
-to never run it here, because unlike the prose checks this one is cheap
-enough to run unconditionally and a repository that forgets the exemption
-would otherwise flag its own canonical corpus.
+`checkCspellResidue` carries the exemption itself, keyed on the plugin
+manifest's own name ([ADR-0012](../ADR/0012-residue-corpus-derived-from-file-class.md)),
+rather than relying on a consumer to never run it here: unlike the prose
+checks this one is cheap enough to run unconditionally, and a repository that
+forgets the exemption would otherwise flag its own canonical corpus.
 
 Everything else stays judgement, including the other five instantiation
 checks: no gate can tell whether a removal was recorded for the right reason,

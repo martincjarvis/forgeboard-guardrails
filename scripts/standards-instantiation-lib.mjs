@@ -213,16 +213,12 @@ export function findCspellResidue(words, corpusText, presentStacks) {
   return findings;
 }
 
-/** Fix 55: `cspell.json`'s word list is configuration the instantiation
- *  copies verbatim, the same as a document under `docs/standards/**` — a
- *  dead stack's vocabulary can hide there just as easily. This toolkit's
- *  own repository is exempt outright, keyed on lib.mjs's `isToolkit()`
- *  (fix 91 — `.claude-plugin/plugin.json` existing directly, not on
- *  whatever manifest a consumer's own tuned `deriveComponent()` happens to
- *  read): this corpus's `cspell.json` legitimately lists every stack it
- *  documents, in prose this same check would otherwise have to read to rule
- *  out. `files` and `readFile` are injectable for testing, the same shape
- *  the rest of this module uses.
+/** `cspell.json`'s word list is configuration the instantiation copies
+ *  verbatim, the same as a document under `docs/standards/**`, so a dead
+ *  stack's vocabulary can hide there just as easily. This toolkit's own
+ *  repository is exempt, keyed on `isToolkit()`: its `cspell.json`
+ *  legitimately lists every stack it documents. `files` and `readFile` are
+ *  injectable for testing, the same shape the rest of this module uses.
  *
  *  Fix 59: the "is this word used elsewhere" corpus is built from files
  *  NOT classed `tooling` (file-classes.md), not from every tracked file.
