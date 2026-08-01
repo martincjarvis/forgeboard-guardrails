@@ -609,8 +609,10 @@ export function extractOsvSarifFindings(sarifPath) {
  *  commit in this repository; recording it next to the findings makes that
  *  drift visible after the fact. Returns the id list (empty when the SARIF
  *  carries none), never null — a caller that could not read the SARIF at all
- *  passes that fact through semgrepRuleRecord's `unavailable` state. */
+ *  passes that fact through semgrepRuleRecord's `unavailable` state.
+ *  @param {any} [sarif] */
 export function resolvedSemgrepRules(sarif) {
+  /** @type {string[]} */
   const rules = [];
   for (const run_ of sarif?.runs ?? []) {
     for (const rule of run_?.tool?.driver?.rules ?? []) {

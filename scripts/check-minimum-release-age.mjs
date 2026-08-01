@@ -81,7 +81,9 @@ export function classifyReleaseAge(
   publishDates,
   { windowDays, today = new Date(), admitted = new Set() } = {},
 ) {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
+  /** @type {string[]} */
   const undetermined = [];
   if (!windowDays || windowDays <= 0) return { findings, undetermined };
   for (const [name, version] of resolved?.entries?.() ?? []) {
@@ -112,6 +114,7 @@ export function classifyReleaseAge(
   return { findings, undetermined };
 }
 
+/** @param {string} row */
 function cellsOf(row) {
   return row
     .replace(/^\|/, "")
@@ -126,14 +129,22 @@ function cellsOf(row) {
  *  holds (registers.md) plus the identity and Published columns this subject
  *  needs. Placeholder rows (`_none yet_`, italicised) are skipped the same way
  *  check-licence-policy.mjs skips them over the licence register. */
+/** @param {string} [md] */
 export function parseRegisterRows(md) {
+  /** @type {{dep:string,version:string,published:string,justification:string,removableWhen:string,approver:string}[]} */
   const rows = [];
   for (const line of (md ?? "").split("\n")) {
     if (!line.startsWith("|") || line.includes("---")) continue;
     const cells = cellsOf(line);
     if (cells.length < 6) continue;
-    const [dep, version, published, justification, removableWhen, approver] =
-      cells;
+    const [
+      dep = "",
+      version = "",
+      published = "",
+      justification = "",
+      removableWhen = "",
+      approver = "",
+    ] = cells;
     if (!dep || (/dependency/i.test(dep) && /version/i.test(version))) continue;
     if (dep.startsWith("_") || /^no rows/i.test(dep)) continue;
     rows.push({
@@ -152,7 +163,8 @@ export function parseRegisterRows(md) {
  *  Approver cell a human has filled. A row missing only its approver does not
  *  admit (gate 6 has no author present to answer a push back), the same split
  *  every other register already draws; the approval-provenance check guards
- *  the unapproved-row case separately. */
+ *  the unapproved-row case separately.
+ *  @param {{dep:string,version:string,published:string,justification:string,removableWhen:string,approver:string}[]} rows */
 export function admittedKeys(rows) {
   return new Set(
     rows
@@ -175,6 +187,7 @@ export function classifyStaleRows(
   rows,
   { windowDays, today = new Date() } = {},
 ) {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
   if (!windowDays || windowDays <= 0) return findings;
   for (const row of rows ?? []) {
@@ -212,8 +225,10 @@ export function classifyStaleRows(
  *  `npm view <name> time --json` — npm's own packument time object, one call
  *  per distinct package name. A name whose packument cannot be read (a linked
  *  or private package, a registry outage) contributes no dates, and the
- *  classifier reports those versions as undetermined rather than guessing. */
+ *  classifier reports those versions as undetermined rather than guessing.
+ *  @param {Map<string,string>} resolved */
 function queryPublishDates(resolved) {
+  /** @type {Map<string,string>} */
   const dates = new Map();
   const names = [...new Set([...(resolved?.keys?.() ?? [])])];
   for (const name of names) {
@@ -236,8 +251,10 @@ function queryPublishDates(resolved) {
  *  the lock file is in the staged/changed set, or this is the scheduled run —
  *  the same change-triggered shape checks 6 and 7 take. The window is derived
  *  from npm's effective config; with none declared the check is a visible
- *  skip, never a silent pass on an invented value. */
+ *  skip, never a silent pass on an invented value.
+ *  @param {boolean} scanTriggered */
 export function checkMinimumReleaseAge(scanTriggered) {
+  /** @type {string[]} */
   const skips = [];
   if (!scanTriggered) {
     skips.push(
@@ -262,6 +279,7 @@ export function checkMinimumReleaseAge(scanTriggered) {
     return { findings: [], skips };
   }
 
+  /** @type {{dep:string,version:string,published:string,justification:string,removableWhen:string,approver:string}[]} */
   let rows = [];
   try {
     rows = parseRegisterRows(readStaged(REGISTER));
@@ -291,6 +309,7 @@ export function checkMinimumReleaseAge(scanTriggered) {
  *  dependency changed — the same way the change-size-override and suppression
  *  register checks run unconditionally. */
 export function checkMinimumReleaseAgeStaleness() {
+  /** @type {string[]} */
   const skips = [];
   const windowDays = minReleaseAgeDays();
   if (windowDays === null) {
@@ -314,9 +333,8 @@ export function checkMinimumReleaseAgeStaleness() {
   return { findings, skips };
 }
 
-const isMain =
-  Boolean(process.argv[1]) &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   // Manual or scheduled run: always in scope — there is no staged/changed set
   // to ask, the way pre-commit.mjs and gate-6-pull-request.mjs can.

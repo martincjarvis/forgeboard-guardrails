@@ -170,9 +170,12 @@ if (semgrepVersion.status === 0) {
       ? undefined
       : "semgrep ran but wrote no readable SARIF rule list",
   });
-  record.semgrepVersion = semgrepVersion.stdout.trim();
-  record.config = "auto";
-  writeFileSync(RESOLVED_RULES_JSON, JSON.stringify(record, null, 2) + "\n");
+  const recorded = {
+    ...record,
+    semgrepVersion: semgrepVersion.stdout.trim(),
+    config: "auto",
+  };
+  writeFileSync(RESOLVED_RULES_JSON, JSON.stringify(recorded, null, 2) + "\n");
   if (record.outcome === "resolved") {
     skips.push(
       `repository-wide analysis — --config auto resolved ${record.ruleCount} rule(s); full list written to ${RESOLVED_RULES_JSON} for run-to-run comparison`,

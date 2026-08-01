@@ -23,6 +23,7 @@ import { git, scratchRepo, runScript } from "./support.mjs";
 
 const DAY = 86_400_000;
 const now = new Date("2026-08-01T12:00:00Z");
+/** @param {number} daysAgo */
 const iso = (daysAgo) => new Date(now.getTime() - daysAgo * DAY).toISOString();
 
 // --- classifyReleaseAge — the policy check's pure classifier (gate 6 check 11).
@@ -39,9 +40,9 @@ test("minimum release age: a dependency inside the window is refused", () => {
   );
   assert.equal(undetermined.length, 0);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /brand-new-pkg@1\.0\.0/);
-  assert.match(findings[0].problem, /inside the 7-day/);
-  assert.match(findings[0].remedy, /exception row/);
+  assert.match(findings[0]?.problem ?? "", /brand-new-pkg@1\.0\.0/);
+  assert.match(findings[0]?.problem ?? "", /inside the 7-day/);
+  assert.match(findings[0]?.remedy ?? "", /exception row/);
 });
 
 test("minimum release age: a dependency past the window is not refused", () => {
@@ -123,9 +124,9 @@ test("minimum release age staleness: a row whose version has aged past the windo
     { windowDays: 7, today: now },
   );
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /was-young-pkg@1\.0\.0/);
-  assert.match(findings[0].problem, /stale and must be removed/);
-  assert.match(findings[0].remedy, /delete the stale row/);
+  assert.match(findings[0]?.problem ?? "", /was-young-pkg@1\.0\.0/);
+  assert.match(findings[0]?.problem ?? "", /stale and must be removed/);
+  assert.match(findings[0]?.remedy ?? "", /delete the stale row/);
 });
 
 test("minimum release age staleness: a row still inside the window is not stale", () => {
@@ -144,7 +145,7 @@ test("minimum release age staleness: a row whose Published date cannot be parsed
     { windowDays: 7, today: now },
   );
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /not a valid date/);
+  assert.match(findings[0]?.problem ?? "", /not a valid date/);
 });
 
 // --- minReleaseAgeDays — the window is derived from npm's own config, not
@@ -175,7 +176,7 @@ test("minimum release age: not triggered is a visible skip, naming the reason", 
   const { findings, skips } = checkMinimumReleaseAge(false);
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /no dependency change and not a scheduled run/);
+  assert.match(skips[0] ?? "", /no dependency change and not a scheduled run/);
 });
 
 test("minimum release age staleness (end to end): a stale row in the register fails the check", () => {
