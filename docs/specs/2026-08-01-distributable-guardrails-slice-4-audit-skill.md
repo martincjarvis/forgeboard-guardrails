@@ -150,7 +150,7 @@ nicety.** A disabled capability is absent from gate output entirely — no findi
 no `SKIP`, not even a once-per-run header line — because an opt-out asserts the
 class of check does not apply here, so there is no violation to report and a
 standing notice would be noise
-([Slice 2](2026-08-01-slice-2-opt-out-register.md#silence)). The compensating
+([Slice 2](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md#silence)). The compensating
 controls are the register arriving as a row in a diff and **this report**, which
 names every opted-out capability, its row and its record on every run. A report
 that quietly drops them, or summarises them as a count, removes the only
@@ -193,7 +193,7 @@ the row a reader can see in the register is not doing anything.
 **A record no row indexes requires scanning `docs/ADR/`, which the audit does
 not assume exists.** A repository that never adopted ADRs has no `docs/ADR/`
 to scan, and that resolves to no records — the [convention stated once in
-slice 1](2026-08-01-slice-1-foundations.md#what-is-not-in-it), the same one
+slice 1](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-is-not-in-it), the same one
 `.guardrails/check-adr-approver.mjs` and its siblings already apply. No
 records means no orphans, which is the correct answer, not a gap the audit
 silently has: a record that does not exist cannot be orphaned, so this row of
@@ -523,10 +523,10 @@ signature matched.
 - [Distributable guardrails — overarching design](2026-08-01-distributable-guardrails-design.md) —
   the design this slice is scoped by, including Slice 1's and Slice 2's own
   briefs.
-- [Slice 1 — Foundations](2026-08-01-slice-1-foundations.md) — the capability
+- [Slice 1 — Foundations](2026-08-01-distributable-guardrails-slice-1-foundations.md) — the capability
   catalogue findings key on, and the flat layout that makes the reference
   comparison a file comparison.
-- [Slice 2 — the opt-out register](2026-08-01-slice-2-opt-out-register.md) —
+- [Slice 2 — the opt-out register](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md) —
   the register's columns, the `Removable when` cell the Stale-opt-out state
   reads, and the `removedOptOutRows()` contract this spec calls.
 - [Cross-gate rules](../standards/guardrails/cross-gate-rules.md) — the

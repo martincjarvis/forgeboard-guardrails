@@ -106,7 +106,7 @@ in this slice and holds only the harness itself and the rounds it produces.
 1 defines `.guardrails/` as **what a consuming repository receives**, and names
 the harness as one of three things in this repository that are
 guardrail-adjacent and never received
-([the carve-out](2026-08-01-slice-1-foundations.md#what-guardrails-is-and-what-therefore-stays-out-of-it-here),
+([the carve-out](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-guardrails-is-and-what-therefore-stays-out-of-it-here),
 which also covers the two one-off `configure-*.mjs` setup scripts and slice 6's
 ledger check). The harness qualifies on the definition without needing an
 argument of its own: it runs the toolkit **against** a subject repository, and
@@ -539,7 +539,7 @@ this.
 
 - [Distributable guardrails — overarching design](2026-08-01-distributable-guardrails-design.md) —
   the six slices and the decisions this one is bound by.
-- [Slice 1 — Foundations](2026-08-01-slice-1-foundations.md) — the definition
+- [Slice 1 — Foundations](2026-08-01-distributable-guardrails-slice-1-foundations.md) — the definition
   of `.guardrails/` this slice's `eval/` boundary argument rests on, and the
   repo-local wiring list `eval/harness.mjs` is declared in.
 - [The toolkit improvement loop](../prompts/toolkit-improvement-loop.md) —

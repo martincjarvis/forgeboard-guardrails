@@ -338,7 +338,7 @@ specification; declaring dependencies between specs; and the decomposition
 heuristic — a journey whose test cannot be made to pass in one plan means the
 spec is too large.
 
-Specified in [slice 7](2026-08-01-slice-7-user-journeys.md).
+Specified in [slice 7](2026-08-01-distributable-guardrails-slice-7-user-journeys.md).
 
 **Success.** A spec's journeys are a finite list. Every end-to-end test failed at
 least once, before the code it exercises existed. A plan is not complete while a

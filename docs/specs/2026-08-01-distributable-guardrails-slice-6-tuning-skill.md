@@ -27,7 +27,7 @@ skills under its own root's `skills/` directory; nothing registers a
 `.claude/skills/` directory that happens to sit inside an installed plugin. A
 consumer who installs this plugin therefore cannot invoke this skill, whatever
 anyone forgets to write down — which is the same standard
-[slice 2](2026-08-01-slice-2-opt-out-register.md) holds its own enforcement to.
+[slice 2](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md) holds its own enforcement to.
 
 It belongs on this side of the boundary because its whole subject is this
 repository's own improvement history. A consumer has no rounds, no implementer
@@ -42,7 +42,7 @@ Two consequences, both small and both stated so they are not discovered later:
   `.guardrails/`. That is settled, and it is not an exception this slice
   negotiated: slice 1 defines `.guardrails/` as **what a consuming repository
   receives**, and names `.claude/skills/**/*.mjs` in
-  [its carve-out](2026-08-01-slice-1-foundations.md#what-guardrails-is-and-what-therefore-stays-out-of-it-here)
+  [its carve-out](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-guardrails-is-and-what-therefore-stays-out-of-it-here)
   alongside the two one-off `configure-*.mjs` setup scripts and slice 5's
   `eval/`. `check-ledger.mjs` qualifies on the definition: a consumer has no
   rounds and no ledger, so the check would have nothing to read — and copying
@@ -341,7 +341,7 @@ produces the record and the brief, and hands off.
 These are requirements this spec places on slice 5's artefact contract. They were
 written against the brief, not against slice 5's spec, and the Reconciles column
 records what
-[slice 5 as drafted](2026-08-01-slice-5-harness.md) actually provides — so review
+[slice 5 as drafted](2026-08-01-distributable-guardrails-slice-5-harness.md) actually provides — so review
 sees the gaps rather than an assumption of fit.
 
 | #   | Slice 5 must provide                                                                                                                                  | Because                                                                                                                                      | Reconciles                                                                                                       |
@@ -484,9 +484,9 @@ These are unresolved and are for review, not for whoever implements this.
 
 - [Distributable guardrails — overarching design](2026-08-01-distributable-guardrails-design.md) — the six slices, and the decisions this one may not contradict.
 - [The toolkit improvement loop](../prompts/toolkit-improvement-loop.md) — the three roles, the two failure conditions, and the rules the loop earned.
-- [Slice 1 — Foundations](2026-08-01-slice-1-foundations.md) — the capability vocabulary findings key on, and the gate output format they are read from.
-- [Slice 2 — the opt-out register](2026-08-01-slice-2-opt-out-register.md) — the enforcement standard this spec's boundary argument is held to.
-- [Slice 4 — the audit skill](2026-08-01-slice-4-audit-skill.md) — the report this skill reads, and the state vocabulary its findings arrive in.
+- [Slice 1 — Foundations](2026-08-01-distributable-guardrails-slice-1-foundations.md) — the capability vocabulary findings key on, and the gate output format they are read from.
+- [Slice 2 — the opt-out register](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md) — the enforcement standard this spec's boundary argument is held to.
+- [Slice 4 — the audit skill](2026-08-01-distributable-guardrails-slice-4-audit-skill.md) — the report this skill reads, and the state vocabulary its findings arrive in.
 - [ADR conventions](../ADR/README.md) — supersede rather than edit, the rule this spec's reclassification follows.
 - [ADR-0005](../ADR/0005-generated-files-discounted-from-change-size.md) — the `guardrail-generated` declaration the index carries.
 - [Documentation style standard](../standards/docs-style.md) — the frontmatter and structure rules, and the fix-62 argument against a second record of the same facts.

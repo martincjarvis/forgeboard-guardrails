@@ -88,19 +88,36 @@ Most standards are `reference`. Most ADRs are `explanation`.
 A directory named for an authoring skill leaves a document written by hand with
 nowhere to go, and puts two documents of the same kind in two places.
 
-| Directory         | Holds                                                     |
-| ----------------- | --------------------------------------------------------- |
-| `docs/ADR/`       | Decision records                                          |
-| `docs/registers/` | Registers                                                 |
-| `docs/standards/` | The standards themselves                                  |
-| `docs/prompts/`   | Prompts meant to be reused                                |
-| `docs/specs/`     | Designs and specifications, dated `YYYY-MM-DD-<topic>.md` |
-| `docs/plans/`     | Implementation plans, named for the spec they deliver     |
+| Directory         | Holds                      |
+| ----------------- | -------------------------- |
+| `docs/ADR/`       | Decision records           |
+| `docs/registers/` | Registers                  |
+| `docs/standards/` | The standards themselves   |
+| `docs/prompts/`   | Prompts meant to be reused |
+| `docs/specs/`     | Designs and specifications |
+| `docs/plans/`     | Implementation plans       |
 
 Brainstorming and planning skills default to writing under a directory named
 after themselves — `docs/superpowers/specs/` is the common one. **That default is
 wrong here**: pass the project-relative path explicitly, or the folder regrows on
 the next session that forgets.
+
+**A decomposed design groups by filename.** A design is
+`YYYY-MM-DD-<topic>-design.md`, and every spec decomposed from it takes that topic
+as its prefix — so the set sorts together, and no spec is ambiguous about which
+design it belongs to:
+
+```text
+2026-08-01-distributable-guardrails-design.md
+2026-08-01-distributable-guardrails-slice-1-foundations.md
+2026-08-01-distributable-guardrails-slice-2-opt-out-register.md
+2026-08-01-journey-driven-planning-design.md
+2026-08-01-journey-driven-planning-slice-a-journey-skill.md
+```
+
+A plan takes the stem of the spec it delivers, under `docs/plans/`. The two relate
+without either naming the other, and a spec with no plan beside it is visible at a
+glance.
 
 ## Language
 

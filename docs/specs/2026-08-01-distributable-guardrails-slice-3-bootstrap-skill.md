@@ -40,7 +40,7 @@ name it invents is better.
   narrower request was made.
 - The working directory has no `.guardrails/`, or has one that is a **stub**
   rather than **populated**. Those two words are
-  [slice 1's test](2026-08-01-slice-1-foundations.md#populated-versus-stub),
+  [slice 1's test](2026-08-01-distributable-guardrails-slice-1-foundations.md#populated-versus-stub),
   evaluated by its `isPopulated(dir)`: every gate entry point the plugin's
   `GATE_FILES` names is present, and `capabilities.mjs` is present and exports
   a non-empty list. The skill calls it; it does not re-derive the condition, and
@@ -177,7 +177,7 @@ already resolves through; this slice reuses it rather than introducing a second
 mechanism. The plugin's own tree is `.guardrails/` after slice 1's migration —
 which is what makes the source and destination names match — with the one-off
 setup scripts carved out of it, per
-[slice 1's carve-out](2026-08-01-slice-1-foundations.md#what-guardrails-is-and-what-therefore-stays-out-of-it-here).
+[slice 1's carve-out](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-guardrails-is-and-what-therefore-stays-out-of-it-here).
 
 ### The rules
 
@@ -283,7 +283,7 @@ definition, which leaves two.
 capability applies here: the repository does the thing the capability governs and
 does it in a way the standard refuses, so there is a real violation being
 tolerated. That is
-[the one question slice 2 settles it by](2026-08-01-slice-2-opt-out-register.md#an-opt-out-is-configuration-not-a-suppression)
+[the one question slice 2 settles it by](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md#an-opt-out-is-configuration-not-a-suppression)
 — is there a violation? — and the answer here is yes. A release workflow that
 publishes untagged from the default branch is not a repository to which release
 gating is irrelevant; it is a repository that violates it. Filing that as an
@@ -377,7 +377,7 @@ Constraints:
      full, where there is room for them. Filed at `docs/ADR/`, which this
      record creates if the repository has none yet — bootstrap does not create
      the directory ahead of time, and an opt-out is not a special case; see
-     [slice 1](2026-08-01-slice-1-foundations.md#what-is-not-in-it).
+     [slice 1](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-is-not-in-it).
 5. The skill implements everything not opted out, and the report names each
    opted-out capability beside the row and the record that carry it.
 
@@ -558,7 +558,7 @@ material available.
 5. **Does bootstrap introduce `docs/ADR/` on an uplift of a repository that
    already records decisions at a different path, or adapt to theirs?** The
    ordinary case is decided, once, in
-   [slice 1](2026-08-01-slice-1-foundations.md#what-is-not-in-it): bootstrap
+   [slice 1](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-is-not-in-it): bootstrap
    creates no `docs/ADR/`, and an opt-out is no special case — the opt-out
    conversation's own `Proposed` record creates the directory if it is the
    first decision record the repository has, new repository or uplift alike.
@@ -578,7 +578,7 @@ material available.
 ## References
 
 - [The distributable guardrails design](2026-08-01-distributable-guardrails-design.md) — the six slices and the decisions this one is bound by.
-- [Slice 1 — Foundations](2026-08-01-slice-1-foundations.md) — the flat `.guardrails/` layout every path here resolves under, the carve-out for scripts a consumer never receives, and the populated-versus-stub test this slice's activation reads.
+- [Slice 1 — Foundations](2026-08-01-distributable-guardrails-slice-1-foundations.md) — the flat `.guardrails/` layout every path here resolves under, the carve-out for scripts a consumer never receives, and the populated-versus-stub test this slice's activation reads.
 - `skills/repository-bootstrap/SKILL.md` — the skill this slice reworks.
 - `skills/guardrail-audit/SKILL.md` — the adoption order, the audit states, and the three grounds for replacing a working tool.
 - [Agent integration](../standards/guardrails/agent-integration.md#progress-blockers-and-questions) — the progress, blocker and question rule, and question 1's other half.

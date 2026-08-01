@@ -53,11 +53,11 @@ The misfiling this prevents, and the routing when it happens, is in
 
 This spec consumes three things slice 1 defines and defines none of them itself:
 
-| From slice 1                                                                      | Used here as                                                                                                 |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| The capability vocabulary                                                         | The Capability column's permitted values, and the key every finding already carries so it can be filtered    |
-| The `.guardrails/` layout                                                         | Where the register file and the scripts below live                                                           |
-| [The `docs/ADR/` convention](2026-08-01-slice-1-foundations.md#what-is-not-in-it) | What every row's Decision record cell cites into, and what its absence means before a repository's first row |
+| From slice 1                                                                                               | Used here as                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| The capability vocabulary                                                                                  | The Capability column's permitted values, and the key every finding already carries so it can be filtered    |
+| The `.guardrails/` layout                                                                                  | Where the register file and the scripts below live                                                           |
+| [The `docs/ADR/` convention](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-is-not-in-it) | What every row's Decision record cell cites into, and what its absence means before a repository's first row |
 
 Two properties of that vocabulary are load-bearing here, and slice 1 owns both:
 a capability identifier is **stable** (a renamed capability silently invalidates
@@ -581,7 +581,7 @@ standards have to say instead is in
 [the amendment](#the-standards-amendment-this-requires).
 
 Two more standing here are decided too, by
-[the same convention, stated once in slice 1](2026-08-01-slice-1-foundations.md#what-is-not-in-it):
+[the same convention, stated once in slice 1](2026-08-01-distributable-guardrails-slice-1-foundations.md#what-is-not-in-it):
 `docs/ADR/` is created by the first decision record that needs it, whatever
 kind, not by bootstrap and not as a special case for an opt-out.
 
@@ -638,7 +638,7 @@ What remains open:
   restating the rule a fourth time.
 - [ADR-0006](../ADR/0006-change-size-override-is-a-human-decision.md) — "who, not
   which commit", and the limit of what commit separation can prove.
-- [Slice 1 — Foundations](2026-08-01-slice-1-foundations.md) — the capability
+- [Slice 1 — Foundations](2026-08-01-distributable-guardrails-slice-1-foundations.md) — the capability
   vocabulary this register's Capability column takes its permitted values from,
   and the flat `.guardrails/` layout every path here follows.
 - `.guardrails/check-approval-provenance.mjs` — the generic register reader and

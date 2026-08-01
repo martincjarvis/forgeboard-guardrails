@@ -126,9 +126,9 @@ Whatever decision record a repository files first — a licence acceptance, an
 accepted advisory, an opt-out — creates `docs/ADR/` when it lands, the same
 way any file creates the directory it is the first to occupy. **There is no
 special case for an opt-out, or for any other reserved decision:**
-[slice 2](2026-08-01-slice-2-opt-out-register.md#the-row-indexes-the-adr-reasons),
-[slice 3](2026-08-01-slice-3-bootstrap-skill.md#the-interactive-opt-out-conversation)
-and [slice 4](2026-08-01-slice-4-audit-skill.md#opt-out-awareness) each need
+[slice 2](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md#the-row-indexes-the-adr-reasons),
+[slice 3](2026-08-01-distributable-guardrails-slice-3-bootstrap-skill.md#the-interactive-opt-out-conversation)
+and [slice 4](2026-08-01-distributable-guardrails-slice-4-audit-skill.md#opt-out-awareness) each need
 this once and cite it here rather than restating it.
 
 ### What `.guardrails/` is, and what therefore stays out of it here
@@ -506,7 +506,7 @@ they are the mechanisms making every other capability's records trustworthy.
 capabilities in this list — every finding still carries its id, and the ids are
 what the exclusion is written against — but a row naming either is refused at
 gate 2 and ignored by the reader. The reasoning is
-[slice 2's](2026-08-01-slice-2-opt-out-register.md#two-capabilities-that-may-not-be-opted-out)
+[slice 2's](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md#two-capabilities-that-may-not-be-opted-out)
 and is not restated here.
 
 ### Where the list lives
@@ -642,7 +642,7 @@ on every run.
 
 `SUPPRESSED` therefore stays in the table above, unchanged and unaffected: a
 per-check suppression is a different act from a capability-level opt-out, and
-[slice 2](2026-08-01-slice-2-opt-out-register.md#an-opt-out-is-configuration-not-a-suppression)
+[slice 2](2026-08-01-distributable-guardrails-slice-2-opt-out-register.md#an-opt-out-is-configuration-not-a-suppression)
 owns the distinction and the standards amendment it implies.
 
 **One compatibility consequence, named.**
