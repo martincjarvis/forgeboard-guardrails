@@ -68,16 +68,19 @@ the corresponding command runs.
   opaque file and launches the auditor against it; it never composes one.
 - **Reading the auditor's report and writing the fix brief.** Both are
   judgement about the corpus, not about the round's mechanics, and the harness
-  captures the auditor's output without interpreting it.
+  captures the auditor's output without interpreting it. **Writing** the fix
+  brief stays outside; **capturing** the one that was dispatched does not — see
+  [`fixer/brief.md`](#layout).
 - **Deciding whether the round succeeded**, in the loop's sense — whether the
   prompt had to be tuned, whether a clarifying question should have been
   answered by the corpus. The harness can flag mechanical proxies (see
   [Verify](#verify) below) but never renders that verdict.
 
-The fix agent is out of scope for this slice: it changes the toolkit
-repository, never the subject, and the loop already keeps it in its own
-session outside any round's artefacts. See
-[Decisions taken here](#decisions-taken-here).
+The fix agent's **execution** is out of scope for this slice: it changes the
+toolkit repository, never the subject, and the loop keeps it in its own session.
+Its dispatched brief is still copied into the round, because a finding citing a
+brief that exists only in one session's history cannot be re-read by anyone
+else. See [Decisions taken here](#decisions-taken-here).
 
 ## The round identifier
 
@@ -191,11 +194,28 @@ eval/
         log.txt
         report.md                  the auditor's own written report, if the role produces one as a file rather than only a transcript
         hang.json
+      fixer/
+        brief.md                   the fix brief dispatched after this round, copied in verbatim — see below
       subject-final/
         gate-7.log                 the subject's own on-demand gate, run by the harness — see below
         HEAD.txt                   the subject repository's final commit sha
         diff.patch                 the round's branch diffed against its pre-round base
 ```
+
+**`fixer/brief.md` records what was dispatched, and nothing more.** Writing the
+fix brief stays a model's job, outside this harness — that is unchanged. What
+changes is that the brief a session was actually given is copied into the round
+verbatim, the same way `auditor/brief.md` already is.
+
+The reason is slice 6's, and it is the same reason `auditor/brief.md` exists: a
+finding whose `Fix` field cites a brief that lives only in one session's history
+cannot be re-read by anyone else, and slice 6's whole argument is that a claim
+should be checkable. A citation pointing outside the round is not provenance.
+
+It is written when the fix is dispatched, which is after the round's own roles
+have finished. A round that never had a fix dispatched simply has no `fixer/`
+directory, exactly as a role that never hung has no `hang.json`. This closes
+**G18** in the design's gap register, and slice 6's R10.
 
 **`subject-final/gate-7.log` is the round's named gate-output artefact.** After
 the implementer exits and before the final snapshot, the harness runs the
@@ -228,6 +248,27 @@ Three properties, so the capture cannot quietly become a second audit:
 The one machine-readable index. Everything above is reachable from it by a
 relative path; nothing above should ever need to be located by a consumer
 guessing a filename.
+
+**A manifest is frozen once its round reaches a terminal status.** The harness
+writes and updates it throughout the round — that is what
+`harnessHeartbeatAt` is for — but once `status` is `completed`, `hung`, `failed`
+or `not-started`, no field is ever rewritten. A later round writes a new
+manifest; it does not edit an old one.
+
+This is what makes a citation worth anything. Slice 6 orders its findings by
+what the manifest records, and a manifest that can be rewritten afterwards makes
+every result citing it unverifiable — the reader cannot tell whether they are
+looking at what the round produced or at what a later pass decided it should
+have produced. This closes **G19** in the design's gap register, and slice 6's
+R8.
+
+**The freeze is on the manifest, not on the directory.** `fixer.briefPath` is
+written at freeze time and names where a fix brief will be copied **if** one is
+dispatched, the same way `hang.json` is a known path whose file exists only in
+the case it describes. So `fixer/brief.md` appearing later rewrites no field: the
+path was already recorded, and the manifest keeps its promise that nothing is
+located by guessing a filename. A consumer that has read the manifest once never
+has to re-read it to stay correct.
 
 ```json
 {
@@ -271,6 +312,7 @@ guessing a filename.
   "gateOutput": [
     { "gate": "on-demand", "logPath": "subject-final/gate-7.log" }
   ],
+  "fixer": { "briefPath": "fixer/brief.md" },
   "subjectFinal": {
     "headPath": "subject-final/HEAD.txt",
     "diffPath": "subject-final/diff.patch"

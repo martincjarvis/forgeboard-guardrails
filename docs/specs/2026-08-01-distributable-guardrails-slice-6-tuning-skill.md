@@ -401,9 +401,9 @@ sees the gaps rather than an assumption of fit.
 | R5  | An explicit **status showing the round did not complete**, and the reason                                                                             | An absent finding in a round that did not complete is not evidence a fix worked. Without this the record produces false `Confirmed` results  | Met — `roles.<role>.status` of `hung`/`failed`/`not-started`, plus `hang.json`                                                                                                                                                                                                                      |
 | R6  | **Missing captures named explicitly** in the manifest, rather than the file merely being absent                                                       | A capture that failed and a capture that found nothing are different facts, and only one of them is evidence                                 | Met — `verify.checks[]` records each completeness check by name and result                                                                                                                                                                                                                          |
 | R7  | Gate output captured **verbatim**, in slice 1's line format, so every finding line carries its capability id                                          | Step 5 keys on capability without parsing prose                                                                                              | Met — `subject-final/gate-7.log`, named in the manifest's `gateOutput[]`. Gate 7 sweeps the whole tree, so its output is the one that enumerates capability state                                                                                                                                   |
-| R8  | **Round ids monotonic and never reused**, and a manifest immutable once written                                                                       | A finding's round sections are ordered by it, and a rewritten manifest silently rewrites history                                             | Monotonic and unique by construction (`<seriesId>-<seq>`, next seq from a directory scan). Immutability not stated by slice 5 — recorded as [G19](2026-08-01-distributable-guardrails-design.md#gaps-these-journeys-found-and-where-each-closed) in the design's gap register                       |
+| R8  | **Round ids monotonic and never reused**, and a manifest immutable once written                                                                       | A finding's round sections are ordered by it, and a rewritten manifest silently rewrites history                                             | Monotonic and unique by construction (`<seriesId>-<seq>`, next seq from a directory scan). Immutability now stated by slice 5: a manifest is frozen once its round reaches a terminal status ([G19](2026-08-01-distributable-guardrails-design.md#gaps-these-journeys-found-and-where-each-closed)) |
 | R9  | The audit report carrying a **per-finding defect classification** — `corpus` or `execution` — in a fixed position                                     | The skill carries the auditor's classification rather than re-deriving it, and cannot do that if the classification is only implied by prose | Met, and not by slice 5 — [the position is fixed in this spec](#where-the-classification-appears-in-the-report), by the only slice that parses it                                                                                                                                                   |
-| R10 | The **fix brief and dispatch** for round N recorded as artefacts of round N                                                                           | A finding's Fix field cites what was actually dispatched, not what was intended                                                              | **Gap** — the layout captures the auditor's brief, not the fix brief. Slice 5's scope excludes writing the fix brief, and no slice owns capturing it; recorded as [G18](2026-08-01-distributable-guardrails-design.md#gaps-these-journeys-found-and-where-each-closed) in the design's gap register |
+| R10 | The **fix brief and dispatch** for round N recorded as artefacts of round N                                                                           | A finding's Fix field cites what was actually dispatched, not what was intended                                                              | Met — slice 5 copies the dispatched brief to `fixer/brief.md`, indexed by the manifest's `fixer.briefPath`. Writing it stays a model's job; capturing it does not ([G18](2026-08-01-distributable-guardrails-design.md#gaps-these-journeys-found-and-where-each-closed))                            |
 
 **R7 and R9 were the two that decided how much prose this skill has to read,
 and both are closed.** R7 by a named capture in slice 5's layout — the subject's
@@ -414,12 +414,17 @@ and a format is owned by whoever parses it. The fallback that records
 `execution` and raises a `harness` finding survives as the exception it was
 meant to be.
 
-**R10 and the unstated half of R8 are seams between this slice and slice 5, not
-this slice's to settle.** R10 needs the fix brief captured as a round artefact
-that slice 5's scope excludes, and R8 needs a manifest frozen once written that
-slice 5 does not state. Both are recorded as open gaps — [G18 and G19](2026-08-01-distributable-guardrails-design.md#gaps-these-journeys-found-and-where-each-closed)
-in the design's gap register — for a decision on which slice owns each, rather
-than asserted here against slice 5.
+**R10 and the unstated half of R8 were seams between this slice and slice 5, and
+both are now owned by slice 5.** R10 needed the dispatched fix brief captured as
+a round artefact, and R8 needed the manifest frozen once its round reaches a
+terminal status. Slice 5 provides both — see
+[`fixer/brief.md`](2026-08-01-distributable-guardrails-slice-5-harness.md#layout)
+and
+[the manifest freeze](2026-08-01-distributable-guardrails-slice-5-harness.md#manifestjson).
+They were settled by widening the providing slice rather than by this slice
+dropping what it needs, and are recorded as
+[G18 and G19](2026-08-01-distributable-guardrails-design.md#gaps-these-journeys-found-and-where-each-closed)
+in the design's gap register.
 
 ## The one mechanical check
 
