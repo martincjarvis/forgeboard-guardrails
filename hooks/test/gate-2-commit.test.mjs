@@ -355,7 +355,12 @@ test("markdownlint commit scope: lint-staged lints the staged file alone, and a 
     "no top-level heading — a structural per-file violation\n",
   );
   // The exact invocation lint-staged makes: the command .lintstagedrc.json
-  // names, with the staged path appended (what lint-staged does per key).
+  // names, split into binary and arguments, with the staged path appended
+  // (what lint-staged does per key). Built from the config and run, not read
+  // and discarded, so a change to .lintstagedrc.json that reinstates a widening
+  // glob (`"markdownlint-cli2 **/*.md"`) fails this test rather than passing
+  // while every commit lints the whole tree again — the exact defect this test
+  // exists to prevent.
   const config = JSON.parse(
     readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
   );
@@ -366,11 +371,22 @@ test("markdownlint commit scope: lint-staged lints the staged file alone, and a 
     mdCmd,
     "lint-staged wires markdownlint-cli2 over the staged markdown subset",
   );
-  const md = join(ROOT, "node_modules", ".bin", "markdownlint-cli2");
+  // The first token is the binary lint-staged resolves; any remaining tokens
+  // are arguments it passes verbatim. Resolve the binary through the toolkit's
+  // own node_modules the way lint-staged does (its node_modules/.bin is on the
+  // PATH it runs commands with), so the command that runs here is the command
+  // that runs at commit.
+  const [bin, ...mdArgs] = mdCmd.split(" ");
+  const md = join(ROOT, "node_modules", ".bin", bin);
 
   // Scope: one argument lints one file — the malformed sibling does not widen
-  // the check to the whole tree (the defect the split fixes).
-  const scoped = run(md, ["staged.md"], { cwd: dir, env: CLEAN_ENV });
+  // the check to the whole tree (the defect the split fixes). The staged path
+  // is appended after whatever arguments the config carries, exactly as
+  // lint-staged appends it.
+  const scoped = run(md, [...mdArgs, "staged.md"], {
+    cwd: dir,
+    env: CLEAN_ENV,
+  });
   assert.equal(scoped.status, 0, "the clean staged file must pass on its own");
   assert.match(
     (scoped.stderr || "") + (scoped.stdout || ""),
@@ -379,7 +395,7 @@ test("markdownlint commit scope: lint-staged lints the staged file alone, and a 
   );
 
   // Still catches: a per-file rule broken in the staged file is refused.
-  const broken = run(md, ["draft.md"], { cwd: dir, env: CLEAN_ENV });
+  const broken = run(md, [...mdArgs, "draft.md"], { cwd: dir, env: CLEAN_ENV });
   assert.notEqual(
     broken.status,
     0,
