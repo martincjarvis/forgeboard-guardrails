@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The expensive local tests, run once per push — coverage and integration; end-to-end needs a deployment and runs later.
+summary: The expensive local tests, run once per push — coverage and integration; the cross-file documentation checks (repo-wide markdown lint and link integrity); and the cross-stack dependency scan. End-to-end needs a deployment and runs later.
 read_when: Deciding which kind of test something is, or why an end-to-end test must not run at push time.
 ---
 
@@ -11,12 +11,14 @@ read_when: Deciding which kind of test something is, or why an end-to-end test m
 The expensive tests live here. They run once per push rather than once per
 commit, and they judge the whole range being pushed.
 
-| #   | Check                                     | Type        | Runs for                    | Fails when                                               |
-| --- | ----------------------------------------- | ----------- | --------------------------- | -------------------------------------------------------- |
-| 1   | Coverage                                  | Correctness | The repository              | The coverage command exits non-zero                      |
-| 2   | Integration tests                         | Correctness | Changed components only     | An integration test for a changed component fails        |
-| 3   | Cross-stack dependency scan (osv-scanner) | Security    | The resolved dependency set | osv-scanner reports an advisory with no accepted record  |
-| 4   | Branch behind its base                    | Policy      | The branch being pushed     | `git rev-list --count HEAD..<base>` is greater than zero |
+| #   | Check                                     | Type          | Runs for                    | Fails when                                                         |
+| --- | ----------------------------------------- | ------------- | --------------------------- | ------------------------------------------------------------------ |
+| 1   | Coverage                                  | Correctness   | The repository              | The coverage command exits non-zero                                |
+| 2   | Integration tests                         | Correctness   | Changed components only     | An integration test for a changed component fails                  |
+| 3   | Cross-stack dependency scan (osv-scanner) | Security      | The resolved dependency set | osv-scanner reports an advisory with no accepted record            |
+| 4   | Branch behind its base                    | Policy        | The branch being pushed     | `git rev-list --count HEAD..<base>` is greater than zero           |
+| 5   | Markdown lint (repo-wide)                 | Documentation | Every tracked markdown file | A structural prose rule is violated in any tracked file            |
+| 6   | Link and anchor integrity                 | Documentation | The documentation corpus    | A link resolves to nothing, or names a heading that does not exist |
 
 Check 4 is not about correctness — the merge would have been refused anyway,
 because [gate 6's own merge policy](gate-6-pull-request.md#63-merge-policy)
@@ -54,6 +56,25 @@ general-purpose backstop that runs regardless
 External, resolved from `PATH`, never bundled — the same treatment as
 semgrep and lizard ([ADR-0002](../../ADR/0002-analysis-tool-distribution.md)).
 
+Checks 5 and 6 are the cross-file half of the documentation gate, and they
+live here for the same reason: neither can be judged from a single staged file.
+Check 5 sweeps the structural prose rules (heading style, fence languages,
+spacing) across every tracked markdown file — the same rules [gate 2's check
+5](gate-2-commit.md) applies per-file to the staged subset — because a pushed
+series is where the complete set exists. Check 6 reads link and anchor
+integrity over the whole corpus: when a file moves, the broken links live in
+files nobody staged this commit, so the commit gate is the wrong place for it.
+
+The two scopes are chosen at the call site, not held in shared configuration.
+`.markdownlint-cli2.jsonc` carries the `ignores` only; gate 2's lint-staged
+passes the staged paths (per-file), and check 5 passes the `**/*.md` glob
+itself. A `globs` entry in the shared config is combined with lint-staged's
+arguments and widens every commit to the whole tree — the defect the split
+closed ([scope-split spec](../../specs/2026-08-01-markdown-gate-scope-design.md)).
+An intermediate commit in a series may carry a broken cross-document link and
+remain pushable, provided the series ends consistent — already true of every
+other change-scoped gate, so consistent rather than new.
+
 The command that owns the coverage floor also runs the unit suite, so a
 non-zero exit has three possible causes, not one: a failing unit test, a
 genuine coverage shortfall, or the command itself failing to run. The gate
@@ -86,14 +107,16 @@ racing on one environment produce failures that belong to neither change.
 
 ## Running it by hand
 
-| Check                       | Node                                     | .NET                                          |
-| --------------------------- | ---------------------------------------- | --------------------------------------------- |
-| Coverage                    | `npm test -- --coverage`                 | `dotnet test --collect:"XPlat Code Coverage"` |
-| Integration tests           | `npm run test:integration`               | `dotnet test --filter Category=Integration`   |
-| End-to-end tests            | `npx playwright test`                    | `dotnet test --filter Category=EndToEnd`      |
-| Cross-stack dependency scan | `osv-scanner --format json -r .`         | `osv-scanner --format json -r .`              |
-| Branch behind its base      | `git rev-list --count HEAD..origin/main` | `git rev-list --count HEAD..origin/main`      |
-| The pushed range            | `git log --oneline origin/main..HEAD`    | —                                             |
+| Check                       | Node                                     | .NET                                               |
+| --------------------------- | ---------------------------------------- | -------------------------------------------------- |
+| Coverage                    | `npm test -- --coverage`                 | `dotnet test --collect:"XPlat Code Coverage"`      |
+| Integration tests           | `npm run test:integration`               | `dotnet test --filter Category=Integration`        |
+| End-to-end tests            | `npx playwright test`                    | `dotnet test --filter Category=EndToEnd`           |
+| Cross-stack dependency scan | `osv-scanner --format json -r .`         | `osv-scanner --format json -r .`                   |
+| Markdown lint (repo-wide)   | `npm run lint:md`                        | `markdownlint-cli2 "**/*.md"` (or the stack's own) |
+| Link and anchor integrity   | `node scripts/check-links.mjs`           | the repository's own docs command                  |
+| Branch behind its base      | `git rev-list --count HEAD..origin/main` | `git rev-list --count HEAD..origin/main`           |
+| The pushed range            | `git log --oneline origin/main..HEAD`    | —                                                  |
 
 The offline test is the one worth running deliberately: disable network access,
 clear any infrastructure credentials, and run the suite. Anything that fails was
@@ -135,6 +158,15 @@ reaching outside the repository's own boundary and is not an integration test.
       runs and the result says it may be stale, rather than refusing to
       compare at all or presenting a stale comparison as current.
 - [ ] A branch level with, or ahead of, its base passes this check.
+- [ ] A markdown file breaking a structural prose rule is refused at push, even
+      when the committing series never staged it on a single commit — the
+      repo-wide sweep runs here, where the complete set exists.
+- [ ] A broken cross-document link — one document pointing at a heading another
+      does not expose — is refused at push, naming the file and the anchor that
+      does not resolve.
+- [ ] A series whose final state is consistent is pushable, even if an
+      intermediate commit carried a link that did not yet resolve.
+- [ ] A renamed document leaves no dead link anywhere in the corpus at push.
 
 ## References
 

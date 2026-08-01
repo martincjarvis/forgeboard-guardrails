@@ -2,10 +2,9 @@
 // Gate 2 — commit, repository-level checks. Runs after lint-staged, which has
 // already done the file-scoped work (format, prose lint, spelling) on the staged
 // subset and re-staged the reformatted bytes. This orchestrator holds the rest:
-// lock sync, file size, machine-identifying content, secret scan, link and
-// anchor integrity, the suppression register, and the changed-component build
-// and unit tests. Checks run cheapest first and stop at the first failure, per
-// gate 2's contract.
+// lock sync, file size, machine-identifying content, secret scan, the
+// suppression register, and the changed-component build and unit tests. Checks
+// run cheapest first and stop at the first failure, per gate 2's contract.
 //
 // Exit 0 commits. Exit 2 refuses, naming the check, the path and the remedy.
 import {
@@ -17,7 +16,6 @@ import {
   report,
   withStagedWorkingTree,
 } from "./lib.mjs";
-import { checkLinks } from "./check-links.mjs";
 import {
   checkSuppressions,
   pendingSuppressionApprovals,
@@ -43,7 +41,7 @@ if (findings.length) report("gate 2", findings, skips);
 const staged = stagedFiles();
 if (staged.length === 0) {
   // Nothing staged: the file-scoped gate had nothing to do either. Still run the
-  // repository-wide checks (links, register) so a merge can't inherit a break.
+  // repository-wide checks (register) so a merge can't inherit a break.
   note("no staged files; repository-wide checks still run");
 }
 
@@ -161,12 +159,6 @@ if (findings.length) report("gate 2", findings, skips);
 // fetches the registry), which makes it wrong for a per-commit gate. It runs at
 // gate 7 instead; here it is a visible skip with the reason.
 note("cross-language analysis (semgrep) — runs at gate 7, not per-commit");
-
-// Check 17 — link and anchor integrity, over the WHOLE corpus.
-{
-  const found = checkLinks();
-  if (found.length) report("gate 2", found, skips);
-}
 
 // Check 15 — suppression register completeness.
 {

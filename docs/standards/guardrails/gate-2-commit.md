@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The densest gate — seventeen checks over staged content, in a fixed order, from staged-content isolation through to link integrity.
+summary: The densest gate — sixteen checks over staged content, in a fixed order, from staged-content isolation through to the changed-component build and tests.
 read_when: Configuring commit-time checks, or working out why a commit was refused.
 ---
 
@@ -52,10 +52,9 @@ mechanism to hide the unstaged remainder while they run, so the isolation
 mechanism tends to get described in terms of them. The property it guarantees
 is broader than that: every check in this gate that reads a file must read
 the content actually being committed, and that includes the repository-level
-checks in 2.3 that run last — machine-identifying content (9), the
-suppression register (15), the licence register (16) and link integrity (17)
-are file-content checks the same as the formatter and the linter are, and the
-isolation guarantee has to survive as far as they run, not only as far as 2.2.
+checks in 2.3 that run last — machine-identifying content (9), the suppression register (15), the licence register (16) are file-content
+checks the same as the formatter and the linter are, and the isolation
+guarantee has to survive as far as they run, not only as far as 2.2.
 
 **The concrete trap is a mechanism scoped to only the file tier.** A
 hide-and-restore implementation that stashes the unstaged remainder, runs
@@ -151,15 +150,14 @@ above — a check here that reads the working tree instead has quietly fallen
 outside the gate's isolation, even though it runs nowhere near the mechanism
 that provides it.
 
-| #   | Check                       | Type          | Fails when                                                                                                  |
-| --- | --------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------- |
-| 11  | Per-path lint rules         | Correctness   | A path-scoped linter or type checker reports any problem, its own analysers included                        |
-| 12  | Build                       | Correctness   | The changed component fails to build, or the compiler or its analysers emit a warning                       |
-| 13  | Unit and architecture tests | Correctness   | A unit test fails, or an architecture test finds the code breaking the structure it claims                  |
-| 14  | Repository-wide tests       | Correctness   | A repository-level check fails                                                                              |
-| 15  | Suppression register        | Policy        | A suppression comment exists with no complete register row                                                  |
-| 16  | Dependency licence register | Policy        | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to |
-| 17  | Link and anchor integrity   | Documentation | A link resolves to nothing, resolves ambiguously, or names a heading that does not exist                    |
+| #   | Check                       | Type        | Fails when                                                                                                  |
+| --- | --------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| 11  | Per-path lint rules         | Correctness | A path-scoped linter or type checker reports any problem, its own analysers included                        |
+| 12  | Build                       | Correctness | The changed component fails to build, or the compiler or its analysers emit a warning                       |
+| 13  | Unit and architecture tests | Correctness | A unit test fails, or an architecture test finds the code breaking the structure it claims                  |
+| 14  | Repository-wide tests       | Correctness | A repository-level check fails                                                                              |
+| 15  | Suppression register        | Policy      | A suppression comment exists with no complete register row                                                  |
+| 16  | Dependency licence register | Policy      | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to |
 
 Check 11 runs a linter and a type checker together, and neither substitutes for
 the other — see
@@ -196,12 +194,16 @@ change without resolving the whole set on every commit. The two checks are
 not one job under two names — see
 [registers: completeness and policy are different checks](registers.md#the-dependency-licence-register).
 
-Check 17 reads the **whole** documentation corpus, not the staged subset: when a
-file moves, the broken links live in files nobody staged. Repairs are confined
-to staged files, because a write outside that set lands in the working tree but
-not in the commit. **A break it cannot repair still blocks**, wherever the
-broken link lives: the change caused it, and the fact that no unambiguous repair
-exists makes it more urgent to look at, not less.
+**Check 5 (prose lint) is the documentation check that belongs at the commit
+gate, and it runs over the staged files only.** Its rules are per-file —
+heading style, fence languages, spacing — answerable from a single file, so a
+commit need only be self-consistent. The cross-file documentation checks moved
+to [gate 5](gate-5-push.md): a repo-wide markdown sweep and link/anchor
+integrity, both of which need the complete set to judge, and a pushed series is
+where that set exists. Holding either here widened the commit gate beyond the
+staged subset — `.markdownlint-cli2.jsonc` used to glob the whole tree on every
+commit — so the two scopes are now chosen at their call sites, not in shared
+configuration ([scope-split spec](../../specs/2026-08-01-markdown-gate-scope-design.md)).
 
 ## 2.4 Technology-native analysis
 
@@ -270,7 +272,6 @@ command below takes that list.
 | 14  | Repository-wide tests       | The repository's own repository-level check command                                                                                                                                                                  |
 | 15  | Suppression register        | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                                                                                           |
 | 16  | Dependency licence register | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                                                                                    |
-| 17  | Link and anchor integrity   | `npx markdown-link-check <paths>`, or the repository's own docs command                                                                                                                                              |
 
 Prefer Node tooling where the stack has no native equivalent — the formatter,
 the prose lint, the spell check and the secret scan are stack-independent, and
@@ -293,7 +294,7 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] A partially staged file is judged on its staged half only.
 - [ ] An isolation check that cannot run blocks the commit and says the result is
       unknown, rather than passing or claiming a breach.
-- [ ] A repository-level check (9, 15, 16 or 17) still reads staged content, not
+- [ ] A repository-level check (9, 15 or 16) still reads staged content, not
       the working tree: stage a violation — a leaked absolute path is enough —
       edit the working copy to remove it without re-staging, run the gate, and
       confirm it still refuses.
@@ -309,6 +310,10 @@ formatter for C#, the compiler's own analysers over an external pass.
       placeholder passes.
 - [ ] A file over the byte-size limit is refused before it enters the history.
 - [ ] A documentation file breaking a structural prose rule is refused.
+- [ ] A commit touching one markdown file lints that one file alone — the prose
+      check is scoped to the staged subset, and an unrelated malformed draft
+      elsewhere in the tree does not refuse a commit that does not touch it
+      (the repo-wide sweep runs at [gate 5](gate-5-push.md)).
 - [ ] An unknown word not in the file's own vocabulary is refused.
 - [ ] A lint or type-check failure is refused independently of the build — the
       two are separate checks and either alone blocks.
@@ -333,7 +338,6 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] Analyser versions are pinned, and an upgrade is a deliberate change.
 - [ ] A finding reproduces identically from the local command and from the
       pipeline's published report.
-- [ ] A renamed document leaves no dead link anywhere in the corpus.
 - [ ] Each refusal is a diagnosis, per the cross-gate rule.
 
 ## References

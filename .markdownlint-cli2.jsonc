@@ -1,5 +1,4 @@
 {
-  "//": "markdownlint-cli2 loads the rule set from .markdownlint.jsonc automatically; this file supplies only the CLI concerns — which files to lint and which to ignore — so the same rules run whether invoked with explicit paths (lint-staged) or with none (the gate sweeps).",
-  "globs": ["**/*.md"],
+  "//": "Ignores only. The file set is chosen at each call site, never here: lint-staged passes the staged paths (gate 2, per-file), and the gate-5 sweep passes **/*.md itself (gate-5-push.md). A globs entry here is combined with the path arguments lint-staged passes, widening its per-file scope to the whole tree — the defect the scope split closed (docs/specs/2026-08-01-markdown-gate-scope-design.md).",
   "ignores": ["node_modules/**", "coverage/**", ".logs/**"],
 }

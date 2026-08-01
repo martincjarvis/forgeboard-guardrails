@@ -326,3 +326,64 @@ test("gate 6 reports visibly and refuses to proceed when origin/HEAD is unresolv
   assert.match(r.stderr, /cannot resolve the base branch/);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test("markdownlint commit scope: lint-staged lints the staged file alone, and a per-file violation in it is still refused", () => {
+  // docs/specs/2026-08-01-markdown-gate-scope-design.md. .markdownlint-cli2.jsonc
+  // used to set "globs": ["**/*.md"]; markdownlint-cli2 combines configured
+  // globs with the path arguments lint-staged passes, so one staged argument
+  // lints the whole tree and an unrelated draft anywhere refused every commit.
+  // With globs removed (the sweep glob moved to gate 5's call site), the
+  // per-file argument lint-staged passes lints exactly that file — and a
+  // per-file rule broken in it is still refused. The exit-0 class — a scoping
+  // change that quietly stops catching anything — is what this closes against.
+  const dir = mkdtempSync(join(tmpdir(), "markdown-scope-"));
+  // The configs lint-staged loads at commit time: the rules file and the CLI
+  // config (globs now absent, so the file set is whatever lint-staged passes).
+  writeFileSync(
+    join(dir, ".markdownlint.jsonc"),
+    readFileSync(join(ROOT, ".markdownlint.jsonc"), "utf8"),
+  );
+  writeFileSync(
+    join(dir, ".markdownlint-cli2.jsonc"),
+    readFileSync(join(ROOT, ".markdownlint-cli2.jsonc"), "utf8"),
+  );
+  // A well-formed file (the one that would be staged) and a malformed sibling
+  // (the unrelated draft that used to widen every commit to the whole tree).
+  writeFileSync(join(dir, "staged.md"), "# Staged\n\nWell-formed prose.\n");
+  writeFileSync(
+    join(dir, "draft.md"),
+    "no top-level heading — a structural per-file violation\n",
+  );
+  // The exact invocation lint-staged makes: the command .lintstagedrc.json
+  // names, with the staged path appended (what lint-staged does per key).
+  const config = JSON.parse(
+    readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
+  );
+  const mdCmd = config["*.{md,mdx}"].find((c) =>
+    c.includes("markdownlint-cli2"),
+  );
+  assert.ok(
+    mdCmd,
+    "lint-staged wires markdownlint-cli2 over the staged markdown subset",
+  );
+  const md = join(ROOT, "node_modules", ".bin", "markdownlint-cli2");
+
+  // Scope: one argument lints one file — the malformed sibling does not widen
+  // the check to the whole tree (the defect the split fixes).
+  const scoped = run(md, ["staged.md"], { cwd: dir, env: CLEAN_ENV });
+  assert.equal(scoped.status, 0, "the clean staged file must pass on its own");
+  assert.match(
+    (scoped.stderr || "") + (scoped.stdout || ""),
+    /Linting: 1 file\b/,
+    "with the sweep glob at gate 5, one argument lints one file, not the whole tree",
+  );
+
+  // Still catches: a per-file rule broken in the staged file is refused.
+  const broken = run(md, ["draft.md"], { cwd: dir, env: CLEAN_ENV });
+  assert.notEqual(
+    broken.status,
+    0,
+    "a staged file that breaks a per-file rule must still be refused at commit",
+  );
+  rmSync(dir, { recursive: true, force: true });
+});

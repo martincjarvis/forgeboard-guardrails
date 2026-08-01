@@ -20,7 +20,14 @@ import { checkOsvScanner } from "../../scripts/check-osv-scanner.mjs";
 import { run, have } from "../lib/run.mjs";
 import { classifyFixtureResult } from "../../scripts/check-refusal-proofs.mjs";
 import assert from "node:assert/strict";
-import { ROOT, CLEAN_ENV, scratchRepo, NOSEMGREP } from "./support.mjs";
+import {
+  ROOT,
+  CLEAN_ENV,
+  scratchRepo,
+  NOSEMGREP,
+  git,
+  runScript,
+} from "./support.mjs";
 
 // --- scripts/lib.mjs — normalizeSarifPaths (.github/workflows/pull-
 // request.yml's SARIF upload; the Windows matrix leg's semgrep emits
@@ -678,4 +685,40 @@ test("checkOsvScanner: a real advisory in osv-scanner's JSON output is a finding
   assert.equal(skips.length, 0);
   assert.equal(findings.length, 1);
   assert.match(findings[0].problem, /GHSA-aaaa-bbbb-cccc/);
+});
+
+test("link integrity at push: a broken cross-document anchor in the pushed set is refused", () => {
+  // docs/specs/2026-08-01-markdown-gate-scope-design.md. Link integrity moved
+  // from gate 2 to gate 5: a link from one document to a heading in another
+  // cannot be judged from a single staged file, and the push is where the
+  // complete set exists. checkLinks() is the function gate-5-push.mjs calls
+  // (check 6); a non-empty result is a refusal. Run as a subprocess against a
+  // scratch repository's tracked files — the same shape gate 5 sees at push,
+  // where every file in the pushed series is tracked, so the broken
+  // cross-document link is caught.
+  const dir = scratchRepo();
+  git(dir, ["checkout", "-qb", "feature"]);
+  writeFileSync(
+    join(dir, "index.md"),
+    "# Index\n\nSee the [details](details.md#missing).\n",
+  );
+  writeFileSync(
+    join(dir, "details.md"),
+    "# Details\n\nNo anchor named missing here.\n",
+  );
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-qm", "docs: cross-link to details"]);
+  const r = runScript("scripts/check-links.mjs", dir);
+  assert.notEqual(
+    r.status,
+    0,
+    "a broken cross-document link must be refused at push, not silently passed",
+  );
+  assert.match(r.stderr, /link\/anchor integrity/);
+  assert.match(
+    (r.stderr || "") + (r.stdout || ""),
+    /anchor does not exist/,
+    "the refusal must name the broken anchor, not merely that a problem exists",
+  );
+  rmSync(dir, { recursive: true, force: true });
 });

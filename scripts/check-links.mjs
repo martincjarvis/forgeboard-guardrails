@@ -1,8 +1,11 @@
-// Check 17 — link and anchor integrity (gate 2, and gate 7's sweep).
+// Check 6 — link and anchor integrity (gate 5, gate 6 and gate 7's sweep).
 //
-// Reads the WHOLE documentation corpus, not the staged subset, because a file
-// move leaves the broken link in a file nobody staged. Repairs are confined to
-// staged files; a break it cannot repair still blocks, wherever it lives.
+// Reads the WHOLE documentation corpus, not a single staged file, because a
+// file move leaves the broken link in a file nobody staged. A cross-document
+// link cannot be judged from one file, so this runs at push (gate 5) and in the
+// pipeline/sweep — where the complete set exists — not at the commit gate.
+// Repairs are confined to staged files; a break it cannot repair still blocks,
+// wherever it lives.
 //
 // Internal links and anchors are resolved offline — the repository's own docs
 // command. External links are platform capability scanning (level 1) and are

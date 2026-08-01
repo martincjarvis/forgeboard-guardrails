@@ -15,7 +15,7 @@
     "test:coverage": "c8 --check-coverage --lines=80 --reporter=text --reporter=cobertura node --test hooks/test/hooks.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint:md": "markdownlint-cli2",
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
     "spell": "cspell lint --no-progress --gitignore .",
     "gate:0": "node scripts/gate-0-baseline.mjs",
     "gate:7": "node scripts/gate-7-on-demand.mjs"

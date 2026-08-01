@@ -19,6 +19,7 @@ import {
 } from "./lib.mjs";
 import { checkOsvScanner } from "./check-osv-scanner.mjs";
 import { checkBranchBehindBase } from "./check-branch-behind-base.mjs";
+import { checkLinks } from "./check-links.mjs";
 import { createInterface } from "node:readline";
 
 const findings = [];
@@ -97,6 +98,34 @@ skips.push(
   const { findings: found, skips: sk } = checkOsvScanner();
   findings.push(...found);
   skips.push(...sk);
+}
+
+// Check 5 — repo-wide markdown lint. Per-file prose rules run at gate 2 over
+// the staged subset only; the cross-file sweep runs here, against the whole
+// tree, because a pushed series is where the complete set exists. The glob is
+// passed at this call site rather than held in .markdownlint-cli2.jsonc — a
+// globs entry there is combined with lint-staged's staged-path arguments and
+// widens every commit to the whole tree
+// (docs/specs/2026-08-01-markdown-gate-scope-design.md).
+{
+  const md = run("npx", ["--no-install", "markdownlint-cli2", "**/*.md"]);
+  if (md.status !== 0) {
+    findings.push({
+      check: "markdown lint",
+      problem: (md.stdout || "") + (md.stderr || ""),
+      remedy:
+        "fix the structural violation above; run `npm run lint:md` locally",
+    });
+  }
+}
+
+// Check 6 — link and anchor integrity, over the whole tracked corpus. A link
+// from one document to a heading in another cannot be judged from a single
+// staged file, so this runs here rather than gate 2: the push is where the
+// complete set exists, and a series' final state is what a push carries.
+{
+  const broken = checkLinks();
+  if (broken.length) findings.push(...broken);
 }
 
 report("gate 5", findings, skips);
