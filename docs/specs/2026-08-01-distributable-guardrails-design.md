@@ -1,7 +1,7 @@
 ---
 type: reference
 summary: The overarching design for distributing the guardrails as a plugin — a .guardrails/ folder a repository owns, a capability-level opt-out register, two reworked skills, a mechanical harness, and a tuning loop.
-read_when: Designing or implementing any of the six slices below, or judging whether a proposed change belongs to this design or a different one.
+read_when: Designing or implementing any of the seven slices below, or judging whether a proposed change belongs to this design or a different one.
 ---
 
 <!-- cspell:ignore opencode -->
@@ -13,9 +13,9 @@ installed at a path the prompt names. That works, and twenty-six rounds of it
 produced ninety-eight fixes. It does not distribute: a user cannot add the plugin
 and have it apply itself.
 
-This design closes that. It is split into six slices, each specified separately
+This design closes that. It is split into seven slices, each specified separately
 within the scope set here. Anything not described here is out of scope for all
-six.
+seven.
 
 ## What is being built
 
@@ -59,7 +59,7 @@ tool implementing a check varies, per
 [cross-gate-rules](../standards/guardrails/cross-gate-rules.md): _"prefer the
 stack's own tool where one exists."_
 
-## The six slices
+## The seven slices
 
 Each slice below states its brief, what success and failure look like, and
 indicative behaviour as Given/When/Then. The BDD lines are **illustrative of the
@@ -323,11 +323,54 @@ merely repeats.
 
 ---
 
+### Slice 7 — User journeys declared, and bracketed by a failing test
+
+**Brief.** [testing-strategy](../standards/testing-strategy.md) already requires
+one given–when–then end-to-end test per user journey, and says nothing about where
+the list of journeys comes from — so "every journey has a test" is satisfied by
+whichever journeys someone chose to name. Journeys are declared in the spec,
+closing the set, and each journey's test is written failing when implementation
+starts and green when the plan completes.
+
+Covers: what makes a journey declared rather than aspirational; what a journey
+asserts beyond the product itself, at larger scope; granularity per level of
+specification; declaring dependencies between specs; and the decomposition
+heuristic — a journey whose test cannot be made to pass in one plan means the
+spec is too large.
+
+Specified in [slice 7](2026-08-01-slice-7-user-journeys.md).
+
+**Success.** A spec's journeys are a finite list. Every end-to-end test failed at
+least once, before the code it exercises existed. A plan is not complete while a
+journey it promised is red.
+
+**Failure.** Journeys loose enough that no test follows from them. Journeys
+written after implementation, describing what was built. A test that has only ever
+passed.
+
+```gherkin
+Given a spec declaring three user journeys
+When implementation starts
+Then three end-to-end tests exist and all three fail
+
+Given a spec that declares no user journeys
+When it is reviewed
+Then that is a finding against the spec, not against the implementation
+```
+
+**Complexity: medium.** Corpus only — the standard and the checks that read it.
+The skill that helps a planning session produce journeys is a separate design,
+because it hooks into planning tools this toolkit does not own and must work in a
+repository with no guardrails at all.
+
+---
+
 ## Sequencing
 
 Slices 1 and 2 are foundational and must be specified before 3 and 4, which
 consume their vocabulary. Slice 5 needs 1–4 stable, since it automates their flow.
-Slice 6 needs 5's artefact contract.
+Slice 6 needs 5's artefact contract. Slice 7 is independent of all six — it
+changes the testing standard and nothing they define.
 
 Specification may proceed in parallel where a slice's inputs are fixed by this
 document. Implementation may not.
