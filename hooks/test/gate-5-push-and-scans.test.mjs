@@ -145,7 +145,7 @@ test("filterSuppressedSarif does not throw when the SARIF file is missing", () =
   rmSync(dir, { recursive: true, force: true });
 });
 
-// End-to-end reproduction of the actual audit-8 mechanism: a real semgrep
+// End-to-end reproduction of the real mechanism: a real semgrep
 // run against a local rule file (no `--config auto` — no network needed,
 // same reasoning refuseSemgrepFixture avoids it for a scratch repository),
 // one finding carrying a same-line in-source suppression marker and one
@@ -417,7 +417,7 @@ test("classifyTestCoverageOutcome: a command that never ran (neither summary pre
   );
 });
 
-// extractCoverageAndTestSummary — fix brief 8, item 1: "coverage legible
+// extractCoverageAndTestSummary — "coverage legible
 // without a download" needs the test counts and the coverage percentage on
 // the run's own page whether the run passed or failed, so
 // scripts/gate-6-pull-request.mjs reads them from the same command output
@@ -588,7 +588,7 @@ test("extractOsvJsonFindings: a real advisory in osv-scanner's own --format json
   assert.deepEqual(extractOsvJsonFindings(stdout), ["GHSA-aaaa-bbbb-cccc"]);
 });
 
-test("extractOsvJsonFindings: osv-scanner's own startup banner — the audit-12 problem text — names no vulnerability", () => {
+test("extractOsvJsonFindings: osv-scanner's own startup banner — text that looks like a finding — names no vulnerability", () => {
   const banner =
     "Scanning dir .\n" +
     "Scanning ... at commit d43f2a3\n" +
@@ -641,7 +641,7 @@ test("classifyOsvScannerOutcome: a non-zero exit with a named vulnerability is t
   assert.deepEqual(outcome.findings, ["GHSA-aaaa-bbbb-cccc"]);
 });
 
-test("classifyOsvScannerOutcome: a non-zero exit with no named vulnerability is unavailable, not a finding — the audit-12 case", () => {
+test("classifyOsvScannerOutcome: a non-zero exit with no named vulnerability is unavailable, not a finding", () => {
   const outcome = classifyOsvScannerOutcome(127, []);
   assert.equal(outcome.kind, "unavailable");
   assert.ok(outcome.detail, "an unavailable outcome carries its own detail");
@@ -655,9 +655,9 @@ test("classifyOsvScannerOutcome: a non-zero exit with no named vulnerability is 
 
 // checkOsvScanner end to end, through its injected run() — proves the fix
 // where it actually ships (gate 5's local check), not only in the pure
-// classifier: the audit-12 banner must be a skip, and a real advisory must
+// classifier: that banner must be a skip, and a real advisory must
 // still be a finding.
-test("checkOsvScanner: a scanner failure with no parseable finding (the audit-12 banner) is an unavailable skip, never a finding", () => {
+test("checkOsvScanner: a scanner failure with no parseable finding (the startup banner) is an unavailable skip, never a finding", () => {
   const banner =
     "Scanning dir .\n" +
     "Scanning ... at commit d43f2a3\n" +

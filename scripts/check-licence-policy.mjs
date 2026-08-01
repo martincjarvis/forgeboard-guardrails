@@ -7,7 +7,7 @@
 // gate-6-pull-request.md: "It also reads a different scope than gate 2's
 // completeness check over the same register").
 //
-// Fix brief 6 — the decision rule, mechanical rather than a judgement:
+// The decision rule, mechanical rather than a judgement:
 //
 //   A dependency's licence passes without blocking when it is OSI-approved,
 //   and its conditions are compatible with this repository's own licence (or

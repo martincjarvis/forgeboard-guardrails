@@ -563,7 +563,7 @@ test("configure-branch-protection: an unresolvable origin/HEAD is a visible skip
   );
 });
 
-// --- scripts/check-repository-features.mjs — fix brief 8, item 2. "Every
+// --- scripts/check-repository-features.mjs. "Every
 // check the platform already provides is enabled rather than rebuilt"
 // (cross-gate-rules.md) was unactionable until this enumerated which
 // features that meant and how to tell "off" from "not offered on this

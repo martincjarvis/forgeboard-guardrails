@@ -174,7 +174,7 @@ test("regression guard: check-script-wiring.mjs reports a script-index mismatch 
 });
 
 // --- scripts/check-licence-table.mjs — gate 7's on-demand licence table
-// re-validation (fix brief 6: "re-validating the table against OSI is an
+// re-validation ("re-validating the table against OSI is an
 // invoked task at gate 7," never a scheduled one). `fetchFn` is injected —
 // these tests make no real network call, the same reason
 // classifyAdvisories (check-dependency-advisories.mjs) is tested against a

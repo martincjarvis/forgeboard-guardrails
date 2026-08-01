@@ -542,4 +542,4 @@ recurrences would answer it; none have been filed yet._
 - [Slice 4 — the audit skill](2026-08-01-distributable-guardrails-slice-4-audit-skill.md) — the report this skill reads, and the state vocabulary its findings arrive in.
 - [ADR conventions](../ADR/README.md) — supersede rather than edit, the rule this spec's reclassification follows.
 - [ADR-0005](../ADR/0005-generated-files-discounted-from-change-size.md) — the `guardrail-generated` declaration the index carries.
-- [Documentation style standard](../standards/docs-style.md) — the frontmatter and structure rules, and the fix-62 argument against a second record of the same facts.
+- [Documentation style standard](../standards/docs-style.md) — the frontmatter and structure rules, and the argument against a second record of the same facts.

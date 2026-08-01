@@ -59,7 +59,7 @@ test("checkToolingClassDeclared: a consuming repository with no gate scripts at 
   assert.deepEqual(findings, []);
 });
 
-test("checkToolingClassDeclared: a consuming repository with ported gate scripts and zero tooling-classed files anywhere is the audit-12 defect, named", () => {
+test("checkToolingClassDeclared: a consuming repository with ported gate scripts and zero tooling-classed files anywhere is a defect, named", () => {
   const findings = checkToolingClassDeclared({
     files: ["scripts/gate-6-pull-request.mjs", "src/app.mjs"],
     classify: () => "production",
@@ -108,7 +108,7 @@ test("checkToolingTestSuiteExists: a consuming repository with no tooling-classe
   assert.deepEqual(findings, []);
 });
 
-test("checkToolingTestSuiteExists: tooling-classed scripts with no test file naming any of them is the audit-13 defect, named", () => {
+test("checkToolingTestSuiteExists: tooling-classed scripts with no test file naming any of them is a defect, named", () => {
   const files = ["tools/check-foo.mjs", "tools/check-bar.mjs", "src/app.mjs"];
   const findings = checkToolingTestSuiteExists({
     files,

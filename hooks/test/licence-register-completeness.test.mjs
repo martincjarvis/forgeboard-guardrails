@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { git, scratchRepo, runScript } from "./support.mjs";
 
 // --- scripts/check-licence.mjs — gate 2 check 16 (completeness), extended
-// by fix brief 6 to also flag a licence with no scripts/licence-table.mjs
+// also flags a licence with no scripts/licence-table.mjs
 // entry: "a licence in the resolved set with no table entry is a finding at
 // gates 2 and 6" (gate-6-pull-request.md), so a coverage gap is caught the
 // moment the dependency arrives, not only when gate 6 later judges it.

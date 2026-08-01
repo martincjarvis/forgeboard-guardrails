@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fix brief 8, item 2 — the mechanism half. gate-7-on-demand.md states which
+// The mechanism half. gate-7-on-demand.md states which
 // GitHub features are free at which visibility and plan, and supplies no way
 // to turn them on — the same gap branch protection had before
 // scripts/configure-branch-protection.mjs existed to close it

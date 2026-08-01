@@ -1,5 +1,5 @@
 // cspell:ignore blueoakcouncil jschardet opensource
-// The licence table (fix brief 6) — recorded facts about each licence this
+// The licence table — recorded facts about each licence this
 // repository's own dependencies carry, not an enumerated allow list.
 //
 // gate-6-pull-request.md used to say "the allow lists are enumerated

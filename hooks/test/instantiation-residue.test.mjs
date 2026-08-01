@@ -155,7 +155,7 @@ test("checkCspellResidue: an occurrence only in a file classed `tooling` does no
   assert.match(finding.problem, /'Roslynator'.*dotnet/);
 
   // The same corpus, with the tooling file left unclassified (every file
-  // reads as production) — this is the pre-fix-59 shape, and it must NOT
+  // reads as production) — the shape before file classes were declared, and it must NOT
   // flag the word, because the ported checker's own source now "uses" it.
   const findingsWithoutClassExcluded = checkCspellResidue({
     files,

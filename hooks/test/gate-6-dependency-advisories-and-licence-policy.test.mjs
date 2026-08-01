@@ -126,7 +126,7 @@ test("dependency advisory scan is a visible skip, naming the reason, when not tr
 });
 
 // --- scripts/licence-table.mjs and scripts/check-licence-policy.mjs — gate
-// 6 check 7 (fix brief 6: a per-licence table, not two enumerated allow
+// 6 check 7 (a per-licence table, not two enumerated allow
 // lists — docs/standards/guardrails/gate-6-pull-request.md's "Licence
 // policy: a table, not two allow lists").
 

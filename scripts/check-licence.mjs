@@ -27,7 +27,7 @@ function cellsOf(row) {
 }
 
 /** Rows already recorded: a Set of "name@version" (completeness's own
- *  lookup) plus the raw rows with their licence cell (fix brief 6 — the
+ *  lookup) plus the raw rows with their licence cell (the
  *  table-entry completeness check below needs the licence, completeness
  *  itself does not). Null means the register itself does not exist —
  *  distinct from an empty register, which parses to empty and still fails
@@ -55,7 +55,7 @@ function parseRegister() {
   return { known, rows };
 }
 
-/** Fix brief 6 — a licence in the resolved set with no entry in
+/** A licence in the resolved set with no entry in
  *  scripts/licence-table.mjs is a finding at gate 2 (here) as well as gate 6
  *  (check-licence-policy.mjs): "you need an entry precisely when a
  *  dependency introduces the licence, which is when the check already

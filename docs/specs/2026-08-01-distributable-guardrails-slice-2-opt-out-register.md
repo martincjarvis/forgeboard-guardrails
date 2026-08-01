@@ -662,7 +662,10 @@ a column._
   refusing the act structurally at the earliest gate that can see it, rather than
   restating the rule a fourth time.
 - [ADR-0006](../ADR/0006-change-size-override-is-a-human-decision.md) — "who, not
-  which commit", and the limit of what commit separation can prove.
+  which commit", and the limit of what commit separation can prove. **Superseded
+  by [ADR-0010](../ADR/0010-large-pr-marker-refused-without-approved-row.md)**,
+  which enforces the same principle at the commit-msg hook; 0006 is cited here
+  for the argument it originated, not as the current rule.
 - [Slice 1 — Foundations](2026-08-01-distributable-guardrails-slice-1-foundations.md) — the capability
   vocabulary this register's Capability column takes its permitted values from,
   and the flat `.guardrails/` layout every path here follows.
