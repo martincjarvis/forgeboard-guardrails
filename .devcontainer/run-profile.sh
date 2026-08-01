@@ -26,12 +26,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # (docker exec/cp hit the identical issue). A no-op on real Linux/macOS shells.
 export MSYS_NO_PATHCONV=1
 
-IMAGE_NAME="mcpeval-agent-stack"
+IMAGE_NAME="guardrails-agent-stack"
 WORKSPACE_MOUNT="/workspaces/$(basename "$(pwd)")"
 
 profile="${1:-}"
 [ -n "$profile" ] || { echo "Usage: $0 <profile-name> [container-name]" >&2; exit 1; }
-container_name="${2:-mcpeval-agent-stack-$profile}"
+container_name="${2:-guardrails-agent-stack-$profile}"
 
 image="$IMAGE_NAME:$profile"
 if ! docker image inspect "$image" > /dev/null 2>&1; then
