@@ -119,7 +119,7 @@ Three states, the same discipline as every check in this toolkit:
 | State                                                              | Reported as                                                                              |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | `gh` missing, unauthenticated, no GitHub remote, or a 403          | A visible **skip**, naming the reason — never a finding standing in for "could not tell" |
-| Branch protection genuinely unconfigured (404)                     | A **finding** — the exact gap audit 8 found                                              |
+| Branch protection genuinely unconfigured (404)                     | A **finding** — the gap this check exists to catch                                       |
 | Configured, but missing a required check, or any of policies 16-24 | One **finding per gap**, naming what is missing                                          |
 | Fully agrees with what gate 6 actually runs                        | A pass                                                                                   |
 

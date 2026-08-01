@@ -404,8 +404,8 @@ these on the protected branch, not as convention. **This is a mechanism, not
 only a principle** — `scripts/configure-branch-protection.mjs` applies every
 row below, idempotently, and `scripts/check-branch-protection.mjs` makes its
 absence a finding rather than a silent pass, wired into gate 7 and CI; see
-[branch protection](branch-protection.md) for both. Audit 8 found the
-mechanism missing four times running: a red required check and a red gate 6
+[branch protection](branch-protection.md) for both. The mechanism has been
+found missing four times running: a red required check and a red gate 6
 blocked nothing, because nothing had ever configured the platform to refuse.
 
 | #   | Policy                                | Type   | Prevents                                                      |
@@ -437,16 +437,16 @@ Most of this gate is platform configuration rather than a command, but the
 checks themselves are the local ones re-run — see each gate's own page. What is
 specific here:
 
-| Purpose                                                                                                                                              | Command                                                                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Build the merge result locally                                                                                                                       | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main`                          |
-| Reproduce a clean checkout                                                                                                                           | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`                                       |
-| Changed-line coverage                                                                                                                                | `npx diff-cover coverage/cobertura-coverage.xml --compare-branch origin/main --fail-under 80` |
-| Inspect required status checks                                                                                                                       | `gh api repos/:owner/:repo/branches/main/protection`                                          |
-| Inspect branch protection, ADO                                                                                                                       | `az repos policy list --branch main`                                                          |
-| Check a pull request's finding citations (fix 68, cross-gate-rules.md's reserved-class exception) — a reviewer, against an already-open pull request | `node scripts/check-pr-body-artefacts.mjs [pr-number]`                                        |
-| Check a `[large-pr]` marker is backed by an approved register row (fix 74)                                                                           | `node scripts/check-change-size-override.mjs [base..HEAD]`                                    |
-| Reconcile a report's claims against a completed CI run's own job log (fix 76) — a step after the run, never before                                   | `node scripts/check-report-ci-reconciliation.mjs <report.md> <job-log.txt>`                   |
+| Purpose                                                                                                                                      | Command                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Build the merge result locally                                                                                                               | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main`                          |
+| Reproduce a clean checkout                                                                                                                   | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`                                       |
+| Changed-line coverage                                                                                                                        | `npx diff-cover coverage/cobertura-coverage.xml --compare-branch origin/main --fail-under 80` |
+| Inspect required status checks                                                                                                               | `gh api repos/:owner/:repo/branches/main/protection`                                          |
+| Inspect branch protection, ADO                                                                                                               | `az repos policy list --branch main`                                                          |
+| Check a pull request's finding citations (cross-gate-rules.md's reserved-class exception) — a reviewer, against an already-open pull request | `node scripts/check-pr-body-artefacts.mjs [pr-number]`                                        |
+| Check a `[large-pr]` marker is backed by an approved register row                                                                            | `node scripts/check-change-size-override.mjs [base..HEAD]`                                    |
+| Reconcile a report's claims against a completed CI run's own job log — a step after the run, never before                                    | `node scripts/check-report-ci-reconciliation.mjs <report.md> <job-log.txt>`                   |
 
 The falsifiable test for check 3 is worth running once at adoption: remove the
 local hooks entirely, break one check deliberately, push, and confirm the
@@ -589,7 +589,7 @@ pipeline refuses the merge.
       commit-msg hook, without an approved row
       ([ADR-0010](../../ADR/0010-large-pr-marker-refused-without-approved-row.md)).
       Gate 4's own change-size check still clears on the bare marker locally
-      ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
+      ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
 - [ ] A row approved for a different branch does not clear this check for the
       one under review.
 

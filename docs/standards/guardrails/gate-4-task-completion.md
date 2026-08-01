@@ -37,7 +37,7 @@ that value wins outright and `resolveBase()` is never consulted.
 [Gate 6](gate-6-pull-request.md) takes this path, passing the base it
 already resolved from `GITHUB_BASE_REF` rather than letting the subprocess
 re-derive one that needs `origin/HEAD` — a symref a CI checkout may never
-set (fix 71: [a check that skips on every surface it runs on has not been
+set ([a check that skips on every surface it runs on has not been
 skipped](cross-gate-rules.md#a-check-that-skips-on-every-surface-it-runs-on-has-not-been-skipped)).
 
 ## Push back is not a warning
@@ -84,7 +84,7 @@ to ask. A finding that pushes back locally becomes, server-side, a check for the
 recorded answer: for change size, a human-approved row in [the change-size
 override register](registers.md#the-change-size-override-register), matched by
 branch — the bare `[large-pr]` string is not enough on its own
-([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix));
+([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix));
 a resolved decision record or a register row for anything else. No answer on
 record is a failure there, which is what stops push back from degrading into a
 warning the moment the author is not watching.
@@ -152,7 +152,7 @@ is a separate question, answered by [Thresholds](thresholds.md).
       unblocks it locally — for an author present to have typed it.
 - [ ] The bare marker does not unblock the merge at gate 6 without a
       human-approved row in the change-size override register, matched by
-      branch ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
+      branch ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
 - [ ] An agent reports the counted size and what makes up the bulk; it does
       not apply the override marker on its own authority.
 - [ ] A branch whose size comes entirely from `tooling` files still pushes
@@ -185,7 +185,7 @@ is a separate question, answered by [Thresholds](thresholds.md).
 - [Registers](registers.md#the-change-size-override-register) — the
   change-size override register the merge gate checks.
 - [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
-  fix 74, why the marker alone is not enough server-side.
+  why the marker alone is not enough server-side.
 - Agent Skills specification (<https://agentskills.io/specification>) — the
   frontmatter fields and the progressive-disclosure recommendation.
 - Agent Skills authoring guidance

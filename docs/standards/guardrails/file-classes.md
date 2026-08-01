@@ -211,16 +211,16 @@ from a hunch about the path.
       `tooling`-classed file written in the product's own language, not only
       one lizard or the coverage tool happens to skip by extension or import
       scope, is proof: `scripts/check-tooling-class.mjs`'s own fixtures cover
-      exactly this case (fix 45; audit 12 found the class-exclusion machinery
-      had never been exercised against a real `tooling`-classed file).
+      exactly this case (the class-exclusion machinery had never been exercised
+      against a real `tooling`-classed file before these fixtures).
 - [ ] The same script is classed `tooling` in a repository that consumes this
       standard, and `production` in a repository whose product is the tooling
       itself.
 - [ ] A repository that consumes this standard and carries ported gate or
       check scripts has at least one file classed `tooling` — a repository
       with such scripts and zero, checked by `scripts/check-tooling-class.mjs`
-      (`checkToolingClassDeclared`), is the audit-12 defect: the rule stated
-      above and nothing enforcing it.
+      (`checkToolingClassDeclared`), is the defect this check exists to catch:
+      the rule stated above and nothing enforcing it.
 - [ ] A check that decides what to scan or measure by file class does not
       substitute a file extension or language for it — an extension filter
       only accidentally excludes a `tooling`-classed file that happens to be

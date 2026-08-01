@@ -17,12 +17,12 @@ than as a silent change in behaviour.
 searching, not important enough to sit at the top of the documentation tree
 beside the standards a reader actually reads through. One file per register.
 
-| Register             | Records                                                        | One row per          | Enforced by                                                                              |
-| -------------------- | -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------- |
-| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path | Commit gate                                                                              |
-| Dependency licence   | Every resolved dependency and its licence                      | One dependency       | Commit gate for completeness, pipeline for policy                                        |
-| Test quarantine      | Known-flaky tests not currently blocking                       | One test             | Push gate and pipeline                                                                   |
-| Change size override | Branches accepted over the change-size error band, and by whom | One branch           | Pipeline ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
+| Register             | Records                                                        | One row per          | Enforced by                                                                                                |
+| -------------------- | -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path | Commit gate                                                                                                |
+| Dependency licence   | Every resolved dependency and its licence                      | One dependency       | Commit gate for completeness, pipeline for policy                                                          |
+| Test quarantine      | Known-flaky tests not currently blocking                       | One test             | Push gate and pipeline                                                                                     |
+| Change size override | Branches accepted over the change-size error band, and by whom | One branch           | Pipeline ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
 
 ## Rules common to all four
 
@@ -99,7 +99,7 @@ introduces what it approves.** A register row or a decision record that
 arrives already approved, in the same commit that created it, has not been
 reviewed by anyone — whoever is named.
 
-Audit 13 found the gap this closes: a bootstrapped repository landed an ADR
+The gap this closes is real: a bootstrapped repository once landed an ADR
 and five register rows, all naming the same person, all already accepted —
 inside the single bootstrap commit, hours after that person had approved the
 identical text in a _different_ repository.
@@ -160,7 +160,7 @@ and the bootstrap skill's own step 9.
 - A commit under review (a bootstrap commit, say) contains no filled
   approver field anywhere it did not already exist — `node
 scripts/check-approval-provenance.mjs --commit <sha>`, run by hand. The
-  blunt instrument, and the one that would have caught audit 13's finding.
+  blunt instrument, and the one that would have caught it.
 
 ## The suppression register
 
@@ -250,10 +250,10 @@ name attached.
 
 ## The change-size override register
 
-The row [fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)
-requires before `[large-pr]` clears the merge gate. Identified by branch, not
-by rule and path — a change-size override is a decision about one branch's
-own size, not about a rule silenced at a location.
+A row is required before `[large-pr]` clears the merge gate; see
+[an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
+Identified by branch, not by rule and path — a change-size override is a
+decision about one branch's own size, not about a rule silenced at a location.
 
 | Column         | Holds                                                                                                                                          |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -301,7 +301,7 @@ generating the register locally cannot see the Linux row at all; it exists
 only once an ubuntu leg resolves the tree and nobody has reason to look there
 unless they already know the package is platform-split.
 
-Fix 63: `@esbuild/win32-x64@0.28.1` had a register row and
+`@esbuild/win32-x64@0.28.1` had a register row and
 `@esbuild/linux-x64@0.28.1`, resolved on the same lock file, did not — not
 because anyone skipped a row, but because the register was built once, on
 one host, and `npm ls --all --json` on that host had nothing to say about
@@ -408,4 +408,4 @@ table.
 - [Change size override register](../../registers/change-size-override-register.md) —
   this repository's own instance.
 - [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
-  fix 74, the rule this register exists to answer.
+  the rule this register exists to answer.

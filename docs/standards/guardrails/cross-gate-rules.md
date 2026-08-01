@@ -586,7 +586,7 @@ can point to. Distinguish the two by parsing the tool's own structured output
 non-zero exit with a named entry in that output is a finding; a non-zero exit
 with nothing parseable in it is unavailable, reported the same way a missing
 tool is — visibly, naming what went wrong, and never as a finding it cannot
-back up. Audit 12 found this live: a CI run failed a dependency scan with the
+back up. This was found live: a CI run failed a dependency scan with the
 scanner's own startup banner as the problem text — no vulnerability id
 anywhere in it — while the same scan on the same commit, run standalone,
 passed clean.
