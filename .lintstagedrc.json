@@ -1,5 +1,5 @@
 {
-  "//": "Formatter first, then the structural and spelling checks, each over the staged subset only. Within one key the array runs sequentially, so prettier has rewritten and re-staged the bytes before markdownlint and cspell read them — gate 2's rule that the checks after the formatter judge the final bytes. Secret scan, machine-identifying content, file size, lock sync, link integrity, register completeness and the changed-component unit tests run in scripts/pre-commit.mjs after this, against the reformatted tree.",
+  "//": "Formatter first, then the structural and spelling checks, each over the staged subset only. Within one key the array runs sequentially, so prettier has rewritten and re-staged the bytes before markdownlint and cspell read them — gate 2's rule that the checks after the formatter judge the final bytes. Secret scan, machine-identifying content, file size, lock sync, register completeness and the changed-component unit tests run in scripts/pre-commit.mjs after this, against the reformatted tree. Link integrity and the tree-wide markdown sweep run later, at gate 5 (push) and gate 6 (CI), where the whole corpus exists — not per-commit.",
   "*.{md,mdx}": [
     "prettier --write",
     "markdownlint-cli2",
