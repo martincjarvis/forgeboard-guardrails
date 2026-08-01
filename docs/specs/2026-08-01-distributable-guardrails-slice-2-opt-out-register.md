@@ -26,8 +26,8 @@ one day be able to fix it.
 
 An **opt-out** asserts that the whole class of check is not relevant to this
 repository. Nothing is being tolerated, because nothing was found and nothing
-could be: an image scan in a repository that builds no image has no violation to
-report, this run or any other. It is **configuration** — a statement about what
+could be: a smoke test in a repository that never deploys has no deployment to
+verify, this run or any other. It is **configuration** — a statement about what
 this repository is, of the same kind as declaring its stack — and not an
 exception to anything.
 
@@ -93,7 +93,7 @@ rather than as an error.
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Capability      | Exactly one capability identifier from slice 1's vocabulary — never a gate, never a list, never a wildcard, and never one of [the two excluded](#two-capabilities-that-may-not-be-opted-out) |
 | Filed           | The ISO date the row was proposed. Never edited afterwards — with Capability it forms the row identity every register check already reads                                                    |
-| Justification   | The property of the repository that makes the capability inapplicable, in one sentence — the fact, not the argument for it. "This repository builds no container image"                      |
+| Justification   | The property of the repository that makes the capability inapplicable, in one sentence — the fact, not the argument for it. "This repository ships a library; nothing is ever deployed"      |
 | Decision record | The ADR carrying the reasoning, cited as `ADR-nnnn`. Required on every row — see [the row indexes; the ADR reasons](#the-row-indexes-the-adr-reasons)                                        |
 | Removable when  | What would have to become true for the row to go, stated so the audit can evaluate it against the repository. Never "never"                                                                  |
 | Approved by     | The human who accepted it, named. Verified at admission against the review that let the row onto the protected branch — see [Enforcement](#enforcement)                                      |
@@ -511,7 +511,7 @@ under a claim, in a decision record, that could not survive being written down.
 This is the direction that matters, because it is the one where the silence
 this register grants is exactly what makes the misfiling attractive.
 
-A capability that genuinely cannot apply — no container image, so no image scan
+A capability that genuinely cannot apply — nothing is ever deployed, so no smoke test
 — is one opt-out row and one record, not a suppression per site. Suppressions
 filed to route around an inapplicable capability leave the capability nominally
 enabled, its register unreadable, and every one of those rows asserting a
