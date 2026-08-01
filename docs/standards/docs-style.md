@@ -248,11 +248,12 @@ checked"](guardrails/cross-gate-rules.md#never-claim-more-than-was-checked)).
 It is that the list has one legitimate source:
 
 - **The outstanding-work list is the verbatim output of one command — the
-  gate itself**, run gate 6, or gate 7 where the repository cannot yet run
-  gate 6. One line per finding, each with the check that produced it. Not an
-  assembly of individually chosen checks: choosing which checks to run and
-  pasting the results together is where a check gets dropped even while every
-  individual number stays honest.
+  gate itself** ([ADR-0014](../ADR/0014-one-command-one-transcript.md)), run
+  gate 6, or gate 7 where the repository cannot yet run gate 6. One line per
+  finding, each with the check that produced it. Not an assembly of
+  individually chosen checks: choosing which checks to run and pasting the
+  results together is where a check gets dropped even while every individual
+  number stays honest.
 - **A check that cannot run locally is a line in that command's own output,
   reported unavailable** — never a line missing because the implementer judged
   it out of scope.
@@ -553,7 +554,8 @@ outside the derived list — an unused word alone is not, because plenty of
 legitimate vocabulary appears once and is later edited away, and a checker
 that flags every unused word gets turned off.
 
-**The "used elsewhere" corpus excludes the checker's own fixtures.** Once
+**The "used elsewhere" corpus excludes the checker's own fixtures**
+([ADR-0012](../ADR/0012-residue-corpus-derived-from-file-class.md)). Once
 this module (and, following the porting instruction below,
 its test file) is copied into the repository it inspects, "every tracked
 file" now includes this checker's own source and test fixtures — which
@@ -593,8 +595,9 @@ repository's commits — and nothing mechanical caught it, because the checks
 above read `docs/standards/**` and `cspell.json`, never test files.
 `checkHardcodedCommitSha` (same module)
 adds the narrow, mechanical proxy: a full 40-character hex commit SHA
-hard-coded in a file classed `test` is a finding. Deliberately narrow —
-detecting "this assertion tests the upstream repository's state"
+hard-coded in a file classed `test` is a finding. Deliberately narrow
+([ADR-0013](../ADR/0013-hardcoded-sha-detects-a-shape.md)) — detecting
+"this assertion tests the upstream repository's state"
 semantically would false-positive on legitimate fixtures, so the check
 looks for nothing but the SHA shape itself, scoped to `test`-classed files
 so a `configuration`-classed CI workflow pinning a third-party GitHub Action

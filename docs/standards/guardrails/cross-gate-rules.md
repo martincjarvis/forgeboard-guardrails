@@ -469,8 +469,9 @@ to quote it verbatim, because a later commit shifted the file by eight lines
 after the report's reconciliation pass had already run.
 `scripts/check-report-ci-reconciliation.mjs` cannot catch this by its own
 documented design: it matches the `<gate>: FAIL <label>` string and never the
-indented detail lines beneath. That scope is deliberate and correct — matching
-prose, not a tool's raw output, is [the artefact-citation
+indented detail lines beneath. That scope is deliberate and correct
+([ADR-0011](../../ADR/0011-reconciliation-matches-labels-not-details.md)) —
+matching prose, not a tool's raw output, is [the artefact-citation
 check](#a-pull-request-is-not-opened-until-the-gate-6-surface-is-clean-locally)'s
 own restraint applied here too. The defect is the report's **claim**, not a
 gap in the check.
@@ -676,7 +677,8 @@ find.
 
 **Naming the command is not enough while the set can still be assembled
 check by check. The list itself must be the verbatim output of one command
-— the gate — never a concatenation of individually chosen checks' output.**
+— the gate — never a concatenation of individually chosen checks' output**
+([ADR-0014](../../ADR/0014-one-command-one-transcript.md)).
 A check that cannot run locally is a line in that command's own output,
 reported unavailable, not a line the implementer decided to leave out. A
 report that cited the rule above still lost lines: it ran the licence check
