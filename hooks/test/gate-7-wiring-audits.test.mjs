@@ -291,3 +291,28 @@ test("formatFindingBody: an empty or absent problem yields nothing to print, not
   assert.deepEqual(formatFindingBody(undefined), []);
   assert.deepEqual(formatFindingBody(null), []);
 });
+
+// Every gate and check script guards its CLI block on isMain. process.argv[1]
+// is undefined under `node -e`, and pathToFileURL(undefined) throws — so a
+// script whose guard does not test for it cannot be imported at all from such
+// a context, which is how a test reaches its pure functions.
+test("every script's isMain guard survives process.argv[1] being undefined", () => {
+  const roots = ["scripts", "hooks"];
+  const unguarded = [];
+  for (const root of roots) {
+    for (const f of readdirSync(root)) {
+      if (!f.endsWith(".mjs")) continue;
+      const src = readFileSync(join(root, f), "utf8");
+      if (!src.includes("pathToFileURL(process.argv[1])")) continue;
+      // The guard must test argv[1] before dereferencing it.
+      if (!/Boolean\(process\.argv\[1\]\)|process\.argv\[1\]\s*&&/.test(src)) {
+        unguarded.push(`${root}/${f}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    unguarded,
+    [],
+    `these dereference process.argv[1] unguarded: ${unguarded.join(", ")}`,
+  );
+});

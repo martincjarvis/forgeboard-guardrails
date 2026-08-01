@@ -116,7 +116,9 @@ export function checkMachineId(files) {
   return findings;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const files = process.argv.slice(2).filter((a) => !a.startsWith("-"));
   const findings = checkMachineId(files.length ? files : undefined);

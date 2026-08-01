@@ -265,7 +265,9 @@ export function checkLicencePolicy(scanTriggered) {
   return { findings, skips };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   // Manual or scheduled run: always in scope — there is no staged/changed set
   // to ask, the way pre-commit.mjs and gate-6-pull-request.mjs can.

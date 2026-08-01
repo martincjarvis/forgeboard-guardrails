@@ -136,7 +136,9 @@ function reportDocFindings(file, text, stacks, componentCount) {
   return count;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   // ponytail: component count taken from argv rather than derived from a
   // project graph — this reference script checks two mechanical properties,

@@ -282,7 +282,9 @@ export async function checkRepositoryFeatures({
   };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const { findings, skips } = await checkRepositoryFeatures();
   report("gate 7", findings, skips);

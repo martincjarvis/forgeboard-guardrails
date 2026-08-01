@@ -81,7 +81,9 @@ export function checkBranchBehindBase({
   return { findings, skips };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const { findings, skips } = checkBranchBehindBase();
   report("gate 5", findings, skips);

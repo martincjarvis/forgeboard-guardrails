@@ -126,7 +126,9 @@ export function checkReportCiReconciliation(
   );
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const args = process.argv.slice(2);
   const reportPath = args[0];

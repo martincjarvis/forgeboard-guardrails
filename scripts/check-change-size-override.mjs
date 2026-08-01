@@ -172,7 +172,9 @@ export function checkChangeSizeOverrideMessage(
   });
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   if (process.argv[2] === "--message") {
     // .husky/commit-msg usage: the one message about to be committed.

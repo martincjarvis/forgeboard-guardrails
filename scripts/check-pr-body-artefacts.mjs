@@ -237,7 +237,9 @@ export function readPrBody(
   return { body: view.stdout || "", skip: null };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const { body, skip } = readPrBody(process.argv.slice(2));
   if (skip) {

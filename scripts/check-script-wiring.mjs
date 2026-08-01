@@ -237,7 +237,9 @@ export function checkIndexGateClaims(indexText, gateSources) {
   return findings;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const pkg = JSON.parse(readFileSync("package.json", "utf8"));
   const { wired, onDemand, unwired } = checkScriptWiring(pkg.scripts);

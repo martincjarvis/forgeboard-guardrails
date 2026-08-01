@@ -249,7 +249,9 @@ export function checkApprovalProvenanceRange(
   return findings;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   // Checkpoint 4, the blunt instrument: run by hand against one commit —
   // `node scripts/check-approval-provenance.mjs --commit <sha>` (default

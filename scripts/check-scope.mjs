@@ -153,7 +153,9 @@ export function checkCommitRange(logRange, component) {
   return findings;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const component = deriveComponent();
   process.stderr.write(
