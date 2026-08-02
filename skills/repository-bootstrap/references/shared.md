@@ -32,6 +32,27 @@ setup, `verify`) for other platforms. Pin action versions. If a pipeline
 already exists, add the verify job into it rather than adding a second
 workflow, and keep its existing jobs untouched.
 
+## `supply-chain`
+
+Platform tooling first — each is one toggle, no code:
+
+- **Advisories**: Dependabot alerts + security updates
+  (`gh api -X PUT repos/{owner}/{repo}/vulnerability-alerts` and
+  `.../automated-security-fixes`), or the platform's equivalent.
+- **Release age**: the package manager's own window — npm ≥ 11.6:
+  `min-release-age=10080` (minutes; 7 days) in `.npmrc`
+  (`templates/node/npmrc`). Blocks freshly-published versions, the
+  supply-chain attack's favourite hour.
+- **Static security scan (SAST)**: CodeQL default setup
+  (`gh api -X PATCH repos/{owner}/{repo}/code-scanning/default-setup -f state=configured`),
+  free on public repositories.
+
+**Backup tools where the platform's are unavailable** (self-hosted git, no
+Advanced Security): `osv-scanner` for advisories, `semgrep` with a stack
+rule pack for SAST, `lizard` for complexity where the linter has no rule —
+each runs fine as a CI step; record whichever is used in
+`.guardrails.json`.
+
 ## `branch-review`
 
 - Default branch takes changes by PR only.

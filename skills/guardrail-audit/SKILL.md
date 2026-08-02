@@ -5,7 +5,7 @@ description: Use when asked to audit, assess, or check a repository's guardrails
 
 # Guardrail audit
 
-Read-only. Report the state of the ten capabilities in
+Read-only. Report the state of the eleven capabilities in
 [docs/standards.md](../../docs/standards.md) for this repository, ordered so
 someone can work top-down. Nothing is changed; the fixes are the ask.
 

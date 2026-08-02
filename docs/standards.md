@@ -13,7 +13,12 @@ exceptions. Tool choices per stack live in the bootstrap skill's
 - **Scripts and hard stops over prose.** A standard that only lives in a
   document is a suggestion.
 - **The stack's own tools.** Well-understood, well-supported tools over
-  bespoke code, always.
+  bespoke code, always. Platform-native tooling (Dependabot, CodeQL, push
+  protection) beats a CI-installed tool, which beats anything bespoke.
+- **Sensible defaults, on.** Templates ship with the strict options enabled —
+  analyser packs at their latest level, complexity limits, personal-detail
+  scanning — and a repository loosens them deliberately, with a reason, not
+  by never turning them on.
 - **Exceptions are owned.** Anything switched off or suppressed carries a
   reason and a human owner, and is visible in review.
 - **CI is parity, not authority.** CI re-runs the same `verify` the developer
@@ -36,6 +41,7 @@ exceptions. Tool choices per stack live in the bootstrap skill's
 | `spelling`        | Spell check over prose and identifiers                               | commit (staged), CI    |
 | `ci-verify`       | The repository's `verify` command runs on every PR and must pass     | CI, required check     |
 | `branch-review`   | Default branch takes PRs only; `.guardrails.json` needs human review | host branch protection |
+| `supply-chain`    | Dependency advisories, release-age window, static security scan      | host tooling, CI       |
 
 ## The record: `.guardrails.json`
 

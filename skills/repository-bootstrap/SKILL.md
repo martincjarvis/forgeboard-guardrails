@@ -5,7 +5,7 @@ description: Use when asked to set up, bootstrap, or uplift a repository with qu
 
 # Repository bootstrap
 
-Leave the repository enforcing the ten capabilities in
+Leave the repository enforcing the eleven capabilities in
 [docs/standards.md](../../docs/standards.md), using off-the-shelf tools, with
 nothing depending on this plugin afterwards. Works on an empty repository and
 on an existing one; the existing one's working setup is extended, never
@@ -91,6 +91,10 @@ then hooks, then CI.
   rewrite any link that does not resolve inside this repository. The
   repository's docs describe the repository, not the plugin; nothing the
   record, report or PR cites may need the plugin installed to read.
+- **Supply chain**: apply the platform toggles (advisories, release-age
+  window, SAST) per [references/shared.md](references/shared.md#supply-chain);
+  platform tooling unavailable → wire the backup tools it names. No
+  permission: exact commands in the report.
 - **Branch review**: when a remote exists and you have permission, require PRs
   and mark the verify check required —
   `gh api repos/{owner}/{repo}/branches/{branch}/protection` or the platform

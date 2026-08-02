@@ -9,5 +9,6 @@
   "secrets": { "tool": "" },
   "spelling": { "tool": "" },
   "ci-verify": { "tool": "" },
-  "branch-review": { "tool": "" }
+  "branch-review": { "tool": "" },
+  "supply-chain": { "tool": "" }
 }

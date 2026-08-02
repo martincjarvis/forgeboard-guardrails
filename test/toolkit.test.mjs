@@ -1,8 +1,8 @@
 // The toolkit's own gate: templates parse, skills are well-formed, links hold.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 
@@ -50,23 +50,5 @@ test("every SKILL.md has frontmatter with name and description", () => {
   }
 });
 
-test("relative markdown links resolve", () => {
-  const mdFiles = [];
-  const walk = (dir) => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      if (e.name === "node_modules" || e.name.startsWith(".git")) continue;
-      const p = join(dir, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.name.endsWith(".md")) mdFiles.push(p);
-    }
-  };
-  walk(root);
-  assert.ok(mdFiles.length > 5, "expected markdown files");
-  for (const file of mdFiles) {
-    const text = readFileSync(file, "utf8");
-    for (const m of text.matchAll(/\]\((?!https?:|#|mailto:)([^)#\s]+)/g)) {
-      const target = resolve(dirname(file), m[1]);
-      assert.ok(existsSync(target), `${file}: broken link ${m[1]}`);
-    }
-  }
-});
+// Link integrity is markdownlint's job now: markdownlint-rule-relative-links
+// in .markdownlint-cli2.jsonc, which runs at commit and in the verify sweep.
