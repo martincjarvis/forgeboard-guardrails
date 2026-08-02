@@ -1,0 +1,18 @@
+{
+  "name": "forgeboard-guardrails",
+  "description": "Delivery guardrails: bootstrap or audit hard quality gates in a repository — formatting, linting, tests, commit hygiene, secrets, CI parity — wired through the stack's own off-the-shelf tools, never bespoke scripts.",
+  "version": "0.1.0",
+  "author": {
+    "name": "ForgeBoard"
+  },
+  "homepage": "https://github.com/martincjarvis/forgeboard-guardrails",
+  "repository": "https://github.com/martincjarvis/forgeboard-guardrails",
+  "keywords": [
+    "guardrails",
+    "standards",
+    "code-review",
+    "conventional-commits",
+    "testing-strategy",
+    "deployment"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "version": "0.2",
+  "language": "en,en-GB",
+  "words": [
+    "commitlint",
+    "cspell",
+    "devcontainer",
+    "forgeboard",
+    "gitleaks",
+    "gitlint",
+    "jsconfig",
+    "lefthook",
+    "lintstagedrc",
+    "markdownlint",
+    "mjarvis",
+    "msbuild",
+    "mypy",
+    "noqa",
+    "opencode",
+    "pyproject",
+    "pyright",
+    "pytest",
+    "secretlint",
+    "vitest",
+    "warnaserror",
+    "xunit"
+  ],
+  "ignorePaths": ["node_modules/**", "package-lock.json", ".husky/_/**"]
+}

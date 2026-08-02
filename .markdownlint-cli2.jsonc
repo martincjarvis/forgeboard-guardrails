@@ -1,0 +1,10 @@
+{
+  // Ignores only — file sets come from the call site (lint-staged passes staged
+  // paths; the verify sweep passes the glob). A "globs" entry here would union
+  // with lint-staged's paths and widen every commit to the whole tree.
+  "ignores": ["node_modules/**"],
+  "config": {
+    "MD013": false,
+    "MD033": false,
+  },
+}

@@ -1,0 +1,12 @@
+{
+  "//": "Formatter first, then checks judge the formatted bytes. Staged files only; the tree-wide sweep is npm run verify.",
+  "*.{md,mdx}": [
+    "prettier --write",
+    "markdownlint-cli2",
+    "cspell lint --no-progress --no-must-find-files"
+  ],
+  "*.{js,mjs,cjs,json,jsonc,yml,yaml}": [
+    "prettier --write",
+    "cspell lint --no-progress --no-must-find-files"
+  ]
+}
