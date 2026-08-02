@@ -41,5 +41,9 @@ workflow, and keep its existing jobs untouched.
 
 GitHub: `gh api repos/{owner}/{repo}/branches/{branch}/protection` with
 `required_status_checks` and `required_pull_request_reviews`, or
-repository rulesets. Never weaken existing protection; only add. Without admin
-permission, emit the exact commands in the report instead.
+repository rulesets. **Set `enforce_admins: true`** — without it the owner
+bypasses everything, and an agent running with the owner's token is exactly
+the actor this capability exists to stop; proven live during E2E, where a
+direct push to a "protected" branch succeeded until it was enabled. Never
+weaken existing protection; only add. Without admin permission, emit the
+exact commands in the report instead.
