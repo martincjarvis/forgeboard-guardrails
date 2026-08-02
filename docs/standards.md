@@ -34,8 +34,8 @@ exceptions. Tool choices per stack live in the bootstrap skill's
 | `format`          | One formatter, auto-applied; no style debate in review               | commit (staged files)  |
 | `lint`            | Static analysis at zero warnings                                     | commit (staged), CI    |
 | `typecheck`       | Types checked where the stack has them                               | push, CI               |
-| `tests`           | Unit tests pass; new behaviour arrives with its test                 | push, CI               |
-| `coverage`        | A floor the test runner enforces, not a dashboard                    | CI                     |
+| `tests`           | Layered: unit + integration, and an E2E journey per feature          | push, CI               |
+| `coverage`        | 80% floor on production code, runner-enforced, reported on the PR    | CI                     |
 | `commit-messages` | Conventional commits, checked at commit time                         | commit-msg hook        |
 | `secrets`         | No credential shapes in the tree                                     | commit (staged), CI    |
 | `spelling`        | Spell check over prose and identifiers                               | commit (staged), CI    |
@@ -59,6 +59,12 @@ Turning a capability off is a human decision. The enforcement is the host's:
 bootstrap adds a `CODEOWNERS` line for `.guardrails.json`, so no change to it
 merges without a human review. There are no registers, approval scripts, or
 provenance checks — the PR is the audit trail.
+
+**An `off` entry is a proposal until it merges.** The decision exists only on
+the default branch, which can only be reached through a reviewed PR; an entry
+that differs from the default branch's copy is an unratified proposal, and
+the audit reports it as such. An agent can propose loosening a standard; only
+the merge ratifies it.
 
 ## Exceptions in code
 

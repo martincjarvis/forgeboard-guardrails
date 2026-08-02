@@ -27,5 +27,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - name: Coverage on the PR
+        # Platform-native visibility: the run's summary page. Adapt the glob
+        # to wherever the runner writes its text summary; keep it after
+        # verify so the figures are from the enforced run.
+        if: always()
+        run: |
+          {
+            echo "## Coverage"
+            echo '```'
+            cat coverage/coverage-summary.txt 2>/dev/null || npx --no-install c8 report --reporter=text 2>/dev/null || echo "no coverage output found"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Lint commit messages on the PR range
         run: npx --no-install commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}

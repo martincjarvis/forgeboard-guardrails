@@ -25,7 +25,14 @@ types.
 
 ## `ci-verify`
 
-One job, running the repository's own `verify` command on every pull request:
+One job, running the repository's own `verify` command on every pull
+request. Coverage is made visible on the PR with the platform's own
+mechanic — GitHub: append the runner's text summary to
+`$GITHUB_STEP_SUMMARY` (see the template's Coverage step); other platforms:
+their native report publishing. The enforced floor and the visible figure
+come from the same run.
+
+Template:
 [templates/github/guardrails.yml](../../../templates/github/guardrails.yml)
 for GitHub Actions; translate the same three steps (checkout, toolchain
 setup, `verify`) for other platforms. Pin action versions. If a pipeline

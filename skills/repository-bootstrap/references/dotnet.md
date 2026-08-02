@@ -1,7 +1,9 @@
 # .NET tooling
 
-Default choices for a .NET 8/10 LTS repository. An existing equivalent always
-wins.
+Default choices for a .NET repository. An existing equivalent always wins —
+but not an outdated platform: target the newest LTS (currently .NET 10). A
+repository pinned to an older LTS gets the upgrade proposed at bootstrap and
+reported by the audit; an unsupported version is a finding, not a choice.
 
 | Capability        | Tool                          | Notes                                                                     |
 | ----------------- | ----------------------------- | ------------------------------------------------------------------------- |
