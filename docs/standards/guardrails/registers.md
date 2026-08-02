@@ -45,9 +45,18 @@ beside the standards a reader actually reads through. One file per register.
 - **A generated inventory is not a register.** The pipeline publishes a
   dependency inventory as evidence each run; it is derived, untracked and
   reviewed by nobody. The register is the reviewed counterpart.
+- **The first two columns are the row's identity, and they are immutable** — a
+  subject and something that never changes about it (Code+Scope, Dependency+
+  Version, Branch+Filed). Never a measurement, a count, or a date that tracks
+  the work rather than the filing. When an identity cell moves, every approval
+  recorded against the row is silently voided — the symptom is a human's
+  approval refused as though never given. The [provenance check](#approval-is-an-event-not-a-field)
+  keys on these two cells, which is why the second column has to be something
+  nobody rewords.
 
-Every register carries the same three columns — **justification**, **removal
-condition** and **approver** — and adds the columns its own subject needs.
+Every register's first two columns are its identity; its last three are shared
+— **justification**, **removal condition** and **approver** — and the columns its
+own subject needs sit between them.
 
 ## A register row or a decision record?
 
@@ -401,6 +410,11 @@ table.
 ## Verification
 
 - [ ] Every register has a gate that fails when a row is missing.
+- [ ] Every register's first two columns are an immutable identity — a subject
+      and something that never changes about it — never a measurement, a count,
+      or a date that tracks the work rather than the filing. A second column that
+      moves between commits silently voids every approval recorded against the
+      row; the symptom is a human's approval refused as though never given.
 - [ ] Every row eventually names a human approver, and an approver that reads
       as a team label or a machine is refused the moment it is written, not
       merely when it is blank.
