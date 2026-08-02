@@ -17,9 +17,8 @@ import { run } from "../lib/run.mjs";
 import assert from "node:assert/strict";
 import { ROOT, CLEAN_ENV, git, scratchRepo, runScript } from "./support.mjs";
 
-// --- scripts/ — gate 2, the commit-time checks (docs/standards/guardrails/
-// gate-2-commit.md). These build the same throwaway repository, but exercise
-// scripts/*.mjs rather than hooks/*.mjs.
+// --- scripts/ — gate 2, the commit-time checks (gate-2-commit.md), exercising
+// scripts/*.mjs against the same throwaway repository shape.
 
 test("machine-id check reads the staged blob, not a working copy edited after `git add`", () => {
   // gate-2-commit.md, check 2: a file edited after staging must still be
@@ -58,10 +57,9 @@ test("machine-id check flags a real single-backslash Windows home path", () => {
 
 test("gate 2 checks 12/13 read the staged tree, not a working-tree fix that was never re-staged", () => {
   // gate-2-commit.md, checks 12/13: a compiler or test runner reads the real
-  // working tree, so it must be isolated to match the index first. Proven
-  // failing without the fix: stage a broken file, overwrite the working copy
-  // back to something valid WITHOUT re-staging — the build then reads the
-  // fixed-up working copy and the commit is wrongly allowed.
+  // working tree, so it must be isolated to match the index first. Stage a
+  // broken file, overwrite the working copy back to valid WITHOUT re-staging;
+  // without isolation the build reads the fix and the commit is wrongly allowed.
   const dir = scratchRepo();
   // Pin line-ending handling for this test: a global core.autocrlf=true (the
   // common Windows default) makes git rewrite LF to CRLF on any checkout-like
@@ -132,12 +130,10 @@ test("gate 2 checks 12/13 read the staged tree, not a working-tree fix that was 
 
 test("gate 2 wires a lint check independently of the build: a lint-only violation tsc accepts is refused", () => {
   // gate-2-commit.md, check 11: "A lint or type-check failure is refused
-  // independently of the build — the type checker is not the linter."
-  // `npm run lint` used to be invoked by nothing, so this
-  // check was effectively absent. An unused local variable is exactly the
-  // shape tsc's checkJs (strict: false, no noUnusedLocals) does not catch,
-  // so a build that runs against the same file stays green — proving the
-  // finding depends on the lint check firing, not on the build.
+  // independently of the build — the type checker is not the linter." An
+  // unused local is exactly the shape tsc's checkJs does not catch, so the
+  // build stays green — the finding depends on the lint check firing, not
+  // the build.
   const dir = scratchRepo();
   git(dir, ["config", "core.autocrlf", "false"]);
   writeFileSync(
@@ -253,12 +249,10 @@ test("eslint --max-warnings 0 refuses a rule configured at its own default (warn
 
 test("protected-branch check refuses on the derived default branch, allows a feature branch", () => {
   // gate-2-commit.md, check 1: the protected branch name is derived from
-  // origin/HEAD (here, a real symbolic ref — scratchRepo sets it up the same
-  // way `git clone` does), never configured. Exercised as its own module
-  // (scripts/check-protected-branch.mjs), not the full pre-commit.mjs
-  // pipeline, so the result depends only on this check — not on whichever
-  // external tools (secretlint, etc.) happen to resolve from a throwaway
-  // repository with no node_modules of its own.
+  // origin/HEAD (a real symbolic ref, as `git clone` sets up), never
+  // configured. Run as its own module, not the full pre-commit.mjs pipeline,
+  // so the result depends only on this check, not on whichever external tools
+  // (secretlint, etc.) resolve from a throwaway repository.
   const dir = scratchRepo();
   const onMain = runScript("scripts/check-protected-branch.mjs", dir);
   assert.equal(
@@ -279,14 +273,11 @@ test("protected-branch check refuses on the derived default branch, allows a fea
 });
 
 test("resolveBase has no hardcoded fallback: an absent origin/HEAD with origin/main still present is a visible skip, not a guessed name", () => {
-  // The single-failure case (lib.mjs:resolveBase): a shallow clone,
-  // partial clone, or stale symref can delete refs/remotes/origin/HEAD while
-  // refs/remotes/origin/main stays behind. A hardcoded "origin/main" fallback
-  // would use that guessed name as though it had been derived, and the
-  // protected-branch check would silently pass on a repository it never
-  // actually resolved a base for. This is the realistic case — the doubly-
-  // unresolvable one (no origin/main either) is not what a partial clone
-  // produces and is not what this test exercises.
+  // The single-failure case (lib.mjs:resolveBase): a shallow or partial clone
+  // can delete refs/remotes/origin/HEAD while refs/remotes/origin/main stays
+  // behind. A hardcoded "origin/main" fallback would guess that name as though
+  // derived, and the protected-branch check would silently pass on a repo it
+  // never resolved a base for.
   const dir = scratchRepo();
   git(dir, ["symbolic-ref", "-d", "refs/remotes/origin/HEAD"]);
   assert.equal(
@@ -336,14 +327,11 @@ test("gate 6 reports visibly and refuses to proceed when origin/HEAD is unresolv
 });
 
 test("markdownlint commit scope: lint-staged lints the staged file alone, and a per-file violation in it is still refused", () => {
-  // docs/specs/2026-08-01-markdown-gate-scope-design.md. .markdownlint-cli2.jsonc
-  // used to set "globs": ["**/*.md"]; markdownlint-cli2 combines configured
-  // globs with the path arguments lint-staged passes, so one staged argument
-  // lints the whole tree and an unrelated draft anywhere refused every commit.
-  // With globs removed (the sweep glob moved to gate 5's call site), the
-  // per-file argument lint-staged passes lints exactly that file — and a
-  // per-file rule broken in it is still refused. The exit-0 class — a scoping
-  // change that quietly stops catching anything — is what this closes against.
+  // docs/specs/2026-08-01-markdown-gate-scope-design.md. With the sweep glob at
+  // gate 5's call site (not in .markdownlint-cli2.jsonc), the per-file argument
+  // lint-staged passes lints exactly that file — and a per-file rule broken in
+  // it is still refused. The exit-0 class — a scoping change that quietly stops
+  // catching anything — is what this closes against.
   const dir = mkdtempSync(join(tmpdir(), "markdown-scope-"));
   // The configs lint-staged loads at commit time: the rules file and the CLI
   // config (globs now absent, so the file set is whatever lint-staged passes).
@@ -362,13 +350,10 @@ test("markdownlint commit scope: lint-staged lints the staged file alone, and a 
     join(dir, "draft.md"),
     "no top-level heading — a structural per-file violation\n",
   );
-  // The exact invocation lint-staged makes: the command .lintstagedrc.json
-  // names, split into binary and arguments, with the staged path appended
-  // (what lint-staged does per key). Built from the config and run, not read
-  // and discarded, so a change to .lintstagedrc.json that reinstates a widening
-  // glob (`"markdownlint-cli2 **/*.md"`) fails this test rather than passing
-  // while every commit lints the whole tree again — the exact defect this test
-  // exists to prevent.
+  // The exact invocation lint-staged makes, built from .lintstagedrc.json
+  // (not hardcoded) so a change reinstating a widening glob
+  // (`"markdownlint-cli2 **/*.md"`) fails this test rather than silently
+  // widening every commit — the defect this test exists to prevent.
   const config = JSON.parse(
     readFileSync(join(ROOT, ".lintstagedrc.json"), "utf8"),
   );
