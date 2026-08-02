@@ -40,6 +40,17 @@ re-derive one that needs `origin/HEAD` — a symref a CI checkout may never
 set ([a check that skips on every surface it runs on has not been
 skipped](cross-gate-rules.md#a-check-that-skips-on-every-surface-it-runs-on-has-not-been-skipped)).
 
+**One more fact, not a refusal: how many commits on the branch are not on the
+remote.** The hook reports it for the reviewer the work is handed back to — the
+same shape as the size and length facts — and stops there. It does not push:
+pushing would act on the agent's own claim of completion (the claim this
+workflow does not trust — the agent commits, a reviewer verifies by
+measurement, then pushes), it is outward-facing and irreversible, and gate 4
+taking gate 5's action collapses two gates. Where the fact cannot be
+established — no remote configured, no upstream tracking branch, a detached
+HEAD — it is a skip with a reason, never a silent zero, so "cannot tell" does
+not read as "nothing to push".
+
 ## Push back is not a warning
 
 Push back is defined in

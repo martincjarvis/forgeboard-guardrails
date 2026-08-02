@@ -1,4 +1,4 @@
-// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
+// cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited unpushed Unpushed
 // Split from hooks.test.mjs — subject group: gate-1-4-task-completion.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
@@ -14,7 +14,7 @@ import {
   REGISTER_PATH as CHANGE_SIZE_OVERRIDE_REGISTER_PATH,
 } from "../../scripts/check-change-size-override.mjs";
 import assert from "node:assert/strict";
-import { parseNumstatZ } from "../gate-4-task-completion.mjs";
+import { parseNumstatZ, describeUnpushed } from "../gate-4-task-completion.mjs";
 import {
   HOOKS,
   ROOT,
@@ -863,4 +863,77 @@ test("parseNumstatZ: a rename among ordinary rows does not shift the ones after 
     ["2", "2", ".guardrails/b.mjs"],
     ["5", "1", "src/c.mjs"],
   ]);
+});
+
+// gate 4 reports unpushed commits as a note for review (never a push, never a
+// silent zero on the unavailable cases). describeUnpushed is the pure half;
+// the unavailable cases are a skip with a reason, distinct from a real zero.
+test("describeUnpushed: unavailable cases are a skip with a reason, never a silent zero", () => {
+  assert.match(
+    describeUnpushed({
+      branch: "HEAD",
+      hasRemote: true,
+      upstream: null,
+      ahead: null,
+    }),
+    /SKIP unpushed commits — detached HEAD/,
+  );
+  assert.match(
+    describeUnpushed({
+      branch: "feat/x",
+      hasRemote: false,
+      upstream: null,
+      ahead: null,
+    }),
+    /SKIP unpushed commits — no remote configured/,
+  );
+  assert.match(
+    describeUnpushed({
+      branch: "feat/x",
+      hasRemote: true,
+      upstream: null,
+      ahead: null,
+    }),
+    /SKIP unpushed commits — branch 'feat\/x' has no upstream/,
+  );
+  assert.match(
+    describeUnpushed({
+      branch: "feat/x",
+      hasRemote: true,
+      upstream: "origin/feat/x",
+      ahead: null,
+    }),
+    /SKIP unpushed commits — could not count/,
+  );
+});
+
+test("describeUnpushed: a real count is a note for review, singular and plural, and never says it pushes", () => {
+  const zero = describeUnpushed({
+    branch: "feat/x",
+    hasRemote: true,
+    upstream: "origin/feat/x",
+    ahead: 0,
+  });
+  assert.ok(
+    !zero.startsWith("SKIP"),
+    "a real zero is available, not an unavailable skip",
+  );
+  assert.match(zero, /0 commits are on 'feat\/x' not on the remote/);
+  const one = describeUnpushed({
+    branch: "feat/x",
+    hasRemote: true,
+    upstream: "origin/feat/x",
+    ahead: 1,
+  });
+  assert.match(one, /1 commit is on 'feat\/x'/);
+  const three = describeUnpushed({
+    branch: "feat/x",
+    hasRemote: true,
+    upstream: "origin/feat/x",
+    ahead: 3,
+  });
+  assert.match(three, /3 commits are on 'feat\/x'/);
+  for (const note of [zero, one, three]) {
+    assert.match(note, /does not push/);
+  }
 });
