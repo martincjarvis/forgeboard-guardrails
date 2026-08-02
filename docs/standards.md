@@ -1,0 +1,62 @@
+# The standards
+
+One page. What each capability means, where it is enforced, and who owns
+exceptions. Tool choices per stack live in the bootstrap skill's
+[references](../skills/repository-bootstrap/references/).
+
+## Principles
+
+- **Clean builds.** Zero warnings, zero errors, enforced by tools — a warning
+  is either compensated at runtime (fine) or a detected defect (not fine).
+- **Enforce at the point of modification.** Auto-fix on edit, check on commit,
+  sweep on push/PR. The later a defect is caught, the more it costs.
+- **Scripts and hard stops over prose.** A standard that only lives in a
+  document is a suggestion.
+- **The stack's own tools.** Well-understood, well-supported tools over
+  bespoke code, always.
+- **Exceptions are owned.** Anything switched off or suppressed carries a
+  reason and a human owner, and is visible in review.
+- **CI is parity, not authority.** CI re-runs the same `verify` the developer
+  ran; it exists to catch what `--no-verify` skipped, not to be the first
+  place checks run.
+- **A task is done when verifiably tested.** TDD for changes; a feature's
+  end-to-end journey test exists before the feature is called complete.
+
+## Capabilities
+
+| Capability        | Meaning                                                              | Enforced at            |
+| ----------------- | -------------------------------------------------------------------- | ---------------------- |
+| `format`          | One formatter, auto-applied; no style debate in review               | commit (staged files)  |
+| `lint`            | Static analysis at zero warnings                                     | commit (staged), CI    |
+| `typecheck`       | Types checked where the stack has them                               | push, CI               |
+| `tests`           | Unit tests pass; new behaviour arrives with its test                 | push, CI               |
+| `coverage`        | A floor the test runner enforces, not a dashboard                    | CI                     |
+| `commit-messages` | Conventional commits, checked at commit time                         | commit-msg hook        |
+| `secrets`         | No credential shapes in the tree                                     | commit (staged), CI    |
+| `spelling`        | Spell check over prose and identifiers                               | commit (staged), CI    |
+| `ci-verify`       | The repository's `verify` command runs on every PR and must pass     | CI, required check     |
+| `branch-review`   | Default branch takes PRs only; `.guardrails.json` needs human review | host branch protection |
+
+## The record: `.guardrails.json`
+
+One file at the consuming repository's root. Each capability maps to the tool
+implementing it, or to `off` with `why` and `who`:
+
+```json
+{
+  "format": { "tool": "prettier" },
+  "coverage": { "off": true, "why": "spike repo, throwaway", "who": "mjarvis" }
+}
+```
+
+Turning a capability off is a human decision. The enforcement is the host's:
+bootstrap adds a `CODEOWNERS` line for `.guardrails.json`, so no change to it
+merges without a human review. There are no registers, approval scripts, or
+provenance checks — the PR is the audit trail.
+
+## Exceptions in code
+
+Use the tool's own suppression syntax (`eslint-disable`, `#pragma`,
+`noqa`) **with a reason on the same line**, and keep the tool's setting that
+requires reasons switched on where it exists. The audit skill counts
+suppressions; a growing count is a finding.
