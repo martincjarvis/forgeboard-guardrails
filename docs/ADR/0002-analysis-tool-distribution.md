@@ -1,8 +1,9 @@
 ---
 type: explanation
-status: Accepted
+status: Superseded
 decided: 2026-07-28
 owner: Toolkit maintainers
+superseded_by: 0018
 summary: The toolkit bundles no analysis tools. A consuming repository installs them through its own package manager and the toolkit supplies opinionated configuration and orchestration.
 read_when: Adding an analysis tool, or asking why the toolkit does not install the tools it runs.
 ---

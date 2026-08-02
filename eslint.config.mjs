@@ -2,10 +2,12 @@
 // type-check failure is refused independently of the build — the type
 // checker is not the linter." tsconfig.json's checkJs already covers type
 // errors; this covers what a type checker does not — dead code, loose
-// equality, `var` over `let`/`const`. A short, explicit rule list, not a
-// plugin-provided "recommended" preset: the toolkit already holds a
-// no-new-dependency line for itself (ADR-0011), and the handful of core
-// rules below close every gap a preset would, with nothing to add.
+// equality, `var` over `let`/`const`. The four rules below are a short,
+// explicit list. Dependency decisions are scoped by phase, not blanket
+// (ADR-0018, which supersedes ADR-0002); the "no-new-dependency line" this
+// comment once cited as ADR-0011 was a misattribution — this repository's
+// ADR-0011 is `reconciliation-matches-labels-not-details`, and a number
+// from another repository had leaked into this one.
 //
 // Scoped to the toolkit's own JS (hooks/, scripts/) — the only production and
 // test code this repository ships (tsconfig.json's `include` draws the same

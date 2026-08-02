@@ -70,7 +70,8 @@ account in its own repository.
 - [0001](0001-per-component-version-derivation.md) — versions are derived per
   component from Conventional Commits, by a path-scoped detector.
 - [0002](0002-analysis-tool-distribution.md) — the toolkit bundles no analysis
-  tools; the consuming repository installs them.
+  tools; the consuming repository installs them. Superseded by
+  [0018](0018-dependency-decisions-are-scoped-not-blanket.md).
 - [0003](0003-derive-configuration.md) — the gates derive what they need from
   what a repository already declares, rather than from a configuration file.
 - [0004](0004-development-scope-licence-acceptances.md) — four licences
@@ -123,3 +124,9 @@ account in its own repository.
   identical to the plugin reference, was rejected. The copied tooling corpus
   is measured; a real consuming repository's branch is not, because
   `.guardrails/` is specified and unimplemented.
+- [0018](0018-dependency-decisions-are-scoped-not-blanket.md) — dependency
+  decisions are scoped by phase: bootstrap and uplift adopt the stack's
+  maintained presets, a development task pushes back on a dependency the plan
+  did not name; a blanket no-new-dependency line was rejected, and the
+  misattributed ADR-0011 citation in `eslint.config.mjs` is corrected.
+  Supersedes 0002.
