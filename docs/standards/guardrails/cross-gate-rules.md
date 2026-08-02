@@ -4,7 +4,7 @@ summary: The rules every gate holds regardless of what it checks — ordering, t
 read_when: Building a gate, or judging whether an existing one is defective in a way its checks would not reveal.
 ---
 
-<!-- cspell:ignore fixtured GHSA Uncited symref unrun -->
+<!-- cspell:ignore fixtured GHSA Uncited symref unrun misparse -->
 
 # Cross-gate rules
 
@@ -71,17 +71,37 @@ fails — silently makes a second decision no record shows was made.
 Gate 7's repository-wide size scan (`lizard -C 15 -L 100 -a 7`,
 [gate-7-on-demand.md](gate-7-on-demand.md)) is report-only by design: it
 runs before trusting the incremental gates, and the caller decides the
-consequence. Gate 6 reused the identical invocation against a pull
-request's changed files — deliberately, the comment beside it says "reused
-directly here rather than invented twice" — but gate 6 hard-blocks on a
-non-zero exit, with no suppression path for a finding that has no line to
-mark. Gate 7's own comment already documents a known lizard failure mode
-this exact reuse inherited without noticing: the tool's function-span
-detection misattributes a long run of adjacent functions to one, and when it
-does, a file gate 7 would only ever report on became a file gate 6 refused
-outright — a false block on every repository that ported the ordinary test
-file large enough to trip it
-([ADR-0009](../../ADR/0009-split-hooks-test-suite.md)).
+consequence. Gate 6 reused the identical invocation against a pull request's
+changed files — deliberately, the comment beside it says "reused directly
+here rather than invented twice" — but gate 6 hard-blocks on a non-zero exit,
+with no suppression path for a finding that has no line to mark. That made any
+lizard artefact the difference between a report a human reads (gate 7) and a
+block that stops a pull request (gate 6).
+
+What lizard does to JavaScript here is _measured_, not asserted as a known
+upstream bug. On `splitRules` in `scripts/check-suppressions.mjs` — 7 lines,
+76–82 — lizard reported a 276-line span running to the last line of the file:
+when it cannot locate a function's end, it reports the function to the end of
+the file, every time. lizard is a real, maintained tool with a real category
+of parser issue on record (its open issues, #324 among them), but every one of
+those is _undercounting_ — functions going missing — and none matches span
+inflation. So this is not cited here as a verified lizard failure mode: per
+[the attribution rule](#a-third-party-attribution-is-a-claim-and-it-needs-an-open-ticket),
+no open upstream ticket verifies it, and the defect is ours. It was resolved
+as ours by writing the source so lizard parses it — the inline regex literal
+that triggered it was hoisted to a module-scope const — after which lizard
+reports `splitRules` at its true 7-line span.
+[ADR-0009](../../ADR/0009-split-hooks-test-suite.md) split the test suite
+along the same measured property its own objection section states ("the
+trigger is cumulative file state, not any one block"): a smaller file stays
+under the size where the misparse recurs, verified per file rather than
+assumed.
+
+The design conclusion none of this changes: ESLint is authoritative for
+JavaScript, and lizard is the backstop for languages ESLint cannot read,
+running across every stack at its later gate. A backstop that misreads one
+file is a reason to write the file so the backstop reads it, not a reason to
+exclude that file from the scan.
 
 **State the difference when a check's consequence changes across gates, the
 same way a threshold change is stated

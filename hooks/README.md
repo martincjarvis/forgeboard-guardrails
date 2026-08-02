@@ -43,11 +43,13 @@ invokes `hooks.test.mjs` alone; every other file here is loaded by it. Builds
 a throwaway git repository per case, because the behaviour under test is a
 function of git state and cannot be exercised without one.
 
-**Split by subject area, not carried as one file.** A single file
-this size reached the point where lizard's function-span detection merges
-adjacent functions into one over-length block — a tool artefact, not a real
-finding — and gate 6 (unlike gate 7's identical, report-only invocation of
-the same scan) hard-blocks on it with no suppression path. See
+**Split by subject area, not carried as one file.** A single file this size
+reached the point where lizard's JS span detector reports a function past its
+real end — a tool artefact, driven by accumulated file state rather than any
+single block (measured, and resolved as ours rather than asserted upstream;
+see [cross-gate-rules.md](../docs/standards/guardrails/cross-gate-rules.md#a-check-reused-across-gates-carries-its-severity-model-with-it))
+— and gate 6 (unlike gate 7's identical, report-only invocation of the same
+scan) hard-blocks on it with no suppression path. See
 [ADR-0009](../docs/ADR/0009-split-hooks-test-suite.md). Each file below stays
 well under the size where that recurs; adding tests to one is fine, adding a
 new subject area is a new file, imported by `hooks.test.mjs` alongside the
