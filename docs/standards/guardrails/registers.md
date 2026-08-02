@@ -17,13 +17,13 @@ than as a silent change in behaviour.
 searching, not important enough to sit at the top of the documentation tree
 beside the standards a reader actually reads through. One file per register.
 
-| Register             | Records                                                        | One row per            | Enforced by                                                                              |
-| -------------------- | -------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
-| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path   | Commit gate                                                                              |
-| Dependency licence   | Every resolved dependency and its licence                      | One dependency         | Commit gate for completeness, pipeline for policy                                        |
-| Test quarantine      | Known-flaky tests not currently blocking                       | One test               | Push gate and pipeline                                                                   |
+| Register             | Records                                                        | One row per            | Enforced by                                                                                                |
+| -------------------- | -------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path   | Commit gate                                                                                                |
+| Dependency licence   | Every resolved dependency and its licence                      | One dependency         | Commit gate for completeness, pipeline for policy                                                          |
+| Test quarantine      | Known-flaky tests not currently blocking                       | One test               | Push gate and pipeline                                                                                     |
 | Change size override | Branches accepted over the change-size error band, and by whom | One branch             | Pipeline ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
-| Minimum release age  | Dependencies admitted past the release-age window              | One dependency@version | Pipeline ([gate 6](gate-6-pull-request.md#61-revalidation))                              |
+| Minimum release age  | Dependencies admitted past the release-age window              | One dependency@version | Pipeline ([gate 6](gate-6-pull-request.md#61-revalidation))                                                |
 
 ## Rules common to all four
 
