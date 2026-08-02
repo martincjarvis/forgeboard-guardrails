@@ -17,6 +17,13 @@ where cheap, to lint-staged for the matching file globs. Secret and spell
 scanning already sweep these files — infra directories must not be added to
 their ignore lists.
 
+CI setup: use only actions you have verified exist — there is **no**
+`azure/setup-bicep`; install the release binary
+(`curl -sSL https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64`,
+`chmod +x`). dotnet comes from `actions/setup-dotnet` with
+`global-json-file`. An action name that merely sounds right fails the whole
+job at setup.
+
 Deployment pipelines (azd, SWA deploy, terraform apply) are **not**
 guardrails and are never rewritten by bootstrap: they stay as found, gain
 nothing but the verify job beside them. Whether a deployment verifies its
