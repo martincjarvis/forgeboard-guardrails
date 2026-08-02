@@ -763,6 +763,46 @@ the report let a reader tell that from luck or care rather than from
 evidence. A tool this corpus ships and teaches, never verified as used, is a
 tool that will eventually not be used on a run where it mattered.
 
+## A third-party attribution is a claim, and it needs an open ticket
+
+**"It is a tool bug" is the cheapest available excuse for not fixing your own
+code.** A suspected defect in a third-party tool may be recorded as _verified_
+only when a register row carries a link to an **open** upstream ticket, and
+that link resolves. Where no open ticket exists: propose raising one — with the
+symptom and a minimal reproduction — and track the proposal. **Until then the
+defect is assumed to be ours, and we resolve it.** An unverified attribution
+silently moves our defect onto someone else's backlog where nobody is working
+it, and the cost of that is the defect staying open here while it waits
+indefinitely for a fix nobody is driving.
+
+**A closed upstream ticket does not verify a live defect.** If the ticket is
+closed the fix may already be released, which makes a closed link a prompt to
+upgrade, not an excuse to keep the workaround. The row records the ticket's
+state, and a closed state reads as "revisit," never as a second form of
+"verified."
+
+**The check is offline.** A gate that fetches the URL to confirm it resolves is
+a gate people route around, and this corpus already refuses a check that needs
+the network (a [network-bound scan runs at the on-demand gate, not the commit
+gate](#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)). The register
+row must _carry_ the URL and _record_ the state; verifying that both are
+present and well-shaped is mechanical and cheap. Whether the ticket is still
+open, and whether the link still resolves, is freshness a human checks at
+review, not a property a gate fetches at commit — the same split the
+[minimum-release-age register](registers.md#the-minimum-release-age-register)
+already draws between a checkable column and a re-fetched value.
+
+The register is [the third-party attribution
+register](registers.md#the-third-party-attribution-register); the check is
+`scripts/check-third-party-attribution.mjs`, wired at the
+[commit gate](gate-2-commit.md). A row that names a tool but carries no ticket
+URL is refused outright; a row complete except for its approver is a push back
+at gate 2 and a block at gate 6, the same split every other register holds. A
+row may instead record a defect treated as **ours** — measured against a tool,
+no upstream attribution claimed — by carrying the `unattributed` sentinel in
+its Upstream ticket cell, which is the explicit marker that distinguishes "we
+are working this as ours" from "we claimed a tool bug and forgot the link."
+
 ## A suppression is verified at repository scope, never at the scope of the file just edited
 
 The same principle, one level more specific: a suppression's own verification
@@ -1058,6 +1098,13 @@ fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
       workflow, or declared on-demand with the gate that would otherwise own
       it — checked at gate 7, and no declaration is trusted without re-reading
       the file it claims as evidence.
+- [ ] A row in the third-party attribution register that names a tool carries
+      an open upstream ticket URL and its recorded state (open or closed), or
+      the `unattributed` sentinel that records the defect as ours with no
+      attribution — an empty Upstream ticket cell is refused.
+      `scripts/check-third-party-attribution.mjs` is the mechanical form, wired
+      at gate 2; the check is offline (presence and shape), and whether the
+      ticket is still open is freshness a human checks at review.
 
 ## References
 

@@ -18,6 +18,7 @@ import "./gate-6-minimum-release-age.test.mjs";
 import "./adr-approver-and-citations.test.mjs";
 import "./link-integrity.test.mjs";
 import "./suppression-register.test.mjs";
+import "./third-party-attribution.test.mjs";
 import "./gate-5-push-and-scans.test.mjs";
 import "./branch-and-repository-policy.test.mjs";
 import "./gate-7-wiring-audits.test.mjs";

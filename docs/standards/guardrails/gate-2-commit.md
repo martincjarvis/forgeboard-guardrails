@@ -150,14 +150,15 @@ above — a check here that reads the working tree instead has quietly fallen
 outside the gate's isolation, even though it runs nowhere near the mechanism
 that provides it.
 
-| #   | Check                       | Type        | Fails when                                                                                                  |
-| --- | --------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
-| 11  | Per-path lint rules         | Correctness | A path-scoped linter or type checker reports any problem, its own analysers included                        |
-| 12  | Build                       | Correctness | The changed component fails to build, or the compiler or its analysers emit a warning                       |
-| 13  | Unit and architecture tests | Correctness | A unit test fails, or an architecture test finds the code breaking the structure it claims                  |
-| 14  | Repository-wide tests       | Correctness | A repository-level check fails                                                                              |
-| 15  | Suppression register        | Policy      | A suppression comment exists with no complete register row                                                  |
-| 16  | Dependency licence register | Policy      | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to |
+| #   | Check                            | Type        | Fails when                                                                                                                                  |
+| --- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 11  | Per-path lint rules              | Correctness | A path-scoped linter or type checker reports any problem, its own analysers included                                                        |
+| 12  | Build                            | Correctness | The changed component fails to build, or the compiler or its analysers emit a warning                                                       |
+| 13  | Unit and architecture tests      | Correctness | A unit test fails, or an architecture test finds the code breaking the structure it claims                                                  |
+| 14  | Repository-wide tests            | Correctness | A repository-level check fails                                                                                                              |
+| 15  | Suppression register             | Policy      | A suppression comment exists with no complete register row                                                                                  |
+| 16  | Dependency licence register      | Policy      | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to                                 |
+| 17  | Third-party attribution register | Policy      | A row claims a third-party defect with no upstream ticket URL and recorded state, and carries no `unattributed` sentinel (change-triggered) |
 
 Check 11 runs a linter and a type checker together, and neither substitutes for
 the other — see
@@ -254,24 +255,25 @@ Rules:
 The staged set is `git diff --cached --name-only --diff-filter=ACMR`. Every
 command below takes that list.
 
-| #   | Check                       | Command                                                                                                                                                                                                              |
-| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Protected branch            | `git rev-parse --abbrev-ref origin/HEAD` resolves the protected branch (strip the `origin/` prefix); refuse when `git rev-parse --abbrev-ref HEAD` names the same branch                                             |
-| 2   | Staged-content isolation    | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index                                                              |
-| 3   | Dependency lock sync        | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                                                                                  |
-| 4   | Universal format            | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                                                                                 |
-| 5   | Prose lint                  | `npx markdownlint-cli2 <paths>`                                                                                                                                                                                      |
-| 6   | Secret scan                 | `npx secretlint <paths>`                                                                                                                                                                                             |
-| 7   | Spelling                    | `npx cspell --no-progress <paths>`                                                                                                                                                                                   |
-| 8   | Cross-language analysis     | Deferred — `semgrep` fetches its rules over the network, so it runs at [gate 7](gate-7-on-demand.md) and in CI, not here ([cost tiers](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)) |
-| 9   | Machine-identifying content | `npx secretlint <paths>` with the path rules enabled, or a repository rule                                                                                                                                           |
-| 10  | File size                   | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                                                                                                                                                         |
-| 11  | Per-path lint               | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                                                                                      |
-| 12  | Build                       | `npm run build` · `dotnet build -warnaserror`                                                                                                                                                                        |
-| 13  | Unit tests                  | `npm test` · `dotnet test`                                                                                                                                                                                           |
-| 14  | Repository-wide tests       | The repository's own repository-level check command                                                                                                                                                                  |
-| 15  | Suppression register        | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                                                                                           |
-| 16  | Dependency licence register | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                                                                                    |
+| #   | Check                            | Command                                                                                                                                                                                                              |
+| --- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Protected branch                 | `git rev-parse --abbrev-ref origin/HEAD` resolves the protected branch (strip the `origin/` prefix); refuse when `git rev-parse --abbrev-ref HEAD` names the same branch                                             |
+| 2   | Staged-content isolation         | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index                                                              |
+| 3   | Dependency lock sync             | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                                                                                  |
+| 4   | Universal format                 | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                                                                                 |
+| 5   | Prose lint                       | `npx markdownlint-cli2 <paths>`                                                                                                                                                                                      |
+| 6   | Secret scan                      | `npx secretlint <paths>`                                                                                                                                                                                             |
+| 7   | Spelling                         | `npx cspell --no-progress <paths>`                                                                                                                                                                                   |
+| 8   | Cross-language analysis          | Deferred — `semgrep` fetches its rules over the network, so it runs at [gate 7](gate-7-on-demand.md) and in CI, not here ([cost tiers](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)) |
+| 9   | Machine-identifying content      | `npx secretlint <paths>` with the path rules enabled, or a repository rule                                                                                                                                           |
+| 10  | File size                        | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                                                                                                                                                         |
+| 11  | Per-path lint                    | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                                                                                      |
+| 12  | Build                            | `npm run build` · `dotnet build -warnaserror`                                                                                                                                                                        |
+| 13  | Unit tests                       | `npm test` · `dotnet test`                                                                                                                                                                                           |
+| 14  | Repository-wide tests            | The repository's own repository-level check command                                                                                                                                                                  |
+| 15  | Suppression register             | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                                                                                           |
+| 16  | Dependency licence register      | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                                                                                    |
+| 17  | Third-party attribution register | `node scripts/check-third-party-attribution.mjs`, compared against the register (runs when the register is staged)                                                                                                   |
 
 Prefer Node tooling where the stack has no native equivalent — the formatter,
 the prose lint, the spell check and the secret scan are stack-independent, and

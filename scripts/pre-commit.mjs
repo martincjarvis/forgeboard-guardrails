@@ -14,12 +14,17 @@ import {
   run,
   git,
   report,
+  readStaged,
   withStagedWorkingTree,
 } from "./lib.mjs";
 import {
   checkSuppressions,
   pendingSuppressionApprovals,
 } from "./check-suppressions.mjs";
+import {
+  attributionRegisterRows,
+  evaluateAttributionRows,
+} from "./check-third-party-attribution.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkProtectedBranch } from "./check-protected-branch.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
@@ -180,6 +185,36 @@ for (const row of pendingSuppressionApprovals()) {
       "every other column is complete. Options: fix the underlying finding and drop the " +
       "suppression, or get a human to approve it. Unanswered, gate 6 refuses the merge.\n",
   );
+}
+
+// Check 17 — third-party attribution register completeness. Change-triggered on
+// the register file itself: the check validates rows that exist, so it runs
+// only when the register is part of this commit, and reports a visible skip
+// otherwise (the same shape check 16 holds for the licence register). Reads
+// staged content, the same isolation guarantee every other content check here
+// holds — the row is judged as it is being committed, not as the working tree
+// happens to read at the moment. A row claiming a third-party defect with no
+// upstream ticket URL is refused here (cross-gate-rules.md); a row complete
+// except for its approver pushes back, the same split as the suppression register above.
+{
+  const ATTRIBUTION_REGISTER =
+    "docs/registers/third-party-attribution-register.md";
+  if (staged.includes(ATTRIBUTION_REGISTER)) {
+    const { blocking, pendingApproval } = evaluateAttributionRows(
+      attributionRegisterRows(readStaged(ATTRIBUTION_REGISTER)),
+    );
+    if (blocking.length) report("gate 2", blocking, skips);
+    for (const row of pendingApproval) {
+      process.stderr.write(
+        `gate 2: PUSH BACK third-party attribution register — '${row.tool}' has no approver; ` +
+          "every other column is complete. Unanswered, gate 6 refuses the merge.\n",
+      );
+    }
+  } else {
+    note(
+      "third-party attribution register — register not staged, no rows to validate",
+    );
+  }
 }
 
 // An Accepted ADR that reads as accepting a risk, a licence, a

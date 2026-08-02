@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The five checked-in registers — suppression, dependency licence, test quarantine, change size override and minimum release age — their columns, and the rules common to all of them.
+summary: The six checked-in registers — suppression, dependency licence, test quarantine, change size override, minimum release age and third-party attribution — their columns, and the rules common to all of them.
 read_when: Adding an accepted finding, auditing what a repository has accepted, or deciding whether something is a register row or a decision record.
 ---
 
@@ -17,15 +17,16 @@ than as a silent change in behaviour.
 searching, not important enough to sit at the top of the documentation tree
 beside the standards a reader actually reads through. One file per register.
 
-| Register             | Records                                                        | One row per            | Enforced by                                                                                                |
-| -------------------- | -------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path   | Commit gate                                                                                                |
-| Dependency licence   | Every resolved dependency and its licence                      | One dependency         | Commit gate for completeness, pipeline for policy                                                          |
-| Test quarantine      | Known-flaky tests not currently blocking                       | One test               | Push gate and pipeline                                                                                     |
-| Change size override | Branches accepted over the change-size error band, and by whom | One branch             | Pipeline ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
-| Minimum release age  | Dependencies admitted past the release-age window              | One dependency@version | Pipeline ([gate 6](gate-6-pull-request.md#61-revalidation))                                                |
+| Register                | Records                                                                | One row per            | Enforced by                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Suppression             | Accepted findings a check would otherwise raise                        | One rule at one path   | Commit gate                                                                                                                            |
+| Dependency licence      | Every resolved dependency and its licence                              | One dependency         | Commit gate for completeness, pipeline for policy                                                                                      |
+| Test quarantine         | Known-flaky tests not currently blocking                               | One test               | Push gate and pipeline                                                                                                                 |
+| Change size override    | Branches accepted over the change-size error band, and by whom         | One branch             | Pipeline ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix))                             |
+| Minimum release age     | Dependencies admitted past the release-age window                      | One dependency@version | Pipeline ([gate 6](gate-6-pull-request.md#61-revalidation))                                                                            |
+| Third-party attribution | Defects attributed to a third-party tool, with an open upstream ticket | One tool@symptom       | Commit gate ([attribution needs an open ticket](cross-gate-rules.md#a-third-party-attribution-is-a-claim-and-it-needs-an-open-ticket)) |
 
-## Rules common to all four
+## Rules common to all six
 
 - **Each has a gate.** A register nobody can fail is decoration; the gate is what
   makes the row a precondition rather than a courtesy.
@@ -301,6 +302,36 @@ permanent exemption. The Published column is what makes that checkable from the
 row alone, which is why it is a column rather than a value the check re-fetches
 every run — staleness must be deterministic, not network-dependent.
 
+## The third-party attribution register
+
+A defect attributed to a third-party tool is _verified_ only when the row
+carries a link to an **open** upstream ticket — the rule, and the reasoning
+behind it, live in [cross-gate
+rules](cross-gate-rules.md#a-third-party-attribution-is-a-claim-and-it-needs-an-open-ticket).
+Until such a ticket exists the defect is assumed to be ours and resolved, not
+filed here as someone else's. The register holds the attributions that cleared
+that bar, and a row may instead carry the `unattributed` sentinel to record a
+defect treated as ours — measured against a tool, no upstream claim — when its
+measurement needs to outlive the commit that established it.
+
+| Column               | Holds                                                                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tool                 | The third-party tool the symptom was observed in                                                                                                                    |
+| Version              | The version the symptom was observed against                                                                                                                        |
+| Symptom              | The behaviour as observed, not the inferred cause                                                                                                                   |
+| Upstream ticket      | An http(s) URL to the open upstream issue tracking this defect, or the literal `unattributed` for a defect treated as ours with no upstream claim                   |
+| Ticket state         | `open` or `closed`, read from the upstream tracker and recorded — a closed ticket is a prompt to revisit (the fix may be released), not a second form of "verified" |
+| Minimal reproduction | The smallest input that exhibits the symptom                                                                                                                        |
+| Date verified        | When the row was last confirmed against a real run                                                                                                                  |
+| Removable when       | What would close the row — the fix released and upgraded past, the workaround removed, the ticket resolved                                                          |
+| Approver             | The human who accepted the attribution                                                                                                                              |
+
+The check is offline, by design: it verifies presence and shape (a URL and a
+recorded state, or the `unattributed` sentinel), never fetching the URL. Whether
+the ticket is still open, and whether the link still resolves, is freshness a
+human checks at review — the same property that makes the minimum-release-age
+register's Published column a recorded value rather than one the check re-fetches.
+
 ## Running it by hand
 
 Resolving what is actually installed, to compare against the register:
@@ -427,6 +458,11 @@ table.
       the register happened to be generated on.
 - [ ] A register generated on a single host states that limitation, or its
       generation runs across the platform matrix instead of once.
+- [ ] A row in the third-party attribution register that names a tool carries
+      an open upstream ticket URL and its recorded state, or the `unattributed`
+      sentinel — an empty Upstream ticket cell is refused at the commit gate by
+      `scripts/check-third-party-attribution.mjs`, which verifies presence and
+      shape offline and never fetches the URL.
 
 ## References
 
@@ -441,6 +477,8 @@ table.
 - [Change size override register](../../registers/change-size-override-register.md) —
   this repository's own instance.
 - [Minimum release age register](../../registers/minimum-release-age-register.md) —
+  this repository's own instance.
+- [Third-party attribution register](../../registers/third-party-attribution-register.md) —
   this repository's own instance.
 - [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
   the rule this register exists to answer.
