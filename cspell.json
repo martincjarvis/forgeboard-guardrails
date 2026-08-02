@@ -22,6 +22,7 @@
     "pyright",
     "pytest",
     "secretlint",
+    "tflint",
     "vitest",
     "warnaserror",
     "xunit"
