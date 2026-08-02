@@ -10,6 +10,8 @@
 // the suite's entry point: each import below runs its module for its side
 // effect of registering tests with node:test; nothing here is itself a test.
 import "./gate-1-4-task-completion.test.mjs";
+import "./change-size-override-register.test.mjs";
+import "./gate-4-file-classes.test.mjs";
 import "./gate-2-commit.test.mjs";
 import "./gate-6-dependency-advisories-and-licence-policy.test.mjs";
 import "./licence-register-completeness.test.mjs";
