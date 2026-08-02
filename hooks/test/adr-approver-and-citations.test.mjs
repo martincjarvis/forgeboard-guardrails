@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: adr-approver-and-citations.
+// Split from hooks.test.mjs — subject group: adr-approver-and-citations.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import {
@@ -21,7 +21,7 @@ import {
 import assert from "node:assert/strict";
 import { ROOT, scratchRepo, runScript } from "./support.mjs";
 
-// --- scripts/check-adr-approver.mjs — fix 22. Audit 8's exact mechanism:
+// --- scripts/check-adr-approver.mjs — the exact mechanism:
 // an agent accepts a licence outside the allow list through an ADR rather
 // than a register row, because the ADR schema (docs/ADR/README.md) has no
 // approver column at all — `status: Accepted`, `owner: greet maintainers`
@@ -37,7 +37,9 @@ test("checkAdrApprover refuses an Accepted ADR that reads as a licence exception
   );
   const findings = checkAdrApprover(dir);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /no approver field/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no approver field/);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -50,7 +52,9 @@ test("checkAdrApprover refuses an Accepted ADR whose approver is a team label, n
   );
   const findings = checkAdrApprover(dir);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /team label, not a person/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /team label, not a person/);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -115,8 +119,8 @@ test("looksLikeTeamLabel: a plausible individual name is not flagged as a team l
   assert.ok(looksLikeTeamLabel("Platform team"));
 });
 
-// --- fix 54 — the reserved-class detector keys on vocabulary instead of
-// structure. Audit 14 tested acceptsRiskLicenceSuppressionOrOptOut against
+// --- the reserved-class detector keys on vocabulary instead of
+// structure. acceptsRiskLicenceSuppressionOrOptOut was tested against
 // the real ADR-0004, which accepts four licences and never uses the literal
 // phrase "allow list" its ALLOW_LIST_RE requires alongside LICENCE_RE:
 // dormant only because the ADR was Proposed, and refusing nothing the
@@ -166,7 +170,7 @@ test("adrNumbersCitedByRegisters: a missing registers directory contributes noth
   );
 });
 
-test("checkAdrApprover: an ADR cited by a register row's Decision record column is reserved-class even though its own prose uses none of the vocabulary the fallback requires (fix 54)", () => {
+test("checkAdrApprover: an ADR cited by a register row's Decision record column is reserved-class even though its own prose uses none of the vocabulary the fallback requires", () => {
   const adrDir = mkdtempSync(join(tmpdir(), "adr-approver-adr-"));
   const registersDir = mkdtempSync(join(tmpdir(), "adr-approver-reg-"));
   const text =
@@ -185,12 +189,14 @@ test("checkAdrApprover: an ADR cited by a register row's Decision record column 
   );
   const findings = checkAdrApprover(adrDir, registersDir);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /no approver field/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no approver field/);
   rmSync(adrDir, { recursive: true, force: true });
   rmSync(registersDir, { recursive: true, force: true });
 });
 
-test("checkAdrApprover: an ADR no register row cites yet falls back to the vocabulary check, and stays silent when neither signal fires (fix 54)", () => {
+test("checkAdrApprover: an ADR no register row cites yet falls back to the vocabulary check, and stays silent when neither signal fires", () => {
   const adrDir = mkdtempSync(join(tmpdir(), "adr-approver-adr-"));
   const registersDir = mkdtempSync(join(tmpdir(), "adr-approver-reg-"));
   writeFileSync(
@@ -208,10 +214,10 @@ test("checkAdrApprover: an ADR no register row cites yet falls back to the vocab
   rmSync(registersDir, { recursive: true, force: true });
 });
 
-test("regression guard: check-adr-approver.mjs run for real, against the real ADR-0004 text with its approver removed and cited by a register row exactly as the real register cites it, refuses and names it (fix 54)", () => {
-  // The exact case audit 14 named: ADR-0004 accepts four licences and never
+test("regression guard: check-adr-approver.mjs run for real, against the real ADR-0004 text with its approver removed and cited by a register row exactly as the real register cites it, refuses and names it", () => {
+  // The exact case: ADR-0004 accepts four licences and never
   // uses the phrase "allow list" ALLOW_LIST_RE requires alongside LICENCE_RE.
-  // Before fix 54 this case passed clean whenever the ADR was Accepted with
+  // Before the citation signal was added this case passed clean whenever the ADR was Accepted with
   // no approver — the regression this test guards.
   const realText = readFileSync(
     join(ROOT, "docs", "ADR", "0004-development-scope-licence-acceptances.md"),

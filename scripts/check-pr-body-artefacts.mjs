@@ -1,12 +1,12 @@
 // cspell:ignore GHSA Uncited
-// Fix 68 — cross-gate-rules.md names five reserved classes a pull request
+// cross-gate-rules.md names five reserved classes a pull request
 // may still open with findings outstanding — a decision record or register
 // row accepting a risk, a licence, a suppression or an opt-out, and a
 // conflict between two standing directives — and says plainly: "A finding
 // the implementer could have fixed is a reason not to open yet, not a line
 // item to disclose and open anyway." That sentence had no check behind it.
 //
-// Audit 17's case: a pull request opened findings under an invented sixth
+// The demonstrated case: a pull request opened findings under an invented sixth
 // heading ("One tool limitation, documented rather than hidden") whose own
 // text named the fix it declined to apply, and six dependency advisories
 // beside it were called "a dependency-upgrade decision" with no ADR naming
@@ -30,7 +30,7 @@
 // Two ways to reach the body it checks, so the check is not stuck reading
 // a mistake after it has already shipped: `--file <path>` reads a draft
 // body straight off disk, for the implementer's own pre-`gh pr create`
-// check (skills/repository-bootstrap/SKILL.md, beside fix 65's own
+// check (skills/repository-bootstrap/SKILL.md, beside its own
 // precondition); no `--file` falls back to `gh pr view` against an
 // already-open pull request, for a reviewer checking one that exists
 // (docs/standards/guardrails/gate-6-pull-request.md, "Running it by
@@ -83,6 +83,7 @@ export function adrNumbersProposedOrAccepted(adrDir = ADR_DIR) {
  *  re-parsing the table, the same column convention that module already
  *  established. */
 export function registerRowIdentities(registersDir = REGISTERS_DIR) {
+  /** @type {string[]} */
   const identities = [];
   let files;
   try {
@@ -114,13 +115,17 @@ export function registerRowIdentities(registersDir = REGISTERS_DIR) {
  *  CLAUDE.md, alongside the word "conflict") — never a judgement about
  *  whether the citation is a *good* one. `adrNumbers` and
  *  `registerIdentities` are injectable for testing, the same shape every
- *  other check in this module carries. */
+ *  other check in this module carries.
+ *  @param {string} lineText
+ *  @param {{ adrNumbers?: Set<string>, registerIdentities?: readonly string[] }} [sources]
+ */
 export function citesReservedArtefact(
   lineText,
   { adrNumbers = new Set(), registerIdentities = [] } = {},
 ) {
   const adrMatch = /ADR-0*(\d+)/i.exec(lineText);
-  if (adrMatch && adrNumbers.has(adrMatch[1].padStart(4, "0"))) return true;
+  const adrNum = adrMatch?.[1];
+  if (adrNum && adrNumbers.has(adrNum.padStart(4, "0"))) return true;
 
   const lower = lineText.toLowerCase();
   if (
@@ -139,27 +144,35 @@ export function citesReservedArtefact(
   return false;
 }
 
-// A pull request body's disclosed-findings section, in the shape fix
-// 56/61/65 already require of it: a heading naming outstanding, reserved
-// or remaining work — or the bold-only pseudo-heading shape audit 17's own
-// invented class took ("**One tool limitation, documented rather than
+// A pull request body's disclosed-findings section, in the shape the
+// docs already require of it: a heading naming outstanding, reserved
+// or remaining work — or the bold-only pseudo-heading shape the
+// invented sixth class took ("**One tool limitation, documented rather than
 // hidden**") — followed by one bullet per finding. Scoped to that shape
 // deliberately: a body that abandons the required bulleted-list format for
-// free narrative prose is already the defect fix 56/61 exist to catch, and
-// this module does not additionally try to parse prose for it.
+// free narrative prose is already a defect the body-shape checks exist to
+// catch, and this module does not additionally try to parse prose for it.
 const SECTION_HEADING_RE =
   /^#{1,6}\s.*\b(outstanding|reserved|remain(?:ing|s)?|finding)/i;
 const ANY_HEADING_RE = /^#{1,6}\s/;
 const BOLD_LABEL_RE = /^\*\*[^*]+\*\*\s*$/;
+// Hoisted for the same reason as check-suppressions.mjs's DELIMITER_RUN: a
+// regex literal inline in a function body defeats lizard's JS span detection,
+// which then reports the enclosing function running to the end of the file.
+const LINE_BREAK = /\r?\n/;
+const BULLET_LINE = /^[-*]\s+(.*)$/;
 
 /** Bullet lines inside a disclosed-findings section of `body`. Returns
- *  [{ line, text }], 1-indexed. */
+ *  [{ line, text }], 1-indexed.
+ *  @param {string} body
+ *  @returns {{ line: number, text: string }[]} */
 export function disclosedFindingLines(body) {
-  const lines = body.split(/\r?\n/);
+  const lines = body.split(LINE_BREAK);
   const findings = [];
   let inSection = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === undefined) continue;
     if (SECTION_HEADING_RE.test(line) || BOLD_LABEL_RE.test(line)) {
       inSection = true;
       continue;
@@ -169,15 +182,17 @@ export function disclosedFindingLines(body) {
       continue;
     }
     if (!inSection) continue;
-    const m = /^[-*]\s+(.*)$/.exec(line);
-    if (m) findings.push({ line: i + 1, text: m[1] });
+    const m = BULLET_LINE.exec(line);
+    const text = m?.[1];
+    if (text !== undefined) findings.push({ line: i + 1, text });
   }
   return findings;
 }
 
 /** Every disclosed finding in `body` with no reserved-class artefact
  *  cited. `artefacts` is `{ adrNumbers, registerIdentities }`, both
- *  injectable for testing. */
+ *  injectable for testing.
+ *  @param {string} body */
 export function findUncitedFindings(body, artefacts = {}) {
   return disclosedFindingLines(body)
     .filter((f) => !citesReservedArtefact(f.text, artefacts))
@@ -217,10 +232,21 @@ export function readPrBody(
   const fileIdx = args.indexOf("--file");
   if (fileIdx !== -1) {
     const path = args[fileIdx + 1];
+    if (!path) {
+      return {
+        body: null,
+        skip: "--file given with no path following it",
+      };
+    }
     try {
       return { body: readFileSync(path, "utf8"), skip: null };
     } catch (err) {
-      return { body: null, skip: `could not read ${path}: ${err.message}` };
+      return {
+        body: null,
+        skip: `could not read ${path}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      };
     }
   }
   if (!haveFn("gh", ["--version"])) {
@@ -237,7 +263,8 @@ export function readPrBody(
   return { body: view.stdout || "", skip: null };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { body, skip } = readPrBody(process.argv.slice(2));
   if (skip) {
@@ -246,7 +273,7 @@ if (isMain) {
     );
     process.exit(0);
   }
-  const findings = findUncitedFindings(body, {
+  const findings = findUncitedFindings(body ?? "", {
     adrNumbers: adrNumbersProposedOrAccepted(),
     registerIdentities: registerRowIdentities(),
   });

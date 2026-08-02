@@ -45,6 +45,17 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# Go — installed the same way as Node above, and for the same reason: osv-scanner
+# (below) is a `go install` target, so the toolchain has to exist at image build time,
+# not only through the devcontainer CLI's own Go feature (which, like the dotnet/python
+# features, only applies through its build pipeline — see the README's "real, load-
+# bearing gotchas" section). Pinned to a specific release, the same way the other
+# language runtimes here are, rather than tracking upstream "latest".
+ARG GO_VERSION=1.26.5
+RUN curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o /tmp/go.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz && rm /tmp/go.tar.gz
+ENV PATH="/usr/local/go/bin:${PATH}"
+
 # Created here, while still root, and handed to REMOTE_USER — /workspace is only used
 # by this project's own standalone `docker build`/`docker run` testing (the real
 # devcontainer CLI bind-mounts its own /workspaces/<folder> path instead, overriding
@@ -69,7 +80,9 @@ WORKDIR /home/${REMOTE_USER}
 # installs as root are their own well-documented anti-pattern, not something to trade
 # one root workaround for another).
 RUN mkdir -p /home/${REMOTE_USER}/.npm-global && npm config set prefix /home/${REMOTE_USER}/.npm-global
-ENV PATH="/home/${REMOTE_USER}/.npm-global/bin:/home/${REMOTE_USER}/.local/bin:${PATH}"
+# /go/bin is `go install`'s default GOBIN (unset GOBIN falls back to $GOPATH/bin, and
+# unset GOPATH defaults to ~/go) — osv-scanner (below) lands there.
+ENV PATH="/home/${REMOTE_USER}/.npm-global/bin:/home/${REMOTE_USER}/.local/bin:/home/${REMOTE_USER}/go/bin:${PATH}"
 
 # Agent-agnostic tools — always present regardless of which agent stages below get
 # built, since none of these depend on any specific agent CLI existing yet. QMD and
@@ -95,6 +108,14 @@ RUN pip install --user --break-system-packages graphifyy
 # <path>`, `lizard <path>`), confirmed working against a real fixture file before being
 # added here.
 RUN pip install --user --break-system-packages semgrep lizard
+
+# osv-scanner (cross-stack dependency vulnerability scanning) — the third analyser this
+# repository's own gates run (scripts/gate-6-pull-request.mjs check 10) alongside
+# semgrep and lizard above, but until now only ever installed in CI
+# (.github/workflows/pull-request.yml), never in this container — so it only ran
+# post-push, invisible from a local gate run. Same install command CI uses, `go install
+# .../osv-scanner@latest`, so the two stay in step without a version pinned twice.
+RUN go install github.com/google/osv-scanner/cmd/osv-scanner@latest
 
 FROM core AS with-claude
 

@@ -101,7 +101,7 @@ time? A blank repository has nothing to sweep or migrate; an existing one does.
    tell) that must not read as findings. **A finding this order surfaces gets
    fixed first, restructured second, and only suppressed with a justification
    once both are unavailable** — load
-   `docs/standards/guardrails/bypass-and-exceptions.md#fix-it-restructure-it-or-suppress-it-in-that-order`
+   `docs/standards/guardrails/bypass-and-exceptions.md#fix-it-restructure-it-or-suppress-it--in-that-order`
    before reaching for a marker; a change that only moves a finding without
    changing the risk is evasion, not a fix.
 

@@ -67,10 +67,10 @@ clone.
 
 [Cross-gate rules](cross-gate-rules.md#prefer-established-tooling-to-bespoke-checks)
 states the rule — "every check the platform already provides is enabled
-rather than rebuilt" — and it has been unactionable: audit 5 found Dependabot
-and vulnerability alerts disabled at the platform level with no decision
-record, and no cycle since has fixed it, because an implementer reading that
-sentence has no way to tell whether the repository in front of them complies.
+rather than rebuilt" — and it has been unactionable: Dependabot and
+vulnerability alerts have been found disabled at the platform level with no
+decision record, and no cycle since has fixed it, because an implementer
+reading that sentence has no way to tell whether the repository in front of them complies.
 A rule with nothing enumerated is not a rule anyone can satisfy.
 
 **Features the platform provides free at this repository's visibility and
@@ -108,9 +108,9 @@ name the restriction in the response body, and `scripts/check-repository-feature
 reports both as a visible skip rather than a finding. A `403`/`401` whose body
 names something else — a missing token scope, an unauthenticated session — is
 reported as an **unknown naming the missing scope**, never silently folded
-into "disabled": Fix 32
-([branch protection](branch-protection.md)) already learned this lesson once
-for `origin/HEAD` — a check that cannot tell "off" from "cannot see" produces
+into "disabled": [branch protection](branch-protection.md) already learned
+this lesson once for `origin/HEAD` — a check that cannot tell "off" from
+"cannot see" produces "cannot see" produces
 noise, and noise is indistinguishable from a false pass once people stop
 reading it.
 
@@ -200,7 +200,7 @@ caught it before the cycle called itself done simply was not run.
       is recorded.
 - [ ] A repository carrying `tooling`-classed gate or check scripts has at
       least one `test`-classed file naming one of them — `node
-    scripts/check-tooling-class.mjs` (`checkToolingTestSuiteExists`) is the
+scripts/check-tooling-class.mjs` (`checkToolingTestSuiteExists`) is the
       mechanical form; the toolkit's own repository is exempt, the same
       carve-out `checkToolingClassDeclared` already applies.
 - [ ] Long-path support is enabled, and a deep path clones and builds.

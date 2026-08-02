@@ -1,3 +1,4 @@
+// cspell:ignore GHSA
 // Check 6 (gate 6) — dependency advisory scan.
 //
 // Change-triggered (change-triggered-checks.md) PLUS scheduled: a licence is a
@@ -24,6 +25,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { run, resolvedDependencyTree, report } from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
+/** @type {Record<string, number>} */
 const SEVERITY_RANK = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 // thresholds.md calls the push-back band "medium"; npm audit's own severities
 // are info/low/moderate/high/critical — "medium" and "moderate" name the same
@@ -31,6 +33,7 @@ const SEVERITY_RANK = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 const BLOCK = { runtime: "high", dev: "critical" };
 const PUSH_BACK = { runtime: "moderate", dev: "high" };
 
+/** @param {string} severity @returns {number} */
 function rank(severity) {
   const normalised = severity === "medium" ? "moderate" : severity;
   return SEVERITY_RANK[normalised] ?? 0;
@@ -67,12 +70,42 @@ export function acceptedAdvisoryIds(adrDir = "docs/ADR") {
 }
 
 /** The GHSA ids an `npm audit --json` vulnerability entry names, lower-cased —
- *  read from each `via` entry's advisory URL (the last path segment). */
+ *  read from each `via` entry's advisory URL (the last path segment).
+ *  @param {{ via?: { url: string }[] }} info @returns {string[]} */
 function advisoryIdsOf(info) {
   return (info.via ?? [])
     .filter((v) => typeof v === "object" && typeof v.url === "string")
-    .map((v) => v.url.trim().split("/").pop().toLowerCase())
+    .map((v) => (v.url.trim().split("/").pop() ?? "").toLowerCase())
     .filter(Boolean);
+}
+
+/** One vulnerability's finding, or null when it is below policy or accepted.
+ *  Split out of classifyAdvisories's loop so the loop stays a single
+ *  classify-and-push rather than carrying the severity/scope/acceptance
+ *  branching inline.
+ *  @param {string} name
+ *  @param {{ severity: string, via: { url: string }[] }} info
+ *  @param {{ runtimeNames: Set<string>, acceptedIds: Set<string> }} opts */
+function classifyOneAdvisory(name, info, { runtimeNames, acceptedIds }) {
+  const scope = runtimeNames.has(name) ? "runtime" : "dev";
+  const severity = info.severity === "medium" ? "moderate" : info.severity;
+  const blocks = rank(severity) >= rank(BLOCK[scope]);
+  const pushesBack = !blocks && rank(severity) >= rank(PUSH_BACK[scope]);
+  if (!blocks && !pushesBack) return null;
+
+  const ids = advisoryIdsOf(info);
+  if (pushesBack && ids.some((id) => acceptedIds.has(id))) return null;
+
+  return {
+    check: "dependency advisory scan",
+    path: name,
+    problem:
+      `${name} carries a ${severity} advisory (${scope} dependency)` +
+      (ids.length ? `: ${ids.join(", ")}` : ""),
+    remedy: blocks
+      ? "upgrade or remove the dependency; block severity has no accepted-record path"
+      : "upgrade the dependency, pin the specific vulnerable transitive dependency via `overrides`/`resolutions` where that version itself clears policy, or accept it in an Accepted ADR naming the advisory id",
+  };
 }
 
 /** Pure classification: given an `npm audit --json` report and the runtime
@@ -80,7 +113,8 @@ function advisoryIdsOf(info) {
  *  findings. Kept separate from the impure orchestration below so it can be
  *  tested against a fixed report — `npm audit` is network-bound and its
  *  result changes as new advisories publish, so testing it end to end would
- *  not be a repeatable test. */
+ *  not be a repeatable test.
+ *  @param {{ vulnerabilities?: Record<string, { severity: string, via: { url: string }[] }> }} auditReport */
 export function classifyAdvisories(
   auditReport,
   { runtimeNames = new Set(), acceptedIds = new Set() } = {},
@@ -89,25 +123,11 @@ export function classifyAdvisories(
   for (const [name, info] of Object.entries(
     auditReport?.vulnerabilities ?? {},
   )) {
-    const scope = runtimeNames.has(name) ? "runtime" : "dev";
-    const severity = info.severity === "medium" ? "moderate" : info.severity;
-    const blocks = rank(severity) >= rank(BLOCK[scope]);
-    const pushesBack = !blocks && rank(severity) >= rank(PUSH_BACK[scope]);
-    if (!blocks && !pushesBack) continue;
-
-    const ids = advisoryIdsOf(info);
-    if (pushesBack && ids.some((id) => acceptedIds.has(id))) continue;
-
-    findings.push({
-      check: "dependency advisory scan",
-      path: name,
-      problem:
-        `${name} carries a ${severity} advisory (${scope} dependency)` +
-        (ids.length ? `: ${ids.join(", ")}` : ""),
-      remedy: blocks
-        ? "upgrade or remove the dependency; block severity has no accepted-record path"
-        : "upgrade the dependency, or accept it in an Accepted ADR naming the advisory id",
+    const finding = classifyOneAdvisory(name, info, {
+      runtimeNames,
+      acceptedIds,
     });
+    if (finding) findings.push(finding);
   }
   return findings;
 }
@@ -115,8 +135,10 @@ export function classifyAdvisories(
 /** { findings, skips }. `scanTriggered` is the caller's own scope decision —
  *  the lock file is in the staged/changed set, or this is the scheduled run
  *  — the same shape checkLicenceCompleteness (check-licence.mjs) takes for
- *  the same reason. */
+ *  the same reason.
+ *  @param {boolean} scanTriggered */
 export function checkDependencyAdvisories(scanTriggered) {
+  /** @type {string[]} */
   const skips = [];
   if (!scanTriggered) {
     skips.push(
@@ -152,7 +174,8 @@ export function checkDependencyAdvisories(scanTriggered) {
   };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   // Manual or scheduled run: always in scope — there is no staged/changed set
   // to ask, the way pre-commit.mjs and gate-6-pull-request.mjs can.

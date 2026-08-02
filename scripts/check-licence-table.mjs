@@ -56,7 +56,9 @@ export async function checkLicenceTableReferences(
       findings.push({
         check: "licence table re-validation",
         path: "scripts/licence-table.mjs",
-        problem: `${id}'s reference (${entry.reference}) could not be reached: ${err.message}`,
+        problem: `${id}'s reference (${entry.reference}) could not be reached: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         remedy:
           "confirm network access, then re-run; if it still fails, the reference itself may have moved",
       });
@@ -65,7 +67,8 @@ export async function checkLicenceTableReferences(
   return findings;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const findings = await checkLicenceTableReferences();
   report("gate 7", findings);

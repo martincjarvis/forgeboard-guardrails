@@ -31,6 +31,7 @@ evidence but does not block leaves the merge to whoever is impatient.
 | 8   | Changed-line coverage                     | Correctness | Coverage of the lines this change added or modified is below the floor                                                                                     |
 | 9   | Untrusted-run isolation                   | Security    | A run triggered from outside the repository is given credentials a trusted run gets                                                                        |
 | 10  | Cross-stack dependency scan (osv-scanner) | Security    | osv-scanner reports an advisory with no accepted record, published as SARIF                                                                                |
+| 11  | Minimum release age                       | Security    | A resolved dependency's version was published inside the `min-release-age` window, with no human-approved register row admitting it                        |
 
 Check 1 is the reason this gate exists in its current form. A local run proves
 the checks pass **on that machine**, with that machine's tool versions, caches
@@ -99,6 +100,24 @@ and the check is asking whether that happened.
 A record accepting an advisory is one of the few that should carry an expiry, in
 the way a quarantine does. An advisory tolerated because no fix exists is a
 different statement a month later, when one does.
+
+**The remedy is not a binary choice between upgrading and accepting.** A third
+path exists, and skipping it has already produced two runs over the same
+corpus reaching opposite, both defensible-looking conclusions: pin the
+specific vulnerable transitive dependency directly, via `overrides`
+(npm/pnpm) or `resolutions` (yarn), independently of whatever version its
+parent package happens to bundle. A vulnerable package is often reachable
+two ways — bundled inside a direct dependency's own `node_modules`, and
+available as its own standalone release — and **a bundled fix and a direct
+fix do not share a publication date.** The direct fix is frequently
+available first: the maintainer of the vulnerable package publishes a patch
+release the day the advisory goes public, while every package that bundles
+it waits on its own release cycle to pick that patch up. A vetting or
+minimum-release-age policy judged against the bundled fix's publish date can
+therefore refuse a fix that the same policy, judged against the direct
+fix's own publish date, would accept. Check both dates before choosing
+between an upgrade, a pin, and an ADR — not only the one the advisory
+scanner happened to name first.
 
 **Scope changes the answer for both.** A dependency present in what ships and
 one used only to build or test it carry different obligations: a licence that
@@ -386,8 +405,8 @@ these on the protected branch, not as convention. **This is a mechanism, not
 only a principle** — `scripts/configure-branch-protection.mjs` applies every
 row below, idempotently, and `scripts/check-branch-protection.mjs` makes its
 absence a finding rather than a silent pass, wired into gate 7 and CI; see
-[branch protection](branch-protection.md) for both. Audit 8 found the
-mechanism missing four times running: a red required check and a red gate 6
+[branch protection](branch-protection.md) for both. The mechanism has been
+found missing four times running: a red required check and a red gate 6
 blocked nothing, because nothing had ever configured the platform to refuse.
 
 | #   | Policy                                | Type   | Prevents                                                      |
@@ -419,16 +438,16 @@ Most of this gate is platform configuration rather than a command, but the
 checks themselves are the local ones re-run — see each gate's own page. What is
 specific here:
 
-| Purpose                                                                                                                                              | Command                                                                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Build the merge result locally                                                                                                                       | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main`                          |
-| Reproduce a clean checkout                                                                                                                           | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`                                       |
-| Changed-line coverage                                                                                                                                | `npx diff-cover coverage/cobertura-coverage.xml --compare-branch origin/main --fail-under 80` |
-| Inspect required status checks                                                                                                                       | `gh api repos/:owner/:repo/branches/main/protection`                                          |
-| Inspect branch protection, ADO                                                                                                                       | `az repos policy list --branch main`                                                          |
-| Check a pull request's finding citations (fix 68, cross-gate-rules.md's reserved-class exception) — a reviewer, against an already-open pull request | `node scripts/check-pr-body-artefacts.mjs [pr-number]`                                        |
-| Check a `[large-pr]` marker is backed by an approved register row (fix 74)                                                                           | `node scripts/check-change-size-override.mjs [base..HEAD]`                                    |
-| Reconcile a report's claims against a completed CI run's own job log (fix 76) — a step after the run, never before                                   | `node scripts/check-report-ci-reconciliation.mjs <report.md> <job-log.txt>`                   |
+| Purpose                                                                                                                                      | Command                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Build the merge result locally                                                                                                               | `git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main`                          |
+| Reproduce a clean checkout                                                                                                                   | `git clone --depth 1 <url> /tmp/clean && cd /tmp/clean`                                       |
+| Changed-line coverage                                                                                                                        | `npx diff-cover coverage/cobertura-coverage.xml --compare-branch origin/main --fail-under 80` |
+| Inspect required status checks                                                                                                               | `gh api repos/:owner/:repo/branches/main/protection`                                          |
+| Inspect branch protection, ADO                                                                                                               | `az repos policy list --branch main`                                                          |
+| Check a pull request's finding citations (cross-gate-rules.md's reserved-class exception) — a reviewer, against an already-open pull request | `node scripts/check-pr-body-artefacts.mjs [pr-number]`                                        |
+| Check a `[large-pr]` marker is backed by an approved register row                                                                            | `node scripts/check-change-size-override.mjs [base..HEAD]`                                    |
+| Reconcile a report's claims against a completed CI run's own job log — a step after the run, never before                                    | `node scripts/check-report-ci-reconciliation.mjs <report.md> <job-log.txt>`                   |
 
 The falsifiable test for check 3 is worth running once at adoption: remove the
 local hooks entirely, break one check deliberately, push, and confirm the
@@ -491,6 +510,11 @@ pipeline refuses the merge.
       re-validation against its references is invoked on demand at gate 7,
       never on a schedule — a licence's text and OSI classification do not
       drift the way an advisory database does.
+- [ ] A push-back-band advisory's remedy names all three paths — upgrade,
+      an `overrides`/`resolutions` pin to the fixed transitive version, or an
+      Accepted ADR — not only the first two, and a policy judged against a
+      bundled fix's publish date is also checked against the direct fix's
+      own, earlier one before it is refused on age.
 - [ ] Every table entry cites an authoritative reference that resolves, and
       every row whose licence needed a human decision names that decision
       record and its approver on the row itself.
@@ -540,6 +564,11 @@ pipeline refuses the merge.
       code alone: a non-zero exit with no result in that SARIF reports
       unavailable, never a finding with no advisory id in it
       ([cross-gate-rules.md](cross-gate-rules.md#a-refusal-is-a-diagnosis)).
+- [ ] A dependency whose resolved version was published inside the
+      `min-release-age` window is refused, naming the version and its age, and a
+      human-approved row in the minimum-release-age register admits it; a row
+      whose version has aged past the window is reported stale, so exceptions
+      cannot accumulate into permanent exemptions.
 - [ ] End-to-end tests run here or at gate 8, and the checklist states which.
 - [ ] Health checks pass before any end-to-end test runs against the provisioned
       environment.
@@ -566,7 +595,7 @@ pipeline refuses the merge.
       commit-msg hook, without an approved row
       ([ADR-0010](../../ADR/0010-large-pr-marker-refused-without-approved-row.md)).
       Gate 4's own change-size check still clears on the bare marker locally
-      ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
+      ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
 - [ ] A row approved for a different branch does not clear this check for the
       one under review.
 

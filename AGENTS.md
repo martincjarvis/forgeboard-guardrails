@@ -20,7 +20,7 @@ reference it needs at the step that needs it.
   disappear without changing what the code does — moving the pattern rather
   than removing it — is evasion, refused the same as an unregistered
   suppression. Full rule:
-  [`docs/standards/guardrails/bypass-and-exceptions.md`](docs/standards/guardrails/bypass-and-exceptions.md#fix-it-restructure-it-or-suppress-it-in-that-order).
+  [`docs/standards/guardrails/bypass-and-exceptions.md`](docs/standards/guardrails/bypass-and-exceptions.md#fix-it-restructure-it-or-suppress-it--in-that-order).
 - **Stream progress and blockers as you work.** State what you are doing, what
   you have finished, and what is blocking you, while the work is still
   running — not only in a final report.

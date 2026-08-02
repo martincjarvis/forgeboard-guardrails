@@ -1,5 +1,5 @@
 // cspell:ignore symref
-// Fix 67 — pre-push refuses a branch behind its base. Branch protection sets
+// Pre-push refuses a branch behind its base. Branch protection sets
 // `strict: true` and gate-6-pull-request.md already requires "A pull request
 // behind its base cannot merge until it is updated" — nothing checked it
 // before the push existed, so the merge got refused only after a pipeline
@@ -19,7 +19,7 @@
 // Base is derived — resolveBase() (lib.mjs), never a hardcoded "main" — the
 // same derivation gate 0's own identical rebase check already uses
 // (gate-0-baseline.mjs). An unresolvable base is a visible skip naming the
-// remedy (fix 32's pattern: check-protected-branch.mjs), not a silent pass.
+// remedy (the pattern check-protected-branch.mjs uses), not a silent pass.
 //
 // Fetches first so the comparison is against a current ref, not a stale
 // one — gate 0's own check does the same before its identical rev-list.
@@ -42,7 +42,9 @@ export function checkBranchBehindBase({
   git: gitFn = git,
   resolveBase: resolveBaseFn = resolveBase,
 } = {}) {
+  /** @type {{ check: string, problem: string, remedy: string }[]} */
   const findings = [];
+  /** @type {string[]} */
   const skips = [];
 
   const base = resolveBaseFn();
@@ -66,7 +68,19 @@ export function checkBranchBehindBase({
     return { findings, skips };
   }
 
-  const behind = Number(count.stdout.trim());
+  // A zero exit is not on its own a readable count — stdout can be absent or
+  // blank, and `Number("")` is 0, so a comparison that never happened would
+  // report as level with the base. Unreadable takes the same visible skip a
+  // failed rev-list takes.
+  const counted = (count.stdout || "").trim();
+  if (!/^\d+$/.test(counted)) {
+    skips.push(
+      `branch behind base — git rev-list produced no readable commit count for HEAD..${base}`,
+    );
+    return { findings, skips };
+  }
+
+  const behind = Number(counted);
   if (behind > 0) {
     findings.push({
       check: "branch behind base",
@@ -81,7 +95,8 @@ export function checkBranchBehindBase({
   return { findings, skips };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { findings, skips } = checkBranchBehindBase();
   report("gate 5", findings, skips);

@@ -6,11 +6,14 @@ read_when: Adopting the toolkit in a repository agents work in, or adding suppor
 
 # Agent integration
 
-Two of the nine gates are the agent's rather than git's: the
-[edit gate](gate-1-edit.md) fires on every file write, and the
-[task-completion gate](gate-4-task-completion.md) fires when work is handed
-back. Neither is a git hook, so neither exists unless the harness the agent runs
-in is wired to fire it.
+Two of the nine gates fire in the agent's own session by design — the
+[edit gate](gate-1-edit.md) on every file write, and the
+[task-completion gate](gate-4-task-completion.md) when work is handed back —
+and the [baseline gate](gate-0-baseline.md) fires a third, cheaper check at
+session start so the cheap failures (behind base, a dirty tree, a fresh
+worktree with no `node_modules`) are caught before any work begins. None of
+the three is a git hook, so none exists unless the harness the agent runs in
+is wired to fire it.
 
 A repository is worked in by more than one harness — different people, different
 tools, the same repository. **What the gates require must not depend on
@@ -52,8 +55,17 @@ so it is stated as behaviour:
 
 | Requirement                                                                                                          | Corresponds to |
 | -------------------------------------------------------------------------------------------------------------------- | -------------- |
+| When a session begins, the cheap baseline is surfaced — behind base, clean tree, dependencies present — non-blocking | Gate 0 (quick) |
 | After a file is written, the file is formatted and security-scanned, and a finding in a tracked file fails the write | Gate 1         |
 | Before work is handed back, the whole branch is measured against its base and the findings reported in one pass      | Gate 4         |
+
+**The session-start hook is non-blocking and never rebases.** A rebase under
+an agent holding uncommitted work is destructive — gate 0's own stated reason
+for reporting instead of acting — so the hook surfaces the baseline (the quick
+signals, plus a pointer to `npm run gate:0` for the build and the full suite)
+and lets the operator decide. The build and the suite cost minutes where the
+signals that actually caused failures cost milliseconds, so the synchronous
+hook runs the millisecond half and reports the rest as a named skip.
 
 **Every harness in use gets both, or the gates are advisory.** An agent working
 in an unwired harness writes past exactly the checks that exist to catch it
@@ -108,6 +120,33 @@ standards do not define X, so I assumed Y" is a blocker plus a decision, and
 is correct. "Which should I use, X or Y?" is a clarifying question, and is
 not.
 
+This rule exists to make unattended runs deterministic — a run whose
+behaviour depends on what someone typed back is not a run you can compare
+against another. Two things are not clarifying questions, and the rule does
+not forbid either:
+
+- **A decision the standards reserve for a human** — a suppression approval,
+  an accepted risk, an opt-out, a conflict between two standing directives.
+  Surfacing one is reporting a blocker that needs an owner, not asking the
+  corpus to settle something it already settled; the decision is someone
+  else's to own. The opt-out conversation a bootstrap skill holds with a
+  human sits inside this carve-out.
+- **A genuine ambiguity in an interactive session with a human present.**
+  The rule does not exist to forbid a human collaborating with a skill in a
+  session they are sitting in, where the human can answer cheaply what
+  discovery could not resolve. An interactive skill may ask — once, batched,
+  with candidates, evidence and the default taken on no answer; an unattended
+  one may not.
+
+**Unattended runs are unchanged by the second carve-out.** The evaluation
+loop is unattended, and "the run had to answer a clarifying question"
+remains one of its stated failure conditions. A carve-out that leaked into
+unattended operation would silently invalidate every round the loop has ever
+measured. Collapsing the interactive path into the unattended one — take the
+documented default, report it, never ask — was the rejected alternative: it
+discards the one case where a human is present and able to answer, to spare
+a question the human is there precisely to answer.
+
 **Failure to deliver is a valid outcome, provided the reason is stated.** An
 agent that stops and says precisely what blocked it has succeeded at
 reporting; one that stops and asks a question, or stops silently, has not.
@@ -119,6 +158,10 @@ reporting; one that stops and asks a question, or stops silently, has not.
 - [ ] Only one of those files holds content; the rest are pointers.
 - [ ] The root file names the `.logs` location where it differs from the default.
 - [ ] Each harness in use fires an edit-time check and a task-completion check.
+- [ ] Each harness in use fires a session-start check that surfaces the cheap
+      baseline (behind base, clean tree, `node_modules` present) non-blocking,
+      never rebases, and defers the build and full suite to `npm run gate:0`
+      with a named skip.
 - [ ] A security finding written into a tracked file fails the write in **every**
       harness, not just the one it was configured in first.
 - [ ] A harness that cannot fire a hook has that recorded, naming which gate is
@@ -129,9 +172,13 @@ reporting; one that stops and asks a question, or stops silently, has not.
 - [ ] A working session reports what it is doing, what it has finished, and
       what is blocking it while the work is in progress, not only at the end.
 - [ ] A blocker is reported when it is hit, not held until the final report.
-- [ ] An ambiguous requirement is resolved by taking the reasonable option and
-      recording the choice and the rejected alternative, not by stopping to
-      ask.
+- [ ] An ambiguous requirement in an unattended run is resolved by taking the
+      reasonable option and recording the choice and the rejected alternative,
+      not by stopping to ask. An interactive run may ask once, batched, on a
+      genuine ambiguity discovery could not resolve; an unattended one may not.
+- [ ] A decision reserved for a human — a suppression, a risk, an opt-out, a
+      conflict between directives — is surfaced as a blocker needing an owner,
+      not asked as a clarifying question and not settled by the agent.
 - [ ] A session that cannot finish states precisely what blocked it, and does
       not stop silently or ask a clarifying question instead.
 

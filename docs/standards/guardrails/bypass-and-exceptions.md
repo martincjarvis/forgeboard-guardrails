@@ -120,10 +120,7 @@ site (`hooks/lib/run.mjs`'s own `nosemgrep` marker is exactly that case: one
 line, two rules, two register rows). That is correct and stays legal. What is
 forbidden is the **blanket** suppression: a marker that names no rule at all
 silences everything at that site and is refused, as is a rule disabled in
-configuration or a gate switched off wholesale (fix 33 — the earlier reading
-of this rule as a count, "no suppression silences more than the one rule it
-names," left a marker's second rule unchecked when a parser stopped at the
-first; restated here to say what the rule actually guards against).
+configuration or a gate switched off wholesale.
 
 `@ts-expect-error` and `@ts-ignore` are a known limitation of the per-rule
 form: TypeScript has no way to name which diagnostic a directive silences, so

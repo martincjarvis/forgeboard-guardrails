@@ -1,6 +1,6 @@
-// Fix brief 8, item 2 — "every check the platform already provides is
+// The rule "every check the platform already provides is
 // enabled rather than rebuilt" (cross-gate-rules.md) was unactionable:
-// audit 5 found Dependabot and vulnerability alerts disabled with no
+// Dependabot and vulnerability alerts were found disabled with no
 // decision record, and no cycle since fixed it, because nothing enumerated
 // which features the rule actually meant or told an implementer how to
 // tell "off" from "not offered on this plan." See
@@ -41,7 +41,13 @@ const RUN_SCRIPT = "run `node scripts/configure-repository-features.mjs`";
  *  ambiguous `security_and_analysis` reading, which is reported as a skip
  *  rather than guessed either way. Split out so evaluateRepositoryFeatures
  *  stays a flat sequence of feature classifications, not a chain of ifs each
- *  worth its own point of cyclomatic complexity. */
+ *  worth its own point of cyclomatic complexity.
+ *  @param {string} name
+ *  @param {"enabled" | "disabled" | { unavailable: string } | null | undefined} value
+ *  @param {"public" | "private" | null} visibility
+ *  @param {string} availableMessage
+ *  @param {string[]} skips
+ *  @param {(check: string, problem: string) => void} add */
 function classifyGated(name, value, visibility, availableMessage, skips, add) {
   if (value === "enabled") {
     skips.push(`${name} — enabled`);
@@ -69,6 +75,28 @@ function classifyGated(name, value, visibility, availableMessage, skips, add) {
   }
 }
 
+/** A feature that is free on every plan and every visibility, so "disabled"
+ *  is always a genuine finding and never a plan-or-visibility skip — the
+ *  simpler counterpart to classifyGated above, for the two Dependabot
+ *  toggles.
+ *  @param {string} feature
+ *  @param {string} readKey
+ *  @param {"enabled" | "disabled" | null} state
+ *  @param {string[]} skips
+ *  @param {(check: string, problem: string) => void} add */
+function classifyUngated(feature, readKey, state, skips, add) {
+  if (state === "disabled") {
+    add(
+      feature,
+      `${feature} are off; they are free on every plan and every repository visibility`,
+    );
+  } else if (state === null || state === undefined) {
+    skips.push(`${feature} — could not read \`${readKey}\``);
+  } else {
+    skips.push(`${feature} — enabled`);
+  }
+}
+
 /** Pure verdict over already-fetched state — exported and tested directly
  *  against constructed fixtures, the same split evaluateBranchProtection
  *  uses (check-branch-protection.mjs).
@@ -90,10 +118,13 @@ export function evaluateRepositoryFeatures({
   pushProtection = null,
   codeScanning = null,
 } = {}) {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
   const skips = [];
-  const add = (check, problem) =>
+  /** @type {(check: string, problem: string) => void} */
+  const add = (check, problem) => {
     findings.push({ check, path: "", problem, remedy: RUN_SCRIPT });
+  };
 
   skips.push(
     "dependency graph — always on for a supported manifest; the platform exposes no toggle to audit",
@@ -102,32 +133,20 @@ export function evaluateRepositoryFeatures({
   // Free on every plan and every visibility (verified directly: PUT
   // succeeded against a private GitHub-Free repository) — "disabled" is
   // always a genuine finding here, never a plan-or-visibility skip.
-  if (dependabotAlerts === "disabled") {
-    add(
-      "Dependabot alerts",
-      "Dependabot alerts are off; they are free on every plan and every repository visibility",
-    );
-  } else if (dependabotAlerts === null || dependabotAlerts === undefined) {
-    skips.push("Dependabot alerts — could not read `vulnerability-alerts`");
-  } else {
-    skips.push("Dependabot alerts — enabled");
-  }
-
-  if (dependabotSecurityUpdates === "disabled") {
-    add(
-      "Dependabot security updates",
-      "Dependabot security updates are off; they are free on every plan and every repository visibility",
-    );
-  } else if (
-    dependabotSecurityUpdates === null ||
-    dependabotSecurityUpdates === undefined
-  ) {
-    skips.push(
-      "Dependabot security updates — could not read `automated-security-fixes`",
-    );
-  } else {
-    skips.push("Dependabot security updates — enabled");
-  }
+  classifyUngated(
+    "Dependabot alerts",
+    "vulnerability-alerts",
+    dependabotAlerts,
+    skips,
+    add,
+  );
+  classifyUngated(
+    "Dependabot security updates",
+    "automated-security-fixes",
+    dependabotSecurityUpdates,
+    skips,
+    add,
+  );
 
   classifyGated(
     "secret scanning",
@@ -176,6 +195,7 @@ export function evaluateRepositoryFeatures({
   return { findings, skips };
 }
 
+/** @param {(command: string, args: readonly string[], options?: object) => {status: number | null, stdout?: string, stderr?: string}} runFn */
 function alertState(runFn) {
   const r = runFn("gh", ["api", "repos/:owner/:repo/vulnerability-alerts"]);
   if (r.status === 0) return "enabled";
@@ -183,16 +203,18 @@ function alertState(runFn) {
   return null;
 }
 
+/** @param {(command: string, args: readonly string[], options?: object) => {status: number | null, stdout?: string, stderr?: string}} runFn */
 function securityUpdatesState(runFn) {
   const r = runFn("gh", ["api", "repos/:owner/:repo/automated-security-fixes"]);
   if (r.status !== 0) return null;
   try {
-    return JSON.parse(r.stdout).enabled ? "enabled" : "disabled";
+    return JSON.parse(r.stdout ?? "").enabled ? "enabled" : "disabled";
   } catch {
     return null;
   }
 }
 
+/** @param {(command: string, args: readonly string[], options?: object) => {status: number | null, stdout?: string, stderr?: string}} runFn */
 function codeScanningState(runFn) {
   const r = runFn("gh", [
     "api",
@@ -200,7 +222,7 @@ function codeScanningState(runFn) {
   ]);
   if (r.status === 0) {
     try {
-      const body = JSON.parse(r.stdout);
+      const body = JSON.parse(r.stdout ?? "");
       return body.state === "configured" ? "enabled" : "disabled";
     } catch {
       return {
@@ -215,6 +237,7 @@ function codeScanningState(runFn) {
   };
 }
 
+/** @param {Record<string, { status?: string } | null> | null} analysis @param {string} key */
 function statusOf(analysis, key) {
   const v = analysis?.[key]?.status;
   return v === "enabled" || v === "disabled" ? v : null;
@@ -235,6 +258,7 @@ export async function checkRepositoryFeatures({
   have: haveFn = have,
   run: runFn = run,
 } = {}) {
+  /** @type {string[]} */
   const skips = [];
   if (!haveFn("gh", ["--version"])) {
     skips.push(
@@ -257,7 +281,10 @@ export async function checkRepositoryFeatures({
   }
   let repo;
   try {
-    repo = JSON.parse(repoGet.stdout);
+    // No stdout is not an empty object: `JSON.parse("")` throws, so absent
+    // output lands on the same skip as unparseable output rather than
+    // reading as a repository with every feature off.
+    repo = JSON.parse(repoGet.stdout ?? "");
   } catch {
     skips.push(
       "repository features audit — gh api returned unparseable JSON for the repository",
@@ -282,7 +309,8 @@ export async function checkRepositoryFeatures({
   };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { findings, skips } = await checkRepositoryFeatures();
   report("gate 7", findings, skips);

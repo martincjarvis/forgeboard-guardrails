@@ -1,5 +1,5 @@
 // cspell:ignore govulncheck
-// Fix 9b — osv-scanner, the cross-stack dependency analyser (docs/standards/
+// osv-scanner, the cross-stack dependency analyser (docs/standards/
 // guardrails/cross-gate-rules.md: "A general-purpose analyser runs across
 // every stack, including one with its own specialised analyser, rather than
 // being excluded from it"). Treated exactly as semgrep and lizard are
@@ -16,18 +16,18 @@
 // cross-gate-rules.md requires of anything blocking.
 //
 // osv-scanner will not be installed on most consumers' first run — that is
-// the point fix 9b exists to prove: the skip path is what most people hit
+// the point this check exists to prove: the skip path is what most people hit
 // first, so it must report visibly, name the tool, and never pass silently.
 // The invocation below follows osv-scanner's own documented CLI
 // (`osv-scanner --format <json|sarif> -r <path>` recursively scans a
 // directory tree against the OSV database and exits non-zero when it finds
 // something).
 //
-// Fix 31 — `have`/`run` are injectable (the same shape checkBranchProtection
+// `have`/`run` are injectable (the same shape checkBranchProtection
 // takes, check-branch-protection.mjs), defaulting to the real PATH-resolved
 // ones. The skip-path test asserts the skip through an injected absence
-// rather than this host's own PATH: audit 9 traced a bootstrapped repo's CI
-// failure to exactly the opposite — a test that depended on osv-scanner
+// rather than this host's own PATH: a bootstrapped repo's CI failure was
+// traced to exactly the opposite — a test that depended on osv-scanner
 // genuinely being absent from the host it happened to run on, which broke
 // the moment a workflow step installed it first. A test whose result depends
 // on what happens to be installed is not a test of this function.
@@ -54,6 +54,7 @@ export function checkOsvScanner({
   run: runFn = run,
 } = {}) {
   const skips = [];
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
   if (!haveFn("osv-scanner", ["--version"])) {
     skips.push(
@@ -62,7 +63,7 @@ export function checkOsvScanner({
     return { findings, skips };
   }
   const scan = runFn("osv-scanner", ["--format", "json", "-r", "."]);
-  // Fix 44 — the exit code alone cannot distinguish "vulnerabilities found"
+  // The exit code alone cannot distinguish "vulnerabilities found"
   // from "the scan itself did not complete"; only osv-scanner's own
   // structured JSON output can (classifyOsvScannerOutcome, lib.mjs).
   const outcome = classifyOsvScannerOutcome(
@@ -83,7 +84,8 @@ export function checkOsvScanner({
   return { findings, skips };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { findings, skips } = checkOsvScanner();
   report("gate 5", findings, skips);

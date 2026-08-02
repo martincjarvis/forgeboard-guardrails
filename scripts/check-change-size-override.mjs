@@ -1,10 +1,10 @@
 // cspell:ignore ccd
-// Fix 74 — [large-pr] is a human decision an agent may propose and never take.
+// [large-pr] is a human decision an agent may propose and never take.
 //
 // hooks/gate-4-task-completion.mjs's own OVERRIDE check was, before this fix,
 // `!log.stdout.includes(OVERRIDE)` — pure string presence, satisfied by any
 // commit on the branch, from any author, with no reason and no approver.
-// Audit 18's own case: the marker landed two commits after the diff it
+// The demonstrated case: the marker landed two commits after the diff it
 // excused (`ccd9d67`, +520, after `53f4bed`, +29,447) — which already
 // satisfied that check, and would have satisfied a naive fix requiring "the
 // marker sits in a commit distinct from the one it excuses" too, because it
@@ -35,7 +35,7 @@
 // (cross-gate-rules.md#prefer-established-tooling-to-bespoke-checks).
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { run, report, readStaged } from "./lib.mjs";
+import { bareCell, run, report, readStaged } from "./lib.mjs";
 import { parseRegisterRows } from "./check-approval-provenance.mjs";
 import { looksLikeTeamLabel } from "./check-adr-approver.mjs";
 
@@ -43,7 +43,8 @@ const OVERRIDE = "[large-pr]";
 export const REGISTER_PATH = "docs/registers/change-size-override-register.md";
 
 /** True when `logText` — a branch's own commit messages — claims the
- *  change-size override, anywhere in the range. */
+ *  change-size override, anywhere in the range.
+ *  @param {string | null | undefined} logText */
 export function usesOverrideMarker(logText) {
   return (logText || "").includes(OVERRIDE);
 }
@@ -51,25 +52,27 @@ export function usesOverrideMarker(logText) {
 /** Every row in the change-size override register identified by `branch`
  *  (the Branch column, register's first cell) whose Approver cell names a
  *  human. `parseRegisterRows` is the generic reader every other register in
- *  this repository already shares — this module adds no parser of its own. */
+ *  this repository already shares — this module adds no parser of its own.
+ *  @param {string} registerText @param {string} branch */
 export function approvedOverrideRowsForBranch(registerText, branch) {
-  const want = `${(branch || "").trim().toLowerCase()}|`;
+  const want = `${bareCell(branch).toLowerCase()}|`;
   return parseRegisterRows(registerText).filter(
     (r) =>
-      r.identity.startsWith(want) &&
+      bareCell(r.identity).startsWith(want) &&
       r.approver &&
       !looksLikeTeamLabel(r.approver),
   );
 }
 
-/** Fix 74's check, pure and injectable. `branch` is the pull request's own
+/** The change-size override check, pure and injectable. `branch` is the pull request's own
  *  head branch (`GITHUB_HEAD_REF` in CI, the checked-out branch for a
  *  manual run) — the same identity a human filing the row names in the
  *  register's own Branch column, so a row approved for one branch does not
  *  silently authorise a different one. An unresolved branch is reported as
  *  a finding rather than a silent skip — the fail-safe direction: nothing
  *  here can tell "genuinely cannot resolve" from "chose a detached HEAD to
- *  dodge the check" apart, so it blocks either way. */
+ *  dodge the check" apart, so it blocks either way.
+ *  @param {{logText: string, registerText: string, branch: string}} opts */
 export function findChangeSizeOverrideFindings({
   logText,
   registerText,
@@ -111,7 +114,9 @@ export function findChangeSizeOverrideFindings({
  *  and the register file from disk. `branch` defaults to `GITHUB_HEAD_REF`
  *  (set on every `pull_request` CI run) or the checked-out branch for a
  *  manual run. `runGit`/`readFile` are injectable, the same shape every
- *  other check here takes. */
+ *  other check here takes.
+ *  @param {string} logRange
+ *  @param {{branch?: string, runGit?: typeof run, readFile?: (p: string) => string}} [opts] */
 export function checkChangeSizeOverride(
   logRange,
   {
@@ -135,7 +140,7 @@ export function checkChangeSizeOverride(
   });
 }
 
-// Fix 84 — the marker itself, not only the finding it excuses, is refused
+// The marker itself, not only the finding it excuses, is refused
 // without an approved row. ADR-0006 already made a pre-approved register row
 // unwritable in the commit that files it (check-approval-provenance.mjs: the
 // approver cell cannot be filled in the same commit that introduces the row).
@@ -157,6 +162,7 @@ export function checkChangeSizeOverride(
 // commit that only files the register row (its own message never mentions
 // `[large-pr]`) never trips it, so filing a blank-approver row stays exactly
 // as available as ADR-0006 already made it.
+/** @param {string} message */
 export function checkChangeSizeOverrideMessage(
   message,
   {
@@ -172,7 +178,8 @@ export function checkChangeSizeOverrideMessage(
   });
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   if (process.argv[2] === "--message") {
     // .husky/commit-msg usage: the one message about to be committed.

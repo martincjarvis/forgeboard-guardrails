@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The four checked-in registers — suppression, dependency licence, test quarantine and change size override — their columns, and the rules common to all of them.
+summary: The six checked-in registers — suppression, dependency licence, test quarantine, change size override, minimum release age and third-party attribution — their columns, and the rules common to all of them.
 read_when: Adding an accepted finding, auditing what a repository has accepted, or deciding whether something is a register row or a decision record.
 ---
 
@@ -17,14 +17,16 @@ than as a silent change in behaviour.
 searching, not important enough to sit at the top of the documentation tree
 beside the standards a reader actually reads through. One file per register.
 
-| Register             | Records                                                        | One row per          | Enforced by                                                                              |
-| -------------------- | -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------- |
-| Suppression          | Accepted findings a check would otherwise raise                | One rule at one path | Commit gate                                                                              |
-| Dependency licence   | Every resolved dependency and its licence                      | One dependency       | Commit gate for completeness, pipeline for policy                                        |
-| Test quarantine      | Known-flaky tests not currently blocking                       | One test             | Push gate and pipeline                                                                   |
-| Change size override | Branches accepted over the change-size error band, and by whom | One branch           | Pipeline ([fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) |
+| Register                | Records                                                                | One row per            | Enforced by                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Suppression             | Accepted findings a check would otherwise raise                        | One rule at one path   | Commit gate                                                                                                                            |
+| Dependency licence      | Every resolved dependency and its licence                              | One dependency         | Commit gate for completeness, pipeline for policy                                                                                      |
+| Test quarantine         | Known-flaky tests not currently blocking                               | One test               | Push gate and pipeline                                                                                                                 |
+| Change size override    | Branches accepted over the change-size error band, and by whom         | One branch             | Pipeline ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix))                             |
+| Minimum release age     | Dependencies admitted past the release-age window                      | One dependency@version | Pipeline ([gate 6](gate-6-pull-request.md#61-revalidation))                                                                            |
+| Third-party attribution | Defects attributed to a third-party tool, with an open upstream ticket | One tool@symptom       | Commit gate ([attribution needs an open ticket](cross-gate-rules.md#a-third-party-attribution-is-a-claim-and-it-needs-an-open-ticket)) |
 
-## Rules common to all four
+## Rules common to all six
 
 - **Each has a gate.** A register nobody can fail is decoration; the gate is what
   makes the row a precondition rather than a courtesy.
@@ -43,9 +45,18 @@ beside the standards a reader actually reads through. One file per register.
 - **A generated inventory is not a register.** The pipeline publishes a
   dependency inventory as evidence each run; it is derived, untracked and
   reviewed by nobody. The register is the reviewed counterpart.
+- **The first two columns are the row's identity, and they are immutable** — a
+  subject and something that never changes about it (Code+Scope, Dependency+
+  Version, Branch+Filed). Never a measurement, a count, or a date that tracks
+  the work rather than the filing. When an identity cell moves, every approval
+  recorded against the row is silently voided — the symptom is a human's
+  approval refused as though never given. The [provenance check](#approval-is-an-event-not-a-field)
+  keys on these two cells, which is why the second column has to be something
+  nobody rewords.
 
-Every register carries the same three columns — **justification**, **removal
-condition** and **approver** — and adds the columns its own subject needs.
+Every register's first two columns are its identity; its last three are shared
+— **justification**, **removal condition** and **approver** — and the columns its
+own subject needs sit between them.
 
 ## A register row or a decision record?
 
@@ -99,7 +110,7 @@ introduces what it approves.** A register row or a decision record that
 arrives already approved, in the same commit that created it, has not been
 reviewed by anyone — whoever is named.
 
-Audit 13 found the gap this closes: a bootstrapped repository landed an ADR
+The gap this closes is real: a bootstrapped repository once landed an ADR
 and five register rows, all naming the same person, all already accepted —
 inside the single bootstrap commit, hours after that person had approved the
 identical text in a _different_ repository.
@@ -160,7 +171,7 @@ and the bootstrap skill's own step 9.
 - A commit under review (a bootstrap commit, say) contains no filled
   approver field anywhere it did not already exist — `node
 scripts/check-approval-provenance.mjs --commit <sha>`, run by hand. The
-  blunt instrument, and the one that would have caught audit 13's finding.
+  blunt instrument, and the one that would have caught it.
 
 ## The suppression register
 
@@ -250,15 +261,16 @@ name attached.
 
 ## The change-size override register
 
-The row [fix 74](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)
-requires before `[large-pr]` clears the merge gate. Identified by branch, not
-by rule and path — a change-size override is a decision about one branch's
-own size, not about a rule silenced at a location.
+A row is required before `[large-pr]` clears the merge gate; see
+[an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
+Identified by branch and filing date, not by rule and path — a change-size override is a
+decision about one branch's own size, not about a rule silenced at a location.
 
 | Column         | Holds                                                                                                                                          |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch         | The branch (or pull request) the override applies to                                                                                           |
-| Counted lines  | The measured change size the override answers, at the time filed                                                                               |
+| Filed          | The ISO date the row was filed. Never edited afterwards — with Branch it is the row's identity                                                 |
+| Counted lines  | The measured change size the override answers; updates freely with every re-measurement                                                        |
 | Composition    | What is driving the bulk — named, not merely totalled                                                                                          |
 | Justification  | Why this size is accepted rather than the change split                                                                                         |
 | Removable when | What would let the row go — normally "the change is split" or "the ported tooling is customised enough that its size no longer needs excusing" |
@@ -271,6 +283,64 @@ This register is read by branch, not by any other identity: an approved row
 for one branch does not authorise a different one, so a stale acceptance
 elsewhere in the register's history cannot silently cover a branch it was
 never filed for.
+
+## The minimum release age register
+
+A dependency published very recently is the supply-chain attack window. [Gate 6
+check 11](gate-6-pull-request.md#61-revalidation) refuses a dependency whose
+resolved version was published inside the window declared in `.npmrc`'s
+`min-release-age` (npm's own setting) unless a human-approved row here admits
+it. The window and the rule live in npm's config — this register holds only the
+exceptions, the same split the licence register already draws between a policy
+and its accepted findings.
+
+| Column         | Holds                                                                                         |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| Dependency     | Name, as resolved                                                                             |
+| Version        | The exact pinned version the exception admits (the row's identity, with Dependency)           |
+| Published      | The version's publish date (ISO), so staleness is checkable offline without a registry lookup |
+| Justification  | Why this young version is accepted rather than waited out — normally an urgent security patch |
+| Removable when | Mechanical: once the version is older than the `min-release-age` window, the row must go      |
+| Approver       | The human who accepted the exception                                                          |
+
+The **Removable when** column is mechanical rather than aspirational here, and
+that is the point of the design. Every pinned version eventually passes the
+window on its own, so every row is self-expiring: the staleness check (the same
+gate 6 check, run over this register) reports any row whose Published date is
+older than the window, so an exception cannot silently accumulate into a
+permanent exemption. The Published column is what makes that checkable from the
+row alone, which is why it is a column rather than a value the check re-fetches
+every run — staleness must be deterministic, not network-dependent.
+
+## The third-party attribution register
+
+A defect attributed to a third-party tool is _verified_ only when the row
+carries a link to an **open** upstream ticket — the rule, and the reasoning
+behind it, live in [cross-gate
+rules](cross-gate-rules.md#a-third-party-attribution-is-a-claim-and-it-needs-an-open-ticket).
+Until such a ticket exists the defect is assumed to be ours and resolved, not
+filed here as someone else's. The register holds the attributions that cleared
+that bar, and a row may instead carry the `unattributed` sentinel to record a
+defect treated as ours — measured against a tool, no upstream claim — when its
+measurement needs to outlive the commit that established it.
+
+| Column               | Holds                                                                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tool                 | The third-party tool the symptom was observed in                                                                                                                    |
+| Version              | The version the symptom was observed against                                                                                                                        |
+| Symptom              | The behaviour as observed, not the inferred cause                                                                                                                   |
+| Upstream ticket      | An http(s) URL to the open upstream issue tracking this defect, or the literal `unattributed` for a defect treated as ours with no upstream claim                   |
+| Ticket state         | `open` or `closed`, read from the upstream tracker and recorded — a closed ticket is a prompt to revisit (the fix may be released), not a second form of "verified" |
+| Minimal reproduction | The smallest input that exhibits the symptom                                                                                                                        |
+| Date verified        | When the row was last confirmed against a real run                                                                                                                  |
+| Removable when       | What would close the row — the fix released and upgraded past, the workaround removed, the ticket resolved                                                          |
+| Approver             | The human who accepted the attribution                                                                                                                              |
+
+The check is offline, by design: it verifies presence and shape (a URL and a
+recorded state, or the `unattributed` sentinel), never fetching the URL. Whether
+the ticket is still open, and whether the link still resolves, is freshness a
+human checks at review — the same property that makes the minimum-release-age
+register's Published column a recorded value rather than one the check re-fetches.
 
 ## Running it by hand
 
@@ -301,7 +371,7 @@ generating the register locally cannot see the Linux row at all; it exists
 only once an ubuntu leg resolves the tree and nobody has reason to look there
 unless they already know the package is platform-split.
 
-Fix 63: `@esbuild/win32-x64@0.28.1` had a register row and
+`@esbuild/win32-x64@0.28.1` had a register row and
 `@esbuild/linux-x64@0.28.1`, resolved on the same lock file, did not — not
 because anyone skipped a row, but because the register was built once, on
 one host, and `npm ls --all --json` on that host had nothing to say about
@@ -340,6 +410,11 @@ table.
 ## Verification
 
 - [ ] Every register has a gate that fails when a row is missing.
+- [ ] Every register's first two columns are an immutable identity — a subject
+      and something that never changes about it — never a measurement, a count,
+      or a date that tracks the work rather than the filing. A second column that
+      moves between commits silently voids every approval recorded against the
+      row; the symptom is a human's approval refused as though never given.
 - [ ] Every row eventually names a human approver, and an approver that reads
       as a team label or a machine is refused the moment it is written, not
       merely when it is blank.
@@ -387,6 +462,10 @@ table.
       read the full resolved set, not the direct one.
 - [ ] Every commercial acceptance names its obligations and carries an expiry,
       and no expiry has passed.
+- [ ] A dependency inside the release-age window is refused at gate 6 unless a
+      human-approved row in the minimum-release-age register admits it, and a
+      row whose version has aged past the window is reported stale so it cannot
+      accumulate into a permanent exemption.
 - [ ] The dependency register covers every platform the repository's CI
       targets — a package published one optional tarball per OS
       (`@esbuild/linux-x64` and `@esbuild/win32-x64` being the recurring
@@ -394,6 +473,11 @@ table.
       the register happened to be generated on.
 - [ ] A register generated on a single host states that limitation, or its
       generation runs across the platform matrix instead of once.
+- [ ] A row in the third-party attribution register that names a tool carries
+      an open upstream ticket URL and its recorded state, or the `unattributed`
+      sentinel — an empty Upstream ticket cell is refused at the commit gate by
+      `scripts/check-third-party-attribution.mjs`, which verifies presence and
+      shape offline and never fetches the URL.
 
 ## References
 
@@ -407,5 +491,9 @@ table.
 - [Suppression register](../../registers/suppression-register.md) — this repository's own instance.
 - [Change size override register](../../registers/change-size-override-register.md) —
   this repository's own instance.
+- [Minimum release age register](../../registers/minimum-release-age-register.md) —
+  this repository's own instance.
+- [Third-party attribution register](../../registers/third-party-attribution-register.md) —
+  this repository's own instance.
 - [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
-  fix 74, the rule this register exists to answer.
+  the rule this register exists to answer.

@@ -1,6 +1,6 @@
-// Fix 76 — "verbatim" was the local run's output, and CI disagreed.
+// "Verbatim" was the local run's output, and CI disagreed.
 //
-// Audit 18, on a commit whose subject was "record gate 6 output verbatim in
+// On a commit whose subject was "record gate 6 output verbatim in
 // the bootstrap report": the report's quoted block had 12 lines and zero
 // osv-scanner mentions — the *local* run's output, where osv-scanner
 // correctly skipped (not on PATH). CI, on that same commit, reported:
@@ -10,15 +10,16 @@
 //
 // Six real CVEs the report never mentioned, while its own header claimed
 // "what remains open (copied from gate 6's own output)" — true of the local
-// run, false against the live state. Fixes 65 and 69 govern the moment a
-// pull request is *opened*; nothing governs the moment CI *disagrees with
-// the local run* — which is exactly when fix 66's four gap categories were
+// run, false against the live state. The rules that govern the moment a
+// pull request is *opened* do not govern the moment CI *disagrees with
+// the local run* — which is exactly when the four gap categories were
 // supposed to apply. This module is that trigger: it reads a gate's own
-// FAIL lines straight out of a CI job log — the instrument
-// cross-gate-rules.md#fix-64 already requires ("read a gate's own output —
-// the job log, the command's own transcript — not a platform's summary of
-// it"), never the annotations API, which caps at 10 and truncates silently —
-// and flags any line the report text never mentions.
+// FAIL lines straight out of a CI job log — the instrument cross-gate-rules.md
+// (#a-reports-gate-output-is-provisional-until-ci-has-produced-its-own) already
+// requires ("read a gate's own output — the job log, the command's own
+// transcript — not a platform's summary of it"), never the annotations API,
+// which caps at 10 and truncates silently — and flags any line the report
+// text never mentions.
 //
 // Deliberately a citation-shaped check, the same restraint
 // check-pr-body-artefacts.mjs already states for itself: this does not
@@ -35,13 +36,38 @@
 // into gate 6 itself — it verifies the *report*, once CI's log exists, and
 // is run by hand (or as a CI step reading its own prior job's log) before
 // the pull request is presented as ready. See gate-6-pull-request.md's
-// "Running it by hand" and skills/repository-bootstrap/SKILL.md's fix-66
-// paragraph for where it is invoked.
+// "Running it by hand" and skills/repository-bootstrap/SKILL.md's
+// gap-categories paragraph for where it is invoked.
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { report } from "./lib.mjs";
 
 const GATE_FAIL_RE = /^([\w .()-]+?): FAIL (.+)$/;
+
+// A real job log is never the bare "<gate>: FAIL <label>" text
+// GATE_FAIL_RE expects. Two real shapes, both observed against the same run:
+//
+//   REST API job log (`gh api .../logs`, and what a workflow step reads from
+//   its own log): every line is timestamp-prefixed —
+//     2026-08-01T08:10:39.3344402Z gate 6: FAIL dependency licence policy (…)
+//
+//   `gh run view --log`: two more tab-separated columns first, job name then
+//   step name, before that same timestamp —
+//     gate 6 (ubuntu-latest)\tGate 6 — re-run …\t2026-08-01T08:10:39.33…Z gate 6: FAIL …
+//
+// The timestamp's own colons sit inside the `[\w .()-]` class GATE_FAIL_RE
+// requires up to ": FAIL", so the regex never reaches the real marker —
+// 0 labels were measured from 9 real FAIL lines. Strip
+// whichever job/step columns are present (rightmost tab), then the ISO-8601
+// timestamp, before matching.
+const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s*/;
+
+/** @param {string} rawLine @returns {string} */
+function stripLogLinePrefix(rawLine) {
+  const lastTab = rawLine.lastIndexOf("\t");
+  const withoutColumns = lastTab === -1 ? rawLine : rawLine.slice(lastTab + 1);
+  return withoutColumns.replace(ISO_TIMESTAMP_RE, "");
+}
 
 /** Every `<gate>: FAIL <label>` line in `logText` — the exact shape
  *  `report()` (this file's own sibling, used by every gate script here)
@@ -49,15 +75,20 @@ const GATE_FAIL_RE = /^([\w .()-]+?): FAIL (.+)$/;
  *  carrying the check name and, where the finding names a path, its `(path)`
  *  suffix already folded in by `report()` itself. Scoped to `gate` (default
  *  "gate 6" — the authoritative gate this fix exists for) so a job log
- *  covering more than one gate does not cross-attribute a line. */
+ *  covering more than one gate does not cross-attribute a line.
+ *  @param {string} logText
+ *  @param {string} [gate="gate 6"]
+ *  @returns {string[]} */
 export function extractGateFailLabels(logText, gate = "gate 6") {
   const labels = [];
   for (const rawLine of (logText || "").split(/\r?\n/)) {
-    const line = rawLine.trim();
+    const line = stripLogLinePrefix(rawLine).trim();
     const m = GATE_FAIL_RE.exec(line);
-    if (!m) continue;
-    if (m[1].trim() !== gate) continue;
-    labels.push(m[2].trim());
+    const gateName = m?.[1];
+    const label = m?.[2];
+    if (gateName === undefined || label === undefined) continue;
+    if (gateName.trim() !== gate) continue;
+    labels.push(label.trim());
   }
   return labels;
 }
@@ -66,7 +97,11 @@ export function extractGateFailLabels(logText, gate = "gate 6") {
  *  case-insensitive substring test, the same structural (not prose-honesty)
  *  restraint `citesReservedArtefact` already states for the sibling PR-body
  *  check. A report that genuinely reconciled the finding names it somewhere,
- *  in whichever section fix 66 puts it. */
+ *  in whichever section the gap-categories rule places it.
+ *  @param {string} reportText
+ *  @param {string} logText
+ *  @param {string} [gate="gate 6"]
+ *  @returns {{ check: string, path: string, problem: string, remedy: string }[]} */
 export function findUnreconciledCiFindings(
   reportText,
   logText,
@@ -89,7 +124,11 @@ export function findUnreconciledCiFindings(
 }
 
 /** Production entry point: reads both files from disk. `readFile` is
- *  injectable for testing, the same shape every other check here takes. */
+ *  injectable for testing, the same shape every other check here takes.
+ *  @param {string} reportPath
+ *  @param {string} logPath
+ *  @param {{ gate?: string, readFile?: (p: string) => string }} [opts]
+ *  @returns {{ check: string, path: string, problem: string, remedy: string }[]} */
 export function checkReportCiReconciliation(
   reportPath,
   logPath,
@@ -102,7 +141,8 @@ export function checkReportCiReconciliation(
   );
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const args = process.argv.slice(2);
   const reportPath = args[0];

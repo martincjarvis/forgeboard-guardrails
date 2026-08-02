@@ -1,5 +1,5 @@
 // cspell:ignore PYTHONUTF fixtured fixturing xkcdblorptrousers GHSA
-// Fix 9a — the refusal-proof contract (docs/standards/guardrails/
+// The refusal-proof contract (docs/standards/guardrails/
 // cross-gate-rules.md, "Every blocking check proves it refuses").
 //
 // The defect class this closes: a check wired so that it structurally cannot
@@ -36,6 +36,10 @@ import { checkLinks } from "./check-links.mjs";
 import { checkSuppressions } from "./check-suppressions.mjs";
 import { classifyAdvisories } from "./check-dependency-advisories.mjs";
 import { licenceExpressionAcceptable } from "./check-licence-policy.mjs";
+import {
+  classifyReleaseAge,
+  classifyStaleRows,
+} from "./check-minimum-release-age.mjs";
 
 const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
 const TMP = ".refusal-proof-tmp";
@@ -62,7 +66,8 @@ const SAMPLE_OSV_JSON = JSON.stringify({
  *  path to fn(), and always cleans up — even the file-content checks below
  *  read through readStaged (lib.mjs), which falls back to a plain disk read
  *  for a path git has never heard of, so no scratch git repository is
- *  needed for these. */
+ *  needed for these.
+ *  @param {string} relPath @param {string} content @param {(path: string) => boolean} fn */
 function withFixtureFile(relPath, content, fn) {
   mkdirSync(TMP, { recursive: true });
   const full = join(TMP, relPath);
@@ -96,6 +101,7 @@ function refuseSemgrepFixture() {
   // the scratch repo exercises the semgrep step this fixture is actually
   // about, rather than crashing on an unrelated section first.
   writeFileSync(join(dir, ".gitattributes"), "* text=auto eol=lf\n");
+  /** @param {string[]} args */
   const g = (args) => run("git", args, { cwd: dir, env: cleanGitEnv() });
   g(["init", "-q", "."]);
   g(["add", "-A"]);
@@ -186,6 +192,48 @@ const CHECKS_WITH_FIXTURES = [
       !licenceExpressionAcceptable("GPL-3.0-only", "Runtime").acceptable,
   },
   {
+    check: "minimum release age (gate 6 check 11)",
+    // classifyReleaseAge is the pure classifier `npm view <name> time`'s output
+    // feeds — the same layer classifyAdvisories and licenceExpressionAcceptable
+    // above are fixtured through: a synthetic young dependency against a fixed
+    // window, not a live registry lookup.
+    fixture: () => {
+      const DAY = 86_400_000;
+      const now = new Date("2026-08-01T12:00:00Z");
+      const twoDaysAgo = new Date(now.getTime() - 2 * DAY).toISOString();
+      const { findings } = classifyReleaseAge(
+        new Map([["brand-new-pkg", "1.0.0"]]),
+        new Map([["brand-new-pkg@1.0.0", twoDaysAgo]]),
+        { windowDays: 7, today: now },
+      );
+      return findings.length > 0;
+    },
+  },
+  {
+    check: "minimum release age register staleness (gate 6 check 11)",
+    // classifyStaleRows is the pure classifier the staleness check's register
+    // read feeds — fixtured with a row whose version has aged past the window,
+    // which is the negative input that proves the staleness check can fail
+    // rather than only report green on a clean register.
+    fixture: () => {
+      const DAY = 86_400_000;
+      const now = new Date("2026-08-01T12:00:00Z");
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY).toISOString();
+      return (
+        classifyStaleRows(
+          [
+            {
+              dep: "was-young-pkg",
+              version: "1.0.0",
+              published: thirtyDaysAgo,
+            },
+          ],
+          { windowDays: 7, today: now },
+        ).length > 0
+      );
+    },
+  },
+  {
     check: "changed-line coverage (gate 6 check 8)",
     // classifyDiffCoverOutcome is the pure classifier diff-cover's own
     // output feeds — the same layer that turns "a tool whose findings live
@@ -238,7 +286,7 @@ const CHECKS_WITH_FIXTURES = [
   {
     check:
       "cross-stack dependency scan (osv-scanner, gate 5 check 3 / gate 6 check 10)",
-    // Fix 44 — classifyOsvScannerOutcome is the pure classifier osv-scanner's
+    // classifyOsvScannerOutcome is the pure classifier osv-scanner's
     // own structured output feeds (extractOsvJsonFindings / extractOsvSarifFindings,
     // lib.mjs), the same layer classifyDiffCoverOutcome and classifyAdvisories
     // above are fixtured through: a synthetic advisory, not a live osv-scanner
@@ -255,14 +303,14 @@ const CHECKS_WITH_FIXTURES = [
  *  state for the protected-branch check, a resolved npm dependency tree for
  *  licence-register completeness) or is proven a different way already (gate
  *  2's lint wiring has its own dedicated regression test — hooks/test/
- *  hooks.test.mjs, fix 10 — not yet folded into this registry). A finding to
+ *  hooks.test.mjs — not yet folded into this registry). A finding to
  *  report, per the contract, not a row to skip. */
 const NO_FIXTURE = [
   "protected branch (gate 2 check 1) — needs a controlled git ref state (HEAD on the derived default branch); not yet fixtured here",
   "dependency lock sync (gate 2 check 3) — comparison logic is inline in pre-commit.mjs and gate-6-pull-request.mjs, not yet extracted for direct fixturing",
   "secret scan (gate 2 check 6) — needs secretlint resolvable from a scratch tree; not yet fixtured here",
   "file size (gate 2 check 10) — comparison logic is inline, not yet extracted for direct fixturing",
-  "per-path lint (gate 2 check 11) — proven by a dedicated regression test (fix 10, hooks/test/hooks.test.mjs), not yet folded into this registry",
+  "per-path lint (gate 2 check 11) — proven by a dedicated regression test (hooks/test/hooks.test.mjs), not yet folded into this registry",
   "build (gate 2 check 12) — self-referential for this repository (there is no second copy of tsc to break on purpose); not yet fixtured here",
   "unit and architecture tests (gate 2 check 13) — self-referential; not yet fixtured here",
   "repository-wide tests (gate 2 check 14) — self-referential; not yet fixtured here",
@@ -275,7 +323,8 @@ const NO_FIXTURE = [
  *  anyway — decorative), or null (the fixture could not be run at all, an
  *  environment gap rather than a wiring one). Exported and tested directly
  *  so the classification rule is verified independently of any one fixture
- *  — CHECKS_WITH_FIXTURES supplies real cases, this supplies the rule. */
+ *  — CHECKS_WITH_FIXTURES supplies real cases, this supplies the rule.
+ *  @param {boolean | null} result */
 export function classifyFixtureResult(result) {
   if (result === null) return "no-fixture";
   return result === true ? "refuses" : "does-not-refuse";
@@ -294,7 +343,9 @@ export async function checkRefusalProofs() {
       result = await fixture();
     } catch (err) {
       doesNotRefuse.push(
-        `${check} — fixture threw instead of refusing: ${err.message}`,
+        `${check} — fixture threw instead of refusing: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       );
       continue;
     }
@@ -314,7 +365,8 @@ export async function checkRefusalProofs() {
   return { refuses, doesNotRefuse, noFixture };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { refuses, doesNotRefuse, noFixture } = await checkRefusalProofs();
   for (const c of refuses)

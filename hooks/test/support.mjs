@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited LOCALAPPDATA windir
-// Shared helpers for the split hooks.test.mjs suite (fix 79) — the throwaway
+// Shared helpers for the split hooks.test.mjs suite — the throwaway
 // git-repository builders and process wrappers every subject-area file uses.
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -15,13 +15,13 @@ export const HOOKS = join(dirname(fileURLToPath(import.meta.url)), "..");
 // `git add -A` in the scratch directory commits against the real index and
 // deletes the corpus — which is exactly what happened once.
 //
-// Fix 82: a deny-list of GIT_* alone still let GITHUB_HEAD_REF through. A real
+// A deny-list of GIT_* alone still let GITHUB_HEAD_REF through. A real
 // `pull_request` job exports it for the whole job; a scratch-repo subprocess
 // that inherits it resolves check-change-size-override.mjs's branch from the
 // job's variable instead of deriving it from the repo the test built, finds no
 // register row for that name, and refuses a case the test set up to pass. The
-// deny-list moved byte-for-byte through the fix-79 split and has been latent
-// since fix 74 introduced GITHUB_HEAD_REF resolution — the same shape
+// deny-list moved byte-for-byte through the test-suite split and has been latent
+// since GITHUB_HEAD_REF resolution was introduced — the same shape
 // hooks/lib/run.mjs's own comment already names for GIT_*: "a hook-spawned
 // process inherits ... and resolves the wrong repository."
 //
@@ -57,6 +57,7 @@ export const CLEAN_ENV = Object.fromEntries(
   ]),
 );
 
+/** @param {string} cwd @param {string[]} args */
 export function git(cwd, args) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", env: CLEAN_ENV });
   if (r.status !== 0 && !args.includes("--allow-empty")) {
@@ -87,6 +88,7 @@ export function scratchRepo() {
   return dir;
 }
 
+/** @param {string} name @param {string} cwd @param {string} [stdin] */
 export function runHook(name, cwd, stdin = "") {
   return spawnSync(process.execPath, [join(HOOKS, name)], {
     cwd,
@@ -102,6 +104,7 @@ export function runHook(name, cwd, stdin = "") {
 // against the scratch repository, exactly as it would run from .husky.
 export const ROOT = join(HOOKS, "..");
 
+/** @param {string} relPath @param {string} cwd @param {string[]} [args] */
 export function runScript(relPath, cwd, args = []) {
   return spawnSync(process.execPath, [join(ROOT, relPath), ...args], {
     cwd,
@@ -110,12 +113,14 @@ export function runScript(relPath, cwd, args = []) {
   });
 }
 
+/** @param {number} n @param {string} [text] */
 export function lines(n, text = "x") {
   return `${text}\n`.repeat(n);
 }
 
 /** A function whose cyclomatic complexity is `branches + 1` — one `else if`
- *  chain link per branch, McCabe's own count. */
+ *  chain link per branch, McCabe's own count.
+ *  @param {string} name @param {number} branches */
 export function complexFunction(name, branches) {
   const arms = Array.from(
     { length: branches },

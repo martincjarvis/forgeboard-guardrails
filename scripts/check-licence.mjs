@@ -17,6 +17,7 @@ import { pathToFileURL } from "node:url";
 
 export const REGISTER = "docs/registers/dependency-licence-register.md";
 
+/** @param {string} row */
 function cellsOf(row) {
   return row
     .replace(/^\|/, "")
@@ -26,7 +27,7 @@ function cellsOf(row) {
 }
 
 /** Rows already recorded: a Set of "name@version" (completeness's own
- *  lookup) plus the raw rows with their licence cell (fix brief 6 — the
+ *  lookup) plus the raw rows with their licence cell (the
  *  table-entry completeness check below needs the licence, completeness
  *  itself does not). Null means the register itself does not exist —
  *  distinct from an empty register, which parses to empty and still fails
@@ -44,8 +45,8 @@ function parseRegister() {
     if (!line.startsWith("|") || line.includes("---")) continue;
     const cells = cellsOf(line);
     if (cells.length < 3) continue;
-    const dep = cells[0]?.trim();
-    const version = cells[1]?.trim();
+    const dep = (cells[0] ?? "").trim();
+    const version = (cells[1] ?? "").trim();
     if (!dep || (/dependency/i.test(dep) && /version/i.test(version))) continue;
     if (dep.startsWith("_") || dep.startsWith("No rows")) continue;
     known.add(`${dep}@${version}`);
@@ -54,11 +55,12 @@ function parseRegister() {
   return { known, rows };
 }
 
-/** Fix brief 6 — a licence in the resolved set with no entry in
+/** A licence in the resolved set with no entry in
  *  scripts/licence-table.mjs is a finding at gate 2 (here) as well as gate 6
  *  (check-licence-policy.mjs): "you need an entry precisely when a
  *  dependency introduces the licence, which is when the check already
- *  runs." Exported so it is directly testable against constructed rows. */
+ *  runs." Exported so it is directly testable against constructed rows.
+ *  @param {{dep: string, version: string, licence: string}[]} rows */
 export function missingLicenceTableEntries(rows) {
   const findings = [];
   const reported = new Set();
@@ -80,8 +82,10 @@ export function missingLicenceTableEntries(rows) {
 
 /** { findings, skips }. `lockChanged` is the caller's own scope decision — the
  *  staged set locally, the pull request's changed-file range in CI — so this
- *  module makes no assumption about where the scope came from. */
+ *  module makes no assumption about where the scope came from.
+ *  @param {boolean} lockChanged */
 export function checkLicenceCompleteness(lockChanged) {
+  /** @type {string[]} */
   const skips = [];
   if (!lockChanged) {
     skips.push(
@@ -139,7 +143,8 @@ export function checkLicenceCompleteness(lockChanged) {
   return { findings, skips };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   // Manual run: treat any path argument naming a lock file as "changed".
   const args = process.argv.slice(2);

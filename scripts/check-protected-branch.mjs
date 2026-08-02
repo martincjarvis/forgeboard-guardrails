@@ -18,7 +18,9 @@ import { pathToFileURL } from "node:url";
  *  all (no remote configured) — there is nothing to compare against, so the
  *  check says so rather than guessing. */
 export function checkProtectedBranch() {
+  /** @type {{ check: string, path: string, problem: string, remedy: string }[]} */
   const findings = [];
+  /** @type {string[]} */
   const skips = [];
   const base = resolveBase();
   if (!base) {
@@ -40,7 +42,8 @@ export function checkProtectedBranch() {
   return { findings, skips };
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { findings, skips } = checkProtectedBranch();
   report("gate 2", findings, skips);

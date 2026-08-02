@@ -1,5 +1,5 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: tooling-class.
+// Split from hooks.test.mjs — subject group: tooling-class.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
@@ -16,10 +16,10 @@ import {
 import assert from "node:assert/strict";
 import { git, scratchRepo, runScript } from "./support.mjs";
 
-// --- scripts/check-tooling-class.mjs — fix 45. file-classes.md's own rule
+// --- scripts/check-tooling-class.mjs — file-classes.md's own rule
 // ("gate scripts and other development automation are `tooling`" in a
 // repository that consumes this standard) was stated and never checked.
-// Audit 12: `@martincjarvis/greet`, a consuming repository, classed its gate
+// The demonstrated case: `@martincjarvis/greet`, a consuming repository, classed its gate
 // scripts `production` and had zero files classed `tooling` anywhere — with
 // no live effect only because lizard's extension filter and c8's import-only
 // measurement were accidentally doing the class attribute's job. The proof
@@ -59,15 +59,17 @@ test("checkToolingClassDeclared: a consuming repository with no gate scripts at 
   assert.deepEqual(findings, []);
 });
 
-test("checkToolingClassDeclared: a consuming repository with ported gate scripts and zero tooling-classed files anywhere is the audit-12 defect, named", () => {
+test("checkToolingClassDeclared: a consuming repository with ported gate scripts and zero tooling-classed files anywhere is a defect, named", () => {
   const findings = checkToolingClassDeclared({
     files: ["scripts/gate-6-pull-request.mjs", "src/app.mjs"],
     classify: () => "production",
     isToolkit: () => false,
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /gate-6-pull-request\.mjs/);
-  assert.match(findings[0].problem, /no file anywhere.*classed `tooling`/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /gate-6-pull-request\.mjs/);
+  assert.match(finding.problem, /no file anywhere.*classed `tooling`/);
 });
 
 test("checkToolingClassDeclared: a consuming repository that did class at least one file tooling raises nothing", () => {
@@ -80,7 +82,7 @@ test("checkToolingClassDeclared: a consuming repository that did class at least 
   assert.deepEqual(findings, []);
 });
 
-// --- checkToolingTestSuiteExists — fix 52. Audit 13: a repository with 26
+// --- checkToolingTestSuiteExists — a repository with 26
 // `tooling`-classed scripts, no test file, no job, and nothing positioned to
 // notice — check-script-wiring.mjs and check-tooling-class.mjs's own
 // checkToolingClassDeclared both passed clean, because neither asks whether
@@ -106,7 +108,7 @@ test("checkToolingTestSuiteExists: a consuming repository with no tooling-classe
   assert.deepEqual(findings, []);
 });
 
-test("checkToolingTestSuiteExists: tooling-classed scripts with no test file naming any of them is the audit-13 defect, named", () => {
+test("checkToolingTestSuiteExists: tooling-classed scripts with no test file naming any of them is a defect, named", () => {
   const files = ["tools/check-foo.mjs", "tools/check-bar.mjs", "src/app.mjs"];
   const findings = checkToolingTestSuiteExists({
     files,
@@ -115,8 +117,10 @@ test("checkToolingTestSuiteExists: tooling-classed scripts with no test file nam
     readFile: () => "",
   });
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /check-foo\.mjs/);
-  assert.match(findings[0].problem, /no tooling tests suite exists/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /check-foo\.mjs/);
+  assert.match(finding.problem, /no tooling tests suite exists/);
 });
 
 test("checkToolingTestSuiteExists: a test file naming one tooling script by its basename is enough — the whole class need not be enumerated", () => {
@@ -149,6 +153,7 @@ test("complexityScanFiles: production and test files pass, every other class is 
     "skills/foo/SKILL.md",
     "tools/check-foo.mjs",
   ];
+  /** @param {string} f */
   const classify = (f) => {
     if (f === "src/app.mjs") return "production";
     if (f === "src/app.test.mjs") return "test";
@@ -165,6 +170,7 @@ test("complexityScanFiles: production and test files pass, every other class is 
 
 test("complexityScanFiles: a tooling-classed file is excluded even in the identical language as the production file beside it — the case extension filtering can never prove", () => {
   const files = ["src/app.mjs", "tools/check-foo.mjs"];
+  /** @param {string} f */
   const classify = (f) =>
     f === "tools/check-foo.mjs" ? "tooling" : "production";
   assert.deepEqual(complexityScanFiles({ files, classify }), ["src/app.mjs"]);
@@ -183,6 +189,7 @@ test("coveredFilesFromCobertura: every <class filename> in the report is named, 
 });
 
 test("toolingLeakage: a tooling-classed file in the coverage report is named even with a same-extension production file measured cleanly beside it", () => {
+  /** @param {string} f */
   const classify = (f) =>
     f === "tools/check-foo.mjs" ? "tooling" : "production";
   const covered = ["src/app.mjs", "tools/check-foo.mjs"];
@@ -199,7 +206,9 @@ test("checkToolingCoverageLeakage: no report yet this run is a visible skip, not
   });
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /no coverage\/cobertura-coverage\.xml/);
+  const skip = skips[0];
+  assert.ok(skip, "expected a skip");
+  assert.match(skip, /no coverage\/cobertura-coverage\.xml/);
 });
 
 test("checkToolingCoverageLeakage: a tooling-classed file present in the report is a finding, named", () => {
@@ -213,7 +222,9 @@ test("checkToolingCoverageLeakage: a tooling-classed file present in the report 
   });
   assert.equal(skips.length, 0);
   assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /tools\/check-foo\.mjs/);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /tools\/check-foo\.mjs/);
 });
 
 test("checkToolingCoverageLeakage: a clean report with no tooling-classed file in it raises nothing", () => {
@@ -274,7 +285,7 @@ test("regression guard: check-tooling-class.mjs run for real, against a scratch 
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("regression guard: check-tooling-class.mjs run for real, against a scratch tree with tooling-classed scripts and no test file naming any of them, refuses (fix 52, the audit-13 defect)", () => {
+test("regression guard: check-tooling-class.mjs run for real, against a scratch tree with tooling-classed scripts and no test file naming any of them, refuses", () => {
   const dir = scratchRepo();
   mkdirSync(join(dir, "scripts"), { recursive: true });
   writeFileSync(

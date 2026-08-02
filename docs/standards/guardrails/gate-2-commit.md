@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The densest gate — seventeen checks over staged content, in a fixed order, from staged-content isolation through to link integrity.
+summary: The densest gate — eighteen checks over staged content, in a fixed order, from staged-content isolation through to the changed-component build and tests.
 read_when: Configuring commit-time checks, or working out why a commit was refused.
 ---
 
@@ -52,10 +52,9 @@ mechanism to hide the unstaged remainder while they run, so the isolation
 mechanism tends to get described in terms of them. The property it guarantees
 is broader than that: every check in this gate that reads a file must read
 the content actually being committed, and that includes the repository-level
-checks in 2.3 that run last — machine-identifying content (9), the
-suppression register (15), the licence register (16) and link integrity (17)
-are file-content checks the same as the formatter and the linter are, and the
-isolation guarantee has to survive as far as they run, not only as far as 2.2.
+checks in 2.3 that run last — machine-identifying content (9), the suppression register (15), the licence register (16) are file-content
+checks the same as the formatter and the linter are, and the isolation
+guarantee has to survive as far as they run, not only as far as 2.2.
 
 **The concrete trap is a mechanism scoped to only the file tier.** A
 hide-and-restore implementation that stashes the unstaged remainder, runs
@@ -117,6 +116,7 @@ Run over staged files, formatter first so later checks read the final bytes.
 | 8   | Cross-language static analysis | Security      | Source files        | A security or correctness rule matches                                              |
 | 9   | Machine-identifying content    | Security      | All files           | An absolute local path, a user name or host layout detail appears in a tracked file |
 | 10  | File size                      | Size          | All files           | A file exceeds the byte-size limit                                                  |
+| 18  | File length                    | Size          | Production, test    | A production or test file exceeds the line limit                                    |
 
 Check 9 guards the same content the [diagnostic-log rules](diagnostic-logs.md)
 keep out of version control, in the place it is more often leaked: a path pasted
@@ -144,6 +144,19 @@ needs to. Where the remote offers no such support, the choice narrows to
 committing it deliberately or keeping it out, and the register row records which
 was chosen.
 
+**Check 18 reads the staged blob's line count** for production and test files,
+refusing a file over the limit at the commit that causes it. A file's length is
+a property of the file, true at every moment rather than only across a branch —
+which is why this check sits here and not at [gate 4](gate-4-task-completion.md):
+caught at the commit that causes it the fix is extracting one function; caught
+500 lines later it is a redesign
+([ADR-0019](../../ADR/0019-file-length-at-commit.md)). Generated files are
+exempt (`guardrail-generated`), for the same reason check 10's byte limit
+exempts what no author can meaningfully edit. **There is no warn band.** A
+warning is a hint for an agent to act on _before_ it commits; anything that
+survives to a gate is an error, so a test file blocks like any other rather than
+warning past the band and carrying on.
+
 ## 2.3 Repository rules
 
 These still read staged content, the same guarantee established for check 2
@@ -151,15 +164,15 @@ above — a check here that reads the working tree instead has quietly fallen
 outside the gate's isolation, even though it runs nowhere near the mechanism
 that provides it.
 
-| #   | Check                       | Type          | Fails when                                                                                                  |
-| --- | --------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------- |
-| 11  | Per-path lint rules         | Correctness   | A path-scoped linter or type checker reports any problem, its own analysers included                        |
-| 12  | Build                       | Correctness   | The changed component fails to build, or the compiler or its analysers emit a warning                       |
-| 13  | Unit and architecture tests | Correctness   | A unit test fails, or an architecture test finds the code breaking the structure it claims                  |
-| 14  | Repository-wide tests       | Correctness   | A repository-level check fails                                                                              |
-| 15  | Suppression register        | Policy        | A suppression comment exists with no complete register row                                                  |
-| 16  | Dependency licence register | Policy        | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to |
-| 17  | Link and anchor integrity   | Documentation | A link resolves to nothing, resolves ambiguously, or names a heading that does not exist                    |
+| #   | Check                            | Type        | Fails when                                                                                                                                  |
+| --- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 11  | Per-path lint rules              | Correctness | A path-scoped linter or type checker reports any problem, its own analysers included                                                        |
+| 12  | Build                            | Correctness | The changed component fails to build, or the compiler or its analysers emit a warning                                                       |
+| 13  | Unit and architecture tests      | Correctness | A unit test fails, or an architecture test finds the code breaking the structure it claims                                                  |
+| 14  | Repository-wide tests            | Correctness | A repository-level check fails                                                                                                              |
+| 15  | Suppression register             | Policy      | A suppression comment exists with no complete register row                                                                                  |
+| 16  | Dependency licence register      | Policy      | A resolved dependency has no register row, or its row records a licence the lock file no longer resolves to                                 |
+| 17  | Third-party attribution register | Policy      | A row claims a third-party defect with no upstream ticket URL and recorded state, and carries no `unattributed` sentinel (change-triggered) |
 
 Check 11 runs a linter and a type checker together, and neither substitutes for
 the other — see
@@ -196,12 +209,16 @@ change without resolving the whole set on every commit. The two checks are
 not one job under two names — see
 [registers: completeness and policy are different checks](registers.md#the-dependency-licence-register).
 
-Check 17 reads the **whole** documentation corpus, not the staged subset: when a
-file moves, the broken links live in files nobody staged. Repairs are confined
-to staged files, because a write outside that set lands in the working tree but
-not in the commit. **A break it cannot repair still blocks**, wherever the
-broken link lives: the change caused it, and the fact that no unambiguous repair
-exists makes it more urgent to look at, not less.
+**Check 5 (prose lint) is the documentation check that belongs at the commit
+gate, and it runs over the staged files only.** Its rules are per-file —
+heading style, fence languages, spacing — answerable from a single file, so a
+commit need only be self-consistent. The cross-file documentation checks moved
+to [gate 5](gate-5-push.md): a repo-wide markdown sweep and link/anchor
+integrity, both of which need the complete set to judge, and a pushed series is
+where that set exists. Holding either here widened the commit gate beyond the
+staged subset — `.markdownlint-cli2.jsonc` used to glob the whole tree on every
+commit — so the two scopes are now chosen at their call sites, not in shared
+configuration ([scope-split spec](../../specs/2026-08-01-markdown-gate-scope-design.md)).
 
 ## 2.4 Technology-native analysis
 
@@ -252,25 +269,26 @@ Rules:
 The staged set is `git diff --cached --name-only --diff-filter=ACMR`. Every
 command below takes that list.
 
-| #   | Check                       | Command                                                                                                                                                                                                              |
-| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Protected branch            | `git rev-parse --abbrev-ref origin/HEAD` resolves the protected branch (strip the `origin/` prefix); refuse when `git rev-parse --abbrev-ref HEAD` names the same branch                                             |
-| 2   | Staged-content isolation    | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index                                                              |
-| 3   | Dependency lock sync        | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                                                                                  |
-| 4   | Universal format            | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                                                                                 |
-| 5   | Prose lint                  | `npx markdownlint-cli2 <paths>`                                                                                                                                                                                      |
-| 6   | Secret scan                 | `npx secretlint <paths>`                                                                                                                                                                                             |
-| 7   | Spelling                    | `npx cspell --no-progress <paths>`                                                                                                                                                                                   |
-| 8   | Cross-language analysis     | Deferred — `semgrep` fetches its rules over the network, so it runs at [gate 7](gate-7-on-demand.md) and in CI, not here ([cost tiers](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)) |
-| 9   | Machine-identifying content | `npx secretlint <paths>` with the path rules enabled, or a repository rule                                                                                                                                           |
-| 10  | File size                   | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                                                                                                                                                         |
-| 11  | Per-path lint               | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                                                                                      |
-| 12  | Build                       | `npm run build` · `dotnet build -warnaserror`                                                                                                                                                                        |
-| 13  | Unit tests                  | `npm test` · `dotnet test`                                                                                                                                                                                           |
-| 14  | Repository-wide tests       | The repository's own repository-level check command                                                                                                                                                                  |
-| 15  | Suppression register        | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                                                                                           |
-| 16  | Dependency licence register | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                                                                                    |
-| 17  | Link and anchor integrity   | `npx markdown-link-check <paths>`, or the repository's own docs command                                                                                                                                              |
+| #   | Check                            | Command                                                                                                                                                                                                              |
+| --- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Protected branch                 | `git rev-parse --abbrev-ref origin/HEAD` resolves the protected branch (strip the `origin/` prefix); refuse when `git rev-parse --abbrev-ref HEAD` names the same branch                                             |
+| 2   | Staged-content isolation         | Materialise: `git checkout-index --all --prefix=/tmp/staged/`. Hide-and-restore: `git diff --name-only` — empty output means the tree matches the index                                                              |
+| 3   | Dependency lock sync             | `npm ci --dry-run` · `dotnet restore --locked-mode`                                                                                                                                                                  |
+| 4   | Universal format                 | `npx prettier --check <paths>` · `dotnet format --verify-no-changes`                                                                                                                                                 |
+| 5   | Prose lint                       | `npx markdownlint-cli2 <paths>`                                                                                                                                                                                      |
+| 6   | Secret scan                      | `npx secretlint <paths>`                                                                                                                                                                                             |
+| 7   | Spelling                         | `npx cspell --no-progress <paths>`                                                                                                                                                                                   |
+| 8   | Cross-language analysis          | Deferred — `semgrep` fetches its rules over the network, so it runs at [gate 7](gate-7-on-demand.md) and in CI, not here ([cost tiers](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)) |
+| 9   | Machine-identifying content      | `npx secretlint <paths>` with the path rules enabled, or a repository rule                                                                                                                                           |
+| 10  | File size                        | `git cat-file -s $(git rev-parse :<path>)` — bytes as staged                                                                                                                                                         |
+| 11  | Per-path lint                    | `npx eslint <paths>` · `npx tsc --noEmit` · `dotnet format --verify-no-changes`                                                                                                                                      |
+| 12  | Build                            | `npm run build` · `dotnet build -warnaserror`                                                                                                                                                                        |
+| 13  | Unit tests                       | `npm test` · `dotnet test`                                                                                                                                                                                           |
+| 14  | Repository-wide tests            | The repository's own repository-level check command                                                                                                                                                                  |
+| 15  | Suppression register             | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                                                                                           |
+| 16  | Dependency licence register      | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                                                                                    |
+| 17  | Third-party attribution register | `node scripts/check-third-party-attribution.mjs`, compared against the register (runs when the register is staged)                                                                                                   |
+| 18  | File length                      | `git show :<path> \| wc -l` — staged line count, production and test only; `> 400` blocks (no warn band)                                                                                                             |
 
 Prefer Node tooling where the stack has no native equivalent — the formatter,
 the prose lint, the spell check and the secret scan are stack-independent, and
@@ -293,7 +311,7 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] A partially staged file is judged on its staged half only.
 - [ ] An isolation check that cannot run blocks the commit and says the result is
       unknown, rather than passing or claiming a breach.
-- [ ] A repository-level check (9, 15, 16 or 17) still reads staged content, not
+- [ ] A repository-level check (9, 15 or 16) still reads staged content, not
       the working tree: stage a violation — a leaked absolute path is enough —
       edit the working copy to remove it without re-staging, run the gate, and
       confirm it still refuses.
@@ -308,7 +326,14 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] An absolute local path or a user name in a tracked file is refused, and a
       placeholder passes.
 - [ ] A file over the byte-size limit is refused before it enters the history.
+- [ ] A production or test file over the line limit is refused at the commit
+      that causes it; a generated file is exempt, and a file at exactly the
+      limit passes (a threshold is the last acceptable value).
 - [ ] A documentation file breaking a structural prose rule is refused.
+- [ ] A commit touching one markdown file lints that one file alone — the prose
+      check is scoped to the staged subset, and an unrelated malformed draft
+      elsewhere in the tree does not refuse a commit that does not touch it
+      (the repo-wide sweep runs at [gate 5](gate-5-push.md)).
 - [ ] An unknown word not in the file's own vocabulary is refused.
 - [ ] A lint or type-check failure is refused independently of the build — the
       two are separate checks and either alone blocks.
@@ -333,7 +358,6 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] Analyser versions are pinned, and an upgrade is a deliberate change.
 - [ ] A finding reproduces identically from the local command and from the
       pipeline's published report.
-- [ ] A renamed document leaves no dead link anywhere in the corpus.
 - [ ] Each refusal is a diagnosis, per the cross-gate rule.
 
 ## References

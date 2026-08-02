@@ -43,6 +43,7 @@ check "node --version" "node --version"
 check "agy --version" "agy --version"
 check "semgrep --version" "semgrep --version"
 check "lizard --version" "lizard --version"
+check "osv-scanner --version" "osv-scanner --version"
 
 # --- Per-agent plugin checks below. Each plugin that documents multi-agent support is
 # checked against every agent it claims to support, not just a single default. Each

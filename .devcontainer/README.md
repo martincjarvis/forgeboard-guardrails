@@ -1,27 +1,30 @@
-# MCPEval devcontainer
+# Devcontainer
 
-A reusable devcontainer with Claude Code, OpenCode, and `agy` (Antigravity CLI)
-pre-installed alongside the project's adopted tool stack. See
-`docs/multi-agent-devcontainer-plan.md` and
-`docs/superpowers/plans/2026-07-24-experiment-12-devcontainer-base-image.md` for the
-full design history; this file is the practical "how do I actually use it" reference.
+<!-- cspell:ignore opencode Graphify toggleable MSYS PATHCONV -->
+
+A reusable devcontainer for exercising this toolkit's nine gates: `semgrep`, `lizard`
+and `osv-scanner` resolved from `PATH` rather than bundled, plus Claude Code, OpenCode
+and `agy` (Antigravity CLI) pre-installed for hook-parity work across harnesses. This
+file is the practical "how do I actually use it" reference — see
+[References](#references) at the foot for the design decisions behind it.
 
 ## What's installed
 
-| Item                    | Kind                             | Toggle                                                                                                       |
-| ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Claude Code             | Agent CLI                        | Multi-stage target (`with-claude` and later)                                                                 |
-| OpenCode                | Agent CLI                        | Multi-stage target (`with-opencode` and later)                                                               |
-| `agy` (Antigravity CLI) | Agent CLI                        | Multi-stage target (`with-agy`/`full`)                                                                       |
-| QMD                     | Doc search                       | Always on (`core` stage, not `ARG`-gated)                                                                    |
-| RTK                     | Output compression CLI           | Base install always on; per-agent hook registration gated by `INSTALL_RTK_WIRING`                            |
-| Graphify                | Codebase knowledge graph         | Always on (`core` stage)                                                                                     |
-| semgrep                 | SAST scanning                    | Always on (`core` stage)                                                                                     |
-| lizard                  | Code metrics/complexity          | Always on (`core` stage)                                                                                     |
-| context-mode            | Session memory across compaction | npm install + Claude Code wiring always on; OpenCode/agy registration gated by `INSTALL_CONTEXT_MODE_WIRING` |
-| claude-mem              | Cross-session memory             | `INSTALL_CLAUDE_MEM`                                                                                         |
-| ponytail                | Over-engineering guard           | `INSTALL_PONYTAIL`                                                                                           |
-| superpowers             | Planning/review skill pipeline   | `INSTALL_SUPERPOWERS`                                                                                        |
+| Item                    | Kind                              | Toggle                                                                                                       |
+| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Claude Code             | Agent CLI                         | Multi-stage target (`with-claude` and later)                                                                 |
+| OpenCode                | Agent CLI                         | Multi-stage target (`with-opencode` and later)                                                               |
+| `agy` (Antigravity CLI) | Agent CLI                         | Multi-stage target (`with-agy`/`full`)                                                                       |
+| QMD                     | Doc search                        | Always on (`core` stage, not `ARG`-gated)                                                                    |
+| RTK                     | Output compression CLI            | Base install always on; per-agent hook registration gated by `INSTALL_RTK_WIRING`                            |
+| Graphify                | Codebase knowledge graph          | Always on (`core` stage)                                                                                     |
+| semgrep                 | SAST scanning                     | Always on (`core` stage)                                                                                     |
+| lizard                  | Code metrics/complexity           | Always on (`core` stage)                                                                                     |
+| osv-scanner             | Dependency vulnerability scanning | Always on (`core` stage) — installed via `go install`, matching this repository's own CI                     |
+| context-mode            | Session memory across compaction  | npm install + Claude Code wiring always on; OpenCode/agy registration gated by `INSTALL_CONTEXT_MODE_WIRING` |
+| claude-mem              | Cross-session memory              | `INSTALL_CLAUDE_MEM`                                                                                         |
+| ponytail                | Over-engineering guard            | `INSTALL_PONYTAIL`                                                                                           |
+| superpowers             | Planning/review skill pipeline    | `INSTALL_SUPERPOWERS`                                                                                        |
 
 The `ARG`-gated rows only apply within the `full` stage (see "Lighter variants" below
 for the coarser agent-count toggle). For a no-rebuild-needed, per-invocation toggle
@@ -66,9 +69,9 @@ disabled plugin's checks.
 ## Task-type profiles, for an orchestrator to pick from
 
 `build-profiles.sh` builds a small, curated set of tagged images, each a real `ARG`
-combination matching a task archetype this project's own eval harness found evidence
-for (`CLAUDE.md` summarizes the underlying findings) — not one image per possible `ARG`
-combination:
+combination matching a task archetype an eval harness run against this container's
+original project found evidence for (see that script's own header comment for the
+figures) — not one image per possible `ARG` combination:
 
 | Profile            | ponytail | superpowers | claude-mem | For                                                                                                                                                                             |
 | ------------------ | -------- | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -138,9 +141,7 @@ suddenly report "not logged in" despite a prior successful login, check
 ## Disabling specific skills/plugins for a controlled test
 
 None of the three agents share a toggle mechanism — each is genuinely different, and
-none of it is obvious without checking live (this was discovered the hard way during
-Experiment 11; see `docs/superpowers/plans/2026-07-19-eval-harness-verification-log.md`,
-2026-07-25 follow-up). `toggle-skills.sh` codifies all three:
+none of it is obvious without checking live. `toggle-skills.sh` codifies all three:
 
 ```bash
 # Claude Code — prints a --settings JSON string, scoped to ONE invocation
@@ -172,11 +173,25 @@ rather than scoping to one call, unlike the other two.
 ## Real, load-bearing gotchas
 
 - **Git operations inside the container** need
-  `git config --global --add safe.directory /workspaces/MCPEval` once per container
-  (bind-mounted from a different UID than the container expects).
+  `git config --global --add safe.directory /workspaces/<repository-folder-name>`
+  once per container (bind-mounted from a different UID than the container expects) —
+  `<repository-folder-name>` is whatever the checkout is actually named, since the
+  devcontainer CLI mounts it at `/workspaces/<that name>`.
 - **OpenCode's default model in this container is not covered by the z.ai coding
   plan** — always pass `--model zai-coding-plan/glm-5.2` explicitly (or whatever the
   current real subscription model is) rather than relying on the default.
 - **`docker exec`/`docker cp` from Git Bash on Windows mangle absolute container
   paths** (MSYS path conversion). Prefix with `MSYS_NO_PATHCONV=1` when a command
   targets an in-container absolute path.
+
+## References
+
+- [ADR-0002 — Analysis tool distribution](../docs/ADR/0002-analysis-tool-distribution.md)
+  — why `semgrep`, `lizard` and `osv-scanner` are resolved from `PATH` rather than
+  bundled into the toolkit or this image. It covers tool distribution in general; it
+  does not separately address the Go-binary case `osv-scanner` is (its own examples
+  are npm/pip-shaped), so this container's own install step is what makes that case
+  concrete, not the ADR itself.
+- [Agent integration](../docs/standards/guardrails/agent-integration.md) — the
+  hook-parity requirement across harnesses that motivates installing all three agent
+  CLIs here rather than just one.

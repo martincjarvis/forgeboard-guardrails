@@ -1,7 +1,7 @@
 // cspell:ignore pyproject pytest golangci clippy nunit mstest msbuild pylint virtualenv gofmt phpunit rubocop lede
 // The CLI entry point for the "instantiated docs are tuned to the
 // repository" checkpoints. The check functions themselves live in
-// ./standards-instantiation-lib.mjs (fix 81, ADR-0009) — re-exported below
+// ./standards-instantiation-lib.mjs (ADR-0009) — re-exported below
 // so nothing that already imports names from THIS file needs to change; only
 // the CLI glue below (the report* helpers and the `isMain` block) stayed
 // here. See that file's own header for what the checks do and why.
@@ -17,14 +17,14 @@
 // `deriveStackList`/`findStackReferencesOutsideList`/
 // `findMultiComponentContent`, or invoke this file directly, from that
 // repository's `gate-7-on-demand.mjs`) — a copy that only sits in the
-// tooling directory checks nothing (fix 40; this toolkit's own
+// tooling directory checks nothing (this toolkit's own
 // `scripts/check-script-wiring.mjs` reports exactly that unwired state).
 // This toolkit does not wire it into its OWN gate 7, and that is
 // deliberate, not an oversight to imitate: this repository is the
 // canonical corpus, not an instantiated copy (see above) — do not copy the
 // absence of wiring along with the file.
 //
-// Fix 46 — gate 7 alone is not enough either. A bootstrapped repository
+// Gate 7 alone is not enough either. A bootstrapped repository
 // with this wired only there reported 60 findings across 13 gate-reference
 // documents and never blocked a merge on any of them: the sweep runs
 // unconditionally and only ever reports, by design (a stack added later
@@ -52,13 +52,14 @@ import {
   checkHardcodedCommitSha,
 } from "./standards-instantiation-lib.mjs";
 
-/** isMain's fix-55 leg, pulled out as its own function rather than an
+/** isMain's cspell-residue leg, pulled out as its own function rather than an
  *  inline loop — the isMain block below is already lizard's own
  *  span-artifact case (gate-7-on-demand.mjs's comment on `run.mjs`
  *  documents the same tool misreading a large top-level `if` as one giant
  *  function); adding another inline loop to it only feeds that, where a
  *  named function keeps this leg's own count separate and small. Returns
- *  the number of findings printed. */
+ *  the number of findings printed.
+ *  @param {string[]} files @returns {number} */
 function reportCspellResidue(files) {
   let count = 0;
   for (const f of checkCspellResidue({ files })) {
@@ -68,9 +69,10 @@ function reportCspellResidue(files) {
   return count;
 }
 
-/** isMain's fix-60 leg, the same reason reportCspellResidue above is its own
+/** isMain's hardcoded-SHA leg, the same reason reportCspellResidue above is its own
  *  function rather than an inline loop. Returns the number of findings
- *  printed. */
+ *  printed.
+ *  @param {string[]} files @returns {number} */
 function reportHardcodedCommitSha(files) {
   let count = 0;
   for (const f of checkHardcodedCommitSha({ files })) {
@@ -84,7 +86,8 @@ function reportHardcodedCommitSha(files) {
  *  and frontmatter/title/lede contradictions, for one doc file. Pulled out
  *  as its own function for the same reason reportCspellResidue and
  *  reportHardcodedCommitSha above are. Returns the number of findings
- *  printed. */
+ *  printed.
+ *  @param {string} file @param {string} text @param {Set<string>} stacks @param {number} componentCount @returns {number} */
 function reportDocFindings(file, text, stacks, componentCount) {
   let count = 0;
   for (const f of findStackReferencesOutsideList(text, stacks)) {
@@ -116,7 +119,7 @@ function reportDocFindings(file, text, stacks, componentCount) {
         " component\n",
     );
   }
-  // Fix 72 — the same comparison, read from the document's frontmatter,
+  // The same comparison, read from the document's frontmatter,
   // title or lede rather than a body heading.
   for (const f of findComponentCountContradiction(text, componentCount)) {
     count++;
@@ -136,12 +139,14 @@ function reportDocFindings(file, text, stacks, componentCount) {
   return count;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   // ponytail: component count taken from argv rather than derived from a
   // project graph — this reference script checks two mechanical properties,
   // not the full component map; a repository already knows its own count.
   const componentCount = Number(process.argv[2] ?? 1);
+  /** @type {string[]} */
   const files = trackedFiles();
   const stacks = deriveStackList(files);
   const docFiles = files.filter(
@@ -153,17 +158,17 @@ if (isMain) {
     findingCount += reportDocFindings(file, text, stacks, componentCount);
   }
 
-  // Fix 55 — the same residue, outside docs/standards/**: cspell.json's own
+  // The same residue, outside docs/standards/**: cspell.json's own
   // word list, copied wholesale, keeping a stack's dead vocabulary alive.
   findingCount += reportCspellResidue(files);
 
-  // Fix 60 — instantiation tunes code as well as prose: a ported test
+  // Instantiation tunes code as well as prose: a ported test
   // hard-coding a full 40-character commit SHA is asserting the SOURCE
   // repository's own history, which fails deterministically on this
   // repository's first CI run.
   findingCount += reportHardcodedCommitSha(files);
 
-  // Fix 53 — a removal recorded only in a one-time session report, not in
+  // A removal recorded only in a one-time session report, not in
   // the enforcement map or a PROVENANCE note. "Report-shaped" is a filename
   // convention (`*report*.md` under docs/, outside docs/standards/ itself —
   // an instantiated standard's own removal note is exactly what this check

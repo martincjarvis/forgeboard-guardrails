@@ -2,10 +2,9 @@
 // Gate 2 — commit, repository-level checks. Runs after lint-staged, which has
 // already done the file-scoped work (format, prose lint, spelling) on the staged
 // subset and re-staged the reformatted bytes. This orchestrator holds the rest:
-// lock sync, file size, machine-identifying content, secret scan, link and
-// anchor integrity, the suppression register, and the changed-component build
-// and unit tests. Checks run cheapest first and stop at the first failure, per
-// gate 2's contract.
+// lock sync, file size, machine-identifying content, secret scan, the
+// suppression register, and the changed-component build and unit tests. Checks
+// run cheapest first and stop at the first failure, per gate 2's contract.
 //
 // Exit 0 commits. Exit 2 refuses, naming the check, the path and the remedy.
 import {
@@ -15,13 +14,20 @@ import {
   run,
   git,
   report,
+  readStaged,
   withStagedWorkingTree,
+  classOf,
+  isGenerated,
 } from "./lib.mjs";
-import { checkLinks } from "./check-links.mjs";
+import { FILE_LENGTH_ERROR } from "../hooks/lib/thresholds.mjs";
 import {
   checkSuppressions,
   pendingSuppressionApprovals,
 } from "./check-suppressions.mjs";
+import {
+  attributionRegisterRows,
+  evaluateAttributionRows,
+} from "./check-third-party-attribution.mjs";
 import { checkMachineId } from "./check-machine-id.mjs";
 import { checkProtectedBranch } from "./check-protected-branch.mjs";
 import { checkLicenceCompleteness } from "./check-licence.mjs";
@@ -30,6 +36,7 @@ import { checkApprovalProvenanceStaged } from "./check-approval-provenance.mjs";
 
 const findings = [];
 const skips = [];
+/** @param {string} s */
 const note = (s) => skips.push(s);
 
 // Check 1 — protected branch. Runs first, per gate 2's fixed order (2.1).
@@ -40,10 +47,11 @@ const note = (s) => skips.push(s);
 }
 if (findings.length) report("gate 2", findings, skips);
 
+/** @type {string[]} */
 const staged = stagedFiles();
 if (staged.length === 0) {
   // Nothing staged: the file-scoped gate had nothing to do either. Still run the
-  // repository-wide checks (links, register) so a merge can't inherit a break.
+  // repository-wide checks (register) so a merge can't inherit a break.
   note("no staged files; repository-wide checks still run");
 }
 
@@ -61,6 +69,7 @@ const DEP_FIELDS = [
   "overrides",
   "resolutions",
 ];
+/** @param {string} ref */
 function depsAt(ref) {
   const r = git(["show", ref]);
   if (r.status !== 0) return "";
@@ -121,6 +130,32 @@ for (const f of staged) {
 }
 if (findings.length) report("gate 2", findings, skips);
 
+// Check 18 — file length, from the staged blob. A file's length is a property
+// of the file, true at every moment — not something only a branch reveals — so
+// it is refused at the commit that causes it, when the fix is extracting one
+// function rather than redesigning a file 400 lines later. Gate 4 does not
+// also check it: a second copy there could never fire, because this one has
+// already refused the commit.
+//
+// No warn band. A warning is a hint for an agent to act on before it commits;
+// anything that survives to a gate is an error.
+for (const f of staged) {
+  const cls = classOf(f);
+  if (cls !== "production" && cls !== "test") continue;
+  if (isGenerated(f)) continue;
+  const blob = git(["cat-file", "-p", `:${f}`]);
+  if (blob.status !== 0) continue;
+  const lines = blob.stdout.split("\n").length;
+  if (lines <= FILE_LENGTH_ERROR) continue;
+  findings.push({
+    check: "file length",
+    path: f,
+    problem: `${f} is ${lines} lines (> ${FILE_LENGTH_ERROR})`,
+    remedy: "split it into smaller units along a subject seam",
+  });
+}
+if (findings.length) report("gate 2", findings, skips);
+
 // Check 9 — machine-identifying content, on staged text files.
 {
   const stagedText = staged.filter(isText);
@@ -162,19 +197,13 @@ if (findings.length) report("gate 2", findings, skips);
 // gate 7 instead; here it is a visible skip with the reason.
 note("cross-language analysis (semgrep) — runs at gate 7, not per-commit");
 
-// Check 17 — link and anchor integrity, over the WHOLE corpus.
-{
-  const found = checkLinks();
-  if (found.length) report("gate 2", found, skips);
-}
-
 // Check 15 — suppression register completeness.
 {
   const found = checkSuppressions();
   if (found.length) report("gate 2", found, skips);
 }
 
-// Fix 35 — gate 2's own half of the approver split. A register row missing
+// Gate 2's own half of the approver split. A register row missing
 // only its approver is allowed to commit — a push back
 // (guardrail-standards.md's verdict table), not a block — but is stated in
 // the output so it is not silently forgotten. Gate 6 blocks the merge on the
@@ -187,7 +216,37 @@ for (const row of pendingSuppressionApprovals()) {
   );
 }
 
-// Fix 22 — an Accepted ADR that reads as accepting a risk, a licence, a
+// Check 17 — third-party attribution register completeness. Change-triggered on
+// the register file itself: the check validates rows that exist, so it runs
+// only when the register is part of this commit, and reports a visible skip
+// otherwise (the same shape check 16 holds for the licence register). Reads
+// staged content, the same isolation guarantee every other content check here
+// holds — the row is judged as it is being committed, not as the working tree
+// happens to read at the moment. A row claiming a third-party defect with no
+// upstream ticket URL is refused here (cross-gate-rules.md); a row complete
+// except for its approver pushes back, the same split as the suppression register above.
+{
+  const ATTRIBUTION_REGISTER =
+    "docs/registers/third-party-attribution-register.md";
+  if (staged.includes(ATTRIBUTION_REGISTER)) {
+    const { blocking, pendingApproval } = evaluateAttributionRows(
+      attributionRegisterRows(readStaged(ATTRIBUTION_REGISTER)),
+    );
+    if (blocking.length) report("gate 2", blocking, skips);
+    for (const row of pendingApproval) {
+      process.stderr.write(
+        `gate 2: PUSH BACK third-party attribution register — '${row.tool}' has no approver; ` +
+          "every other column is complete. Unanswered, gate 6 refuses the merge.\n",
+      );
+    }
+  } else {
+    note(
+      "third-party attribution register — register not staged, no rows to validate",
+    );
+  }
+}
+
+// An Accepted ADR that reads as accepting a risk, a licence, a
 // suppression or an opt-out names a human approver, the same requirement a
 // register row's Approver column already carries. Repository-wide, like the
 // two checks just above — an ADR's own file may not be staged on the
@@ -197,7 +256,7 @@ for (const row of pendingSuppressionApprovals()) {
   if (found.length) report("gate 2", found, skips);
 }
 
-// Fix 49 — approval is an event, not a field. A staged ADR or register row
+// Approval is an event, not a field. A staged ADR or register row
 // that already carries a filled approver, and did not exist at HEAD before
 // this commit, arrives pre-approved rather than reviewed — the same defect
 // class as check 22 above, caught by reading history rather than only the
@@ -205,10 +264,12 @@ for (const row of pendingSuppressionApprovals()) {
 {
   const found = checkApprovalProvenanceStaged({
     stagedFiles: staged,
+    /** @param {string} p */
     readBefore: (p) => {
       const r = git(["show", `HEAD:${p}`]);
       return r.status === 0 ? r.stdout : null;
     },
+    /** @param {string} p */
     readAfter: (p) => {
       const r = git(["show", `:${p}`]);
       return r.status === 0 ? r.stdout : null;
@@ -265,7 +326,7 @@ if (touchedCode || touchedHooks || lintFiles.length) {
     }
     return result;
   });
-  if (outcome.isolationFailed) {
+  if ("isolationFailed" in outcome) {
     report(
       "gate 2",
       [
@@ -279,39 +340,42 @@ if (touchedCode || touchedHooks || lintFiles.length) {
       skips,
     );
   }
-  if (touchedCode && outcome.build.status !== 0) {
+  const build = outcome.build;
+  const tests = outcome.tests;
+  const lint = outcome.lint;
+  if (touchedCode && build && build.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "build (tsc)",
-          problem: (outcome.build.stdout || "") + (outcome.build.stderr || ""),
+          problem: (build.stdout || "") + (build.stderr || ""),
           remedy: "fix the type/analysis error above; a warning is a failure",
         },
       ],
       skips,
     );
   }
-  if (touchedHooks && outcome.tests.status !== 0) {
+  if (touchedHooks && tests && tests.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "unit tests",
-          problem: (outcome.tests.stdout || "") + (outcome.tests.stderr || ""),
+          problem: (tests.stdout || "") + (tests.stderr || ""),
           remedy: "fix the failing test; hooks/ moved on this commit",
         },
       ],
       skips,
     );
   }
-  if (lintFiles.length && outcome.lint.status !== 0) {
+  if (lintFiles.length && lint && lint.status !== 0) {
     report(
       "gate 2",
       [
         {
           check: "lint (eslint)",
-          problem: (outcome.lint.stdout || "") + (outcome.lint.stderr || ""),
+          problem: (lint.stdout || "") + (lint.stderr || ""),
           remedy: "fix the lint violation; a warning is a failure",
         },
       ],

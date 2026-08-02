@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Codifies the three real, per-agent mechanisms for disabling specific skills/plugins
-# for a single controlled run — discovered live during Experiment 11 (see
-# docs/superpowers/plans/2026-07-19-eval-harness-verification-log.md, 2026-07-25
-# follow-up) after the plan's own commands assumed a mechanism that didn't exist for
-# two of the three agents. None of the three agents share a common toggle mechanism or
-# even the same *kind* of mechanism — this script exists so nobody has to rediscover
-# that fact, or any of the three, again.
+# for a single controlled run — discovered live against this container's original
+# project, after an assumed mechanism turned out not to exist for two of the three
+# agents. None of the three agents share a common toggle mechanism or even the same
+# *kind* of mechanism — this script exists so nobody has to rediscover that fact, or
+# any of the three, again.
 #
 # Usage:
 #   toggle-skills.sh claude off <plugin@marketplace> [<plugin@marketplace> ...]

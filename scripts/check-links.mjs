@@ -1,8 +1,11 @@
-// Check 17 — link and anchor integrity (gate 2, and gate 7's sweep).
+// Check 6 — link and anchor integrity (gate 5, gate 6 and gate 7's sweep).
 //
-// Reads the WHOLE documentation corpus, not the staged subset, because a file
-// move leaves the broken link in a file nobody staged. Repairs are confined to
-// staged files; a break it cannot repair still blocks, wherever it lives.
+// Reads the WHOLE documentation corpus, not a single staged file, because a
+// file move leaves the broken link in a file nobody staged. A cross-document
+// link cannot be judged from one file, so this runs at push (gate 5) and in the
+// pipeline/sweep — where the complete set exists — not at the commit gate.
+// Repairs are confined to staged files; a break it cannot repair still blocks,
+// wherever it lives.
 //
 // Internal links and anchors are resolved offline — the repository's own docs
 // command. External links are platform capability scanning (level 1) and are
@@ -14,17 +17,22 @@ import { trackedFiles, readStaged } from "./lib.mjs";
 
 const FENCE = /^(\s*)(```+|~~~+)/;
 
-/** GitHub-style heading slug: lowercase, drop punctuation, spaces to hyphens. */
+/** GitHub-style heading slug: lowercase, drop punctuation, spaces to hyphens.
+ *  Each space becomes its own hyphen — punctuation is removed first, so
+ *  `Gate 2 — Commit` keeps both surrounding spaces and slugs to
+ *  `gate-2--commit`.
+ *  @param {string} text */
 export function slugify(text) {
   return text
     .toLowerCase()
     .replace(/[^\w\s-]/g, "")
     .trim()
-    .replace(/\s+/g, "-");
+    .replace(/ /g, "-");
 }
 
 /** Every anchor a markdown file exposes, including GitHub's -n suffix for
- *  repeated headings. */
+ *  repeated headings.
+ *  @param {string} md */
 export function anchorsOf(md) {
   const anchors = new Set();
   const counts = new Map();
@@ -38,7 +46,7 @@ export function anchorsOf(md) {
     if (inFence) continue;
     const h = line.match(/^(#{1,6})\s+(.*?)(?:\s+#+\s*)?$/);
     if (!h) continue;
-    let slug = slugify(h[2]);
+    let slug = slugify(h[2] ?? "");
     if (!slug) continue;
     const n = counts.get(slug) || 0;
     counts.set(slug, n + 1);
@@ -49,12 +57,14 @@ export function anchorsOf(md) {
 }
 
 /** Markdown links on non-code lines: yields { line, target }. Images and
- *  reference-style links are included because both name a target to resolve. */
+ *  reference-style links are included because both name a target to resolve.
+ *  @param {string} md */
 export function* linksOf(md) {
   let inFence = false;
   const lines = md.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
+    if (raw === undefined) continue;
     if (raw.match(FENCE)) {
       inFence = !inFence;
       continue;
@@ -73,11 +83,13 @@ export function* linksOf(md) {
   }
 }
 
+/** @param {string} target */
 function isExternal(target) {
   return /^[a-z][a-z0-9+.-]*:/i.test(target);
 }
 
 // Skip anything with a scheme, a protocol-relative form, or a placeholder.
+/** @param {string} target */
 function skipTarget(target) {
   return (
     isExternal(target) || target.startsWith("//") || target.startsWith("<")
@@ -86,7 +98,8 @@ function skipTarget(target) {
 
 /** Split a raw link target into its file part and anchor: strips a query
  *  string, and treats a leading "#" as an anchor-only target (empty file
- *  part, pointing back at the file the link itself lives in). */
+ *  part, pointing back at the file the link itself lives in).
+ *  @param {string} target */
 function splitTarget(target) {
   let raw = target.trim();
   const q = raw.indexOf("?");
@@ -98,7 +111,8 @@ function splitTarget(target) {
 
 /** Resolve a link's non-empty file part to a repo-relative path, or null if
  *  it matches nothing tracked or on disk. GitHub resolves a bare path to a
- *  directory's README or a .md sibling, so those are tried too. */
+ *  directory's README or a .md sibling, so those are tried too.
+ *  @param {string} linkFile @param {string} filePart @param {Set<string>} trackedSet */
 function resolveFilePart(linkFile, filePart, trackedSet) {
   let decoded = filePart;
   try {
@@ -120,7 +134,8 @@ function resolveFilePart(linkFile, filePart, trackedSet) {
 }
 
 /** Does `targetPath`'s markdown expose `anchor`? Null (nothing wrong) unless
- *  the target is markdown and the anchor is genuinely absent from it. */
+ *  the target is markdown and the anchor is genuinely absent from it.
+ *  @param {string} targetPath @param {string | undefined} anchor */
 function anchorProblem(targetPath, anchor) {
   if (!anchor || !targetPath.endsWith(".md")) return null;
   let md;
@@ -133,7 +148,8 @@ function anchorProblem(targetPath, anchor) {
 }
 
 /** Resolve one link target against the file it appears in. Returns null if ok,
- *  or a reason string. */
+ *  or a reason string.
+ *  @param {string} linkFile @param {string} target @param {Set<string>} trackedSet */
 function resolveTarget(linkFile, target, trackedSet) {
   const { filePart, anchor } = splitTarget(target);
   if (!filePart && !anchor) return null; // "()" — nothing to check
@@ -151,10 +167,16 @@ function resolveTarget(linkFile, target, trackedSet) {
 
 /** Check a list of markdown files; return findings (one per broken link).
  *  Defaults to the whole tracked corpus, because a moved file leaves broken
- *  links in files nobody staged. */
+ *  links in files nobody staged.
+ *  @param {string[]} [files] */
 export function checkLinks(files) {
-  if (!files) files = trackedFiles().filter((f) => f.endsWith(".md"));
-  const tracked = new Set(trackedFiles().map((f) => f.replace(/\\/g, "/")));
+  if (!files)
+    files = trackedFiles().filter((/** @type {string} */ f) =>
+      f.endsWith(".md"),
+    );
+  const tracked = new Set(
+    trackedFiles().map((/** @type {string} */ f) => f.replace(/\\/g, "/")),
+  );
   const findings = [];
   for (const file of files) {
     if (!file.endsWith(".md")) continue;
@@ -165,6 +187,7 @@ export function checkLinks(files) {
       continue;
     }
     for (const { line, target } of linksOf(md)) {
+      if (!target) continue;
       if (skipTarget(target)) continue;
       const reason = resolveTarget(file, target, tracked);
       if (reason) {
@@ -182,13 +205,14 @@ export function checkLinks(files) {
 
 // CLI — when run directly, checks the whole tracked corpus.
 import { pathToFileURL } from "node:url";
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const { report } = await import("./lib.mjs");
   const files = process.argv.slice(2).filter((a) => !a.startsWith("-"));
   const targets = files.length
     ? files
-    : trackedFiles().filter((f) => f.endsWith(".md"));
+    : trackedFiles().filter((/** @type {string} */ f) => f.endsWith(".md"));
   const findings = checkLinks(targets);
   process.stderr.write(
     `links: checked ${targets.length} markdown file(s), ${findings.length} broken\n`,

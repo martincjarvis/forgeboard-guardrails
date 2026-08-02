@@ -285,12 +285,13 @@ improvement as suspicious.
       the gate refuse, not by reading the configuration.
 - [ ] The coverage report contains no file classed `tooling`.
 - [ ] A repository carrying ported gate or check scripts runs a `tooling
-  tests` suite against them — its absence is not a silent default, one
+tests` suite against them — its absence is not a silent default, one
       way or the other. `checkToolingTestSuiteExists`
       (`scripts/check-tooling-class.mjs`) is the mechanical proxy, run at
       [gate 7](guardrails/gate-7-on-demand.md): a repository with
       `tooling`-classed files and no `test`-classed file naming any of them
-      is a finding — the audit-13 defect, 26 `tooling`-classed scripts with
+      is a finding — the defect this check exists to catch: 26
+      `tooling`-classed scripts with
       no test file, no job, and nothing positioned to notice.
 - [ ] The `tooling tests` suite is change-triggered and blocking at gate 6
       (a visible skip, naming why, when the range touches no `tooling`-classed

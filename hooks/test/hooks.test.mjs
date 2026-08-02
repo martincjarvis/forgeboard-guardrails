@@ -4,20 +4,38 @@
 // count — is exactly the kind that fails quietly, so it leaves a runnable check
 // behind. Run with: node --test hooks/test/hooks.test.mjs
 //
-// Split by subject area (fix 79) so no single file reaches the point where
+// Split by subject area so no single file reaches the point where
 // lizard's function-span detection merges adjacent functions into one
 // over-length block (docs/ADR/0009-split-hooks-test-suite.md). This file is
 // the suite's entry point: each import below runs its module for its side
 // effect of registering tests with node:test; nothing here is itself a test.
 import "./gate-1-4-task-completion.test.mjs";
+import "./change-size-override-register.test.mjs";
+import "./gate-4-file-classes.test.mjs";
 import "./gate-2-commit.test.mjs";
+import "./gate-2-file-length.test.mjs";
 import "./gate-6-dependency-advisories-and-licence-policy.test.mjs";
+import "./licence-register-completeness.test.mjs";
 import "./gate-6-licence-register-row-decisions.test.mjs";
+import "./gate-6-minimum-release-age.test.mjs";
 import "./adr-approver-and-citations.test.mjs";
-import "./links-and-suppressions.test.mjs";
-import "./gate-5-push-and-scans.test.mjs";
-import "./branch-and-repository-policy.test.mjs";
+import "./link-integrity.test.mjs";
+import "./suppression-register.test.mjs";
+import "./third-party-attribution.test.mjs";
+import "./semgrep-sarif-filtering.test.mjs";
+import "./refusal-proof-contract.test.mjs";
+import "./scan-output-classification.test.mjs";
+import "./gate-5-markdown-push.test.mjs";
+import "./branch-behind-base.test.mjs";
+import "./branch-protection.test.mjs";
+import "./repository-features.test.mjs";
+import "./repo-structural-regression.test.mjs";
 import "./gate-7-wiring-audits.test.mjs";
+import "./gate-7-semgrep-rule-resolution.test.mjs";
 import "./standards-instantiation.test.mjs";
+import "./instantiation-residue.test.mjs";
+import "./toolkit-exemption.test.mjs";
 import "./tooling-class.test.mjs";
-import "./approval-provenance-and-pr-body.test.mjs";
+import "./approval-provenance.test.mjs";
+import "./pr-body-artefacts.test.mjs";
+import "./report-ci-reconciliation.test.mjs";

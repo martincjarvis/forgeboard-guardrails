@@ -78,6 +78,7 @@ const PATTERNS = [
   },
 ];
 
+/** @param {string} name @returns {boolean} */
 function isPlaceholder(name) {
   const lower = name.toLowerCase();
   if (PLACEHOLDERS.has(lower)) return true;
@@ -86,7 +87,9 @@ function isPlaceholder(name) {
   return /^(user|name|username|path|dir|project|repo|app)[0-9]*$/i.test(name);
 }
 
-/** Check files for machine-identifying home paths. Returns findings. */
+/** Check files for machine-identifying home paths. Returns findings.
+ *  @param {string[]} [files]
+ *  @returns {{ check: string, path: string, problem: string, remedy: string }[]} */
 export function checkMachineId(files) {
   const findings = [];
   const scan = files ?? trackedFiles();
@@ -100,13 +103,16 @@ export function checkMachineId(files) {
     }
     const lines = md.split("\n");
     for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line === undefined) continue;
       for (const { name, re } of PATTERNS) {
-        const m = re.exec(lines[i]);
-        if (m && !isPlaceholder(m[1])) {
+        const m = re.exec(line);
+        const user = m?.[1];
+        if (user && !isPlaceholder(user)) {
           findings.push({
             check: "machine-identifying content",
             path: `${file}:${i + 1}`,
-            problem: `${name} names a user (\`${m[1]}\`)`,
+            problem: `${name} names a user (\`${user}\`)`,
             remedy: "replace with a placeholder such as /home/user or <name>",
           });
         }
@@ -116,7 +122,8 @@ export function checkMachineId(files) {
   return findings;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const files = process.argv.slice(2).filter((a) => !a.startsWith("-"));
   const findings = checkMachineId(files.length ? files : undefined);

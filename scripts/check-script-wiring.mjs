@@ -1,12 +1,12 @@
 // cspell:ignore lintstagedrc
-// Gate 7 — quality-script wiring audit (fix 16; cross-gate-rules.md, "Every
+// Gate 7 — quality-script wiring audit (cross-gate-rules.md, "Every
 // quality script is wired or declared").
 //
 // The defect class this closes: `package.json`'s `scripts` reads as an
 // inventory of checks the repository runs, but nothing enforces that a
 // listed script is actually invoked anywhere. Three real instances found
-// this way — `lint` (unwired until fix 10), `spell` (wired to the Markdown
-// subset only, until fix 15 extended it), `gate:7` itself (on demand by
+// this way — `lint` (unwired once), `spell` (wired to the Markdown
+// subset only, until cspell was extended to the code glob), `gate:7` itself (on demand by
 // design, never invoked by another gate — the false positive this audit
 // must not raise). To anyone scanning the manifest the first two read as
 // checks the repository runs; that is worse than an absent script, because
@@ -34,6 +34,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+/** @type {Record<string, { file: string, contains: string }>} */
 const WIRING = {
   build: {
     file: "scripts/gate-0-baseline.mjs",
@@ -60,16 +61,17 @@ const WIRING = {
     contains: '"markdownlint-cli2"',
   },
   spell: {
-    // Fix 15 extended cspell to the code glob, the same invocation this
-    // matches — before that fix this script was exactly the gap fix 16's
-    // own audit found (the Markdown subset only).
+    // cspell was extended to the code glob, the same invocation this
+    // matches — before that extension this script was exactly the gap
+    // this audit found (the Markdown subset only).
     file: ".lintstagedrc.json",
     contains: '"cspell lint --no-progress --no-must-find-files"',
   },
 };
 
 /** Scripts with no gate wiring by design, and the gate that would
- *  otherwise own them. */
+ *  otherwise own them.
+ *  @type {Record<string, string>} */
 const ON_DEMAND = {
   "gate:0":
     "is gate 0 itself — invoked directly at the start of a unit of work; a gate does not invoke itself",
@@ -85,7 +87,8 @@ const ON_DEMAND = {
  *  object; `readFile` reads the file a WIRING entry claims to find its
  *  evidence in — injectable so the self-verification is testable without
  *  touching the real tree. Defaults to a real disk read, resolved against
- *  the caller's cwd (gate 7 always runs from the repository root). */
+ *  the caller's cwd (gate 7 always runs from the repository root).
+ *  @param {Record<string, string>} scripts @param {(file: string) => string} [readFile] */
 export function checkScriptWiring(
   scripts,
   readFile = (file) => readFileSync(file, "utf8"),
@@ -94,9 +97,10 @@ export function checkScriptWiring(
   const onDemand = [];
   const unwired = [];
   for (const name of Object.keys(scripts ?? {})) {
-    if (name in WIRING) {
-      const { file, contains } = WIRING[name];
-      let content = "";
+    const wiring = WIRING[name];
+    if (wiring) {
+      const { file, contains } = wiring;
+      let content;
       try {
         content = readFile(file);
       } catch {
@@ -120,7 +124,7 @@ export function checkScriptWiring(
   return { wired, onDemand, unwired };
 }
 
-// --- Fix 40, "close the class, not just the instance" ----------------------
+// --- "Close the class, not just the instance" ----------------------
 // The defect above's own instance: check-standards-instantiation.mjs was
 // never a package.json script at all, so checkScriptWiring never had a
 // chance to see it — it was ported, carried unit tests, and sat unimported
@@ -134,16 +138,17 @@ export function checkScriptWiring(
  *  repository — a human decision no scan could infer, the same reason
  *  ON_DEMAND above is hand-authored rather than derived. Keyed by filename,
  *  each value the reason, so a false claim here is as visible as the
- *  wiring claims above. */
+ *  wiring claims above.
+ *  @type {Record<string, string>} */
 const SCRIPT_FILE_ON_DEMAND = {
   "check-standards-instantiation.mjs":
     "reference implementation meant to be ported into a consuming repository's own tooling directory and wired into that repository's own gate 7 (docs-style.md#standards-in-a-consuming-repository, and the file's own header) — this repository is the canonical corpus, not an instantiated copy, and correctly documents every stack it supports, so it is not run here",
   "check-licence-table.mjs":
     "licence-table re-validation against each entry's own external reference — the file's own header: invoked by hand when adding a licence or confirming the table is current, deliberately not folded into gate 7's default sweep because it depends on external hosts staying reachable, a slower and less reliable failure mode than the rest of that sweep",
   "check-pr-body-artefacts.mjs":
-    "fix 68's reserved-class citation check: `--file <draft>` reads a draft body off disk before a pull request exists (invoked from skills/repository-bootstrap/SKILL.md, beside fix 65's precondition); with no `--file` it falls back to `gh pr view` for a reviewer checking one already open (gate-6-pull-request.md, \"Running it by hand\"). Neither caller is gate 6 itself, so this stays on-demand rather than wired into the blocking run.",
+    'the reserved-class citation check: `--file <draft>` reads a draft body off disk before a pull request exists (invoked from skills/repository-bootstrap/SKILL.md, beside its own precondition); with no `--file` it falls back to `gh pr view` for a reviewer checking one already open (gate-6-pull-request.md, "Running it by hand"). Neither caller is gate 6 itself, so this stays on-demand rather than wired into the blocking run.',
   "check-report-ci-reconciliation.mjs":
-    "fix 76's report-versus-CI-log check: it cannot run before the pipeline that produces the blocking verdict has completed, so it is a step after gate 6 rather than a stricter precondition on it — run by hand, or as a follow-up CI step reading its own prior job's log, against the report before presenting a pull request as ready (gate-6-pull-request.md, \"Running it by hand\"; skills/repository-bootstrap/SKILL.md's fix-66 paragraph).",
+    "the report-versus-CI-log check: it cannot run before the pipeline that produces the blocking verdict has completed, so it is a step after gate 6 rather than a stricter precondition on it — run by hand, or as a follow-up CI step reading its own prior job's log, against the report before presenting a pull request as ready (gate-6-pull-request.md, \"Running it by hand\"; skills/repository-bootstrap/SKILL.md's gap-categories paragraph).",
 };
 
 /** { wired, onDemand, unwired } for `check-*.mjs` files in scripts/ itself,
@@ -156,7 +161,8 @@ const SCRIPT_FILE_ON_DEMAND = {
  *  scripts/ imports it (`from "./<file>"`) — which, transitively, is how
  *  every check that genuinely runs reaches a gate in this repository; a
  *  check-*.mjs file imported by nothing but its own unit test has no such
- *  import to find. */
+ *  import to find.
+ *  @param {string[]} scriptFiles @param {(file: string) => string} readFile */
 export function checkScriptFileWiring(scriptFiles, readFile) {
   const wired = [];
   const onDemand = [];
@@ -187,7 +193,7 @@ export function checkScriptFileWiring(scriptFiles, readFile) {
   return { wired, onDemand, unwired };
 }
 
-// --- Fix 43 — the same defect class one level up, in the documentation that
+// --- The same defect class one level up, in the documentation that
 // describes the wiring rather than the manifest. A tooling index (e.g.
 // scripts/README.md) that names the gate a script runs at is making a
 // checkable claim; nothing previously re-verified it against the script's
@@ -198,7 +204,8 @@ export function checkScriptFileWiring(scriptFiles, readFile) {
  *  tooling index makes in prose ("gate 6", "gate 7") — hand-authored for the
  *  same reason WIRING above is: which file implements which gate is a
  *  structural fact about this repository, not something worth deriving from
- *  a naming convention a rename could break silently. */
+ *  a naming convention a rename could break silently.
+ *  @type {Record<number, string>} */
 export const GATE_FILES = {
   0: "gate-0-baseline.mjs",
   2: "pre-commit.mjs",
@@ -214,7 +221,8 @@ export const GATE_FILES = {
  *  "does this gate really invoke it" is answered by import evidence, not by
  *  trusting the index's own prose back to itself. A row naming a gate number
  *  this repository has no file for is also a mismatch — a typo or a stale
- *  gate number reads the same as a false claim to a reader. */
+ *  gate number reads the same as a false claim to a reader.
+ *  @param {string} indexText @param {Record<string, string>} gateSources @returns {string[]} */
 export function checkIndexGateClaims(indexText, gateSources) {
   const findings = [];
   const rowRe = /`([\w-]+\.mjs)`[^\n]*?\bgate\s*(\d+)\b/gi;
@@ -237,7 +245,8 @@ export function checkIndexGateClaims(indexText, gateSources) {
   return findings;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1]).href;
+const argv1 = process.argv[1];
+const isMain = argv1 && import.meta.url === pathToFileURL(argv1).href;
 if (isMain) {
   const pkg = JSON.parse(readFileSync("package.json", "utf8"));
   const { wired, onDemand, unwired } = checkScriptWiring(pkg.scripts);
@@ -248,6 +257,7 @@ if (isMain) {
     process.stderr.write(`script wiring: UNWIRED ${s}\n`);
 
   const scriptFiles = readdirSync("scripts").filter((f) => f.endsWith(".mjs"));
+  /** @type {(file: string) => string} */
   const readScript = (f) => readFileSync(join("scripts", f), "utf8");
   const files = checkScriptFileWiring(scriptFiles, readScript);
   for (const s of files.wired)

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Builds a small, evidence-backed set of tagged images, each pre-configured with the
-# plugin combination this project's own eval harness found appropriate for a real task
-# archetype (docs/mcp-tooling-evaluation.md, Experiment 11's delivery-mode results, and
-# CLAUDE.md's summary of both) — for an orchestrator to pick from by task type rather
-# than negotiate plugin state at runtime.
+# plugin combination an eval harness run against this container's original project
+# found appropriate for a real task archetype (that evaluation's own docs do not live
+# in this repository, so the findings below are cited by number, not by a link this
+# repository can resolve) — for an orchestrator to pick from by task type rather than
+# negotiate plugin state at runtime.
 #
 # Deliberately a small, curated set, not one image per ARG combination (5 ARGs would be
 # 32 combinations, almost all of them not corresponding to a real task archetype).
@@ -22,7 +23,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-IMAGE_NAME="mcpeval-agent-stack"
+IMAGE_NAME="guardrails-agent-stack"
 
 # name:INSTALL_PONYTAIL:INSTALL_SUPERPOWERS:INSTALL_CLAUDE_MEM
 PROFILES=(

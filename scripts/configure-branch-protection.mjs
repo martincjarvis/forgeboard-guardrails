@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Fix 24 — the mechanism half. gate-6-pull-request.md states the merge
+// cspell:ignore symref
+// The mechanism half. gate-6-pull-request.md states the merge
 // policy (16-24: required status checks, required review, no self-approval,
 // stale-approval dismissal, conversation resolution, no admin override, no
 // force push, no deletion, required history shape) and supplies no way to
@@ -23,14 +24,28 @@ import {
   evaluateBranchProtection,
 } from "./check-branch-protection.mjs";
 
+/** @param {string} msg @returns {never} */
 function skip(msg) {
   process.stderr.write(`configure-branch-protection: SKIP ${msg}\n`);
   process.exit(0);
 }
+/** @param {string} msg @returns {never} */
 function fail(msg) {
   process.stderr.write(`configure-branch-protection: ${msg}\n`);
   process.exit(1);
 }
+
+// Derived, not hardcoded (the requirement this script exists to meet): the branch from
+// origin/HEAD, the same derivation every other gate in this toolkit uses.
+// Local and free, so it runs before the gh probes below — which is also what
+// lets the skip be tested without a gh on the runner's PATH.
+const base = resolveBase();
+if (!base) {
+  skip(
+    "origin/HEAD could not be resolved, so there is no derived default branch to configure; run `git remote set-head origin -a` to fix the local symref",
+  );
+}
+const branch = base.replace(/^origin\//, "");
 
 // A visible skip when gh is absent or unauthenticated — never a silent
 // no-op, and never a guess at what to configure without it.
@@ -42,16 +57,6 @@ if (run("gh", ["api", "user"], { stdio: "ignore" }).status !== 0) {
     "gh is not authenticated (`gh auth login`); cannot configure branch protection",
   );
 }
-
-// Derived, not hardcoded (fix 24's own requirement): the branch from
-// origin/HEAD, the same derivation every other gate in this toolkit uses.
-const base = resolveBase();
-if (!base) {
-  fail(
-    "origin/HEAD could not be resolved — nothing to derive the default branch from; run this from a real clone, not a repository with no remote",
-  );
-}
-const branch = base.replace(/^origin\//, "");
 
 const repoView = run("gh", ["repo", "view", "--json", "nameWithOwner"]);
 if (repoView.status !== 0) {

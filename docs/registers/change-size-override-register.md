@@ -3,7 +3,7 @@
 Every branch that carried the `[large-pr]` marker into gate 6, the human decision
 that accepted the size and what was driving it, and the condition that would let
 the row go. The `change size override` check refuses a marker with no matching
-row here — see [fix 74](../standards/guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
+row here — see [an override is not a fix](../standards/guardrails/cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
 
 **An agent may fill in every column below except Approver.**
 [Gate 4](../standards/guardrails/gate-4-task-completion.md) reports the counted
@@ -13,6 +13,13 @@ human who also fills in this row's Approver cell — in a commit distinct from
 the one that files the row, the same two-step every other register in this
 repository already requires
 ([registers.md](../standards/guardrails/registers.md#approval-is-an-event-not-a-field)).
+
+A row is identified by **Branch** and **Filed** together — neither changes once
+the row is filed, so **Counted lines** (the cell that follows them) can be
+re-measured without voiding an approval already recorded against the row, and a
+later override for the same branch is a separate row with its own filing date.
+The identity is the first two cells, the shape every other register here already
+uses.
 
 A row missing only its Approver is not refused here — filing it is still
 permitted with the row left open, the same split every other register in
@@ -25,9 +32,9 @@ place.
 
 ## Register
 
-| Branch     | Counted lines | Composition | Justification | Removable when | Approved by |
-| ---------- | ------------- | ----------- | ------------- | -------------- | ----------- |
-| _none yet_ |               |             |               |                |             |
+| Branch    | Filed      | Counted lines | Composition                                                                                                                                                             | Justification                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Removable when                                                                                                                                                               | Approved by   |
+| --------- | ---------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `rebuild` | 2026-08-01 | 2464          | 2325 production, 139 configuration. Largest single file `scripts/check-minimum-release-age.mjs` at 382 (a new check). The rest is spread thin — 13 files over 60 lines. | Turning on `noImplicitAny` and `noUncheckedIndexedAccess` touches every `.mjs` in the repository at once — 585 type errors, annotations only. Splitting it per file would produce commits that do not build, because the setting is repository-wide. That same pass is what surfaced the `readPrBody` absence defect. Two new gate 6 checks land alongside, and the eslint uplift adds the code-shape rules plus the refactors that bring eight functions back under the complexity band. | `rebuild` merges. This row is spent then; it does not carry to any later branch, and a further override needs its own row against its own branch and its own counted figure. | Martin Jarvis |
 
 The **Removable when** column is the point of the exercise, the same as every
 other register here. A row with no stated removal condition is permanent by

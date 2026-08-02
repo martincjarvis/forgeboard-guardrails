@@ -1,23 +1,18 @@
 // cspell:ignore fixtured lintstagedrc symref warnish ghsa GHSA monocart deliberatemisspelling nother PYTHONUTF opensource untabled martincjarvis Uncited uncited
-// Split from hooks.test.mjs (fix 79) — subject group: gate-6-dependency-advisories-and-licence-policy.
+// Split from hooks.test.mjs — subject group: gate-6-dependency-advisories-and-licence-policy.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import {
   classifyAdvisories,
   checkDependencyAdvisories,
 } from "../../scripts/check-dependency-advisories.mjs";
 import {
-  checkLicencePolicy,
   licenceExpressionAcceptable,
   leafVerdict,
   compatible,
 } from "../../scripts/check-licence-policy.mjs";
-import { missingLicenceTableEntries } from "../../scripts/check-licence.mjs";
 import { LICENCE_TABLE, isPermissive } from "../../scripts/licence-table.mjs";
 import assert from "node:assert/strict";
-import { git, scratchRepo, runScript } from "./support.mjs";
 
 // --- scripts/check-dependency-advisories.mjs — gate 6 check 6 (docs/
 // standards/guardrails/gate-6-pull-request.md, change-triggered-checks.md).
@@ -26,7 +21,9 @@ import { git, scratchRepo, runScript } from "./support.mjs";
 // not a live `npm audit` run — the same reason check-dependency-advisories.mjs
 // splits classifyAdvisories out from the impure orchestration around it.
 
+/** @param {[string, string, string[]?][]} entries */
 function auditReport(entries) {
+  /** @type {Record<string, { name: string, severity: string, via: { url: string }[] }>} */
   const vulnerabilities = {};
   for (const [name, severity, urls = []] of entries) {
     vulnerabilities[name] = {
@@ -46,14 +43,13 @@ test("dependency advisory scan blocks a runtime dependency at high severity", ()
     runtimeNames: new Set(["left-pad"]),
   });
   assert.equal(findings.length, 1);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
   assert.match(
-    findings[0].problem,
+    finding.problem,
     /left-pad carries a high advisory \(runtime dependency\)/,
   );
-  assert.match(
-    findings[0].remedy,
-    /block severity has no accepted-record path/,
-  );
+  assert.match(finding.remedy, /block severity has no accepted-record path/);
 });
 
 test("dependency advisory scan does not push back a development-only dependency below its band", () => {
@@ -75,7 +71,9 @@ test("dependency advisory scan pushes back a development-only dependency at high
     1,
     "high severity, dev-only, is the push-back band",
   );
-  assert.match(unaccepted[0].problem, /ghsa-aaaa-bbbb-cccc/);
+  const finding = unaccepted[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /ghsa-aaaa-bbbb-cccc/);
 
   const accepted = classifyAdvisories(report, {
     runtimeNames: new Set(),
@@ -88,16 +86,47 @@ test("dependency advisory scan pushes back a development-only dependency at high
   );
 });
 
+// --- The push-back remedy used to name only two paths — "upgrade
+// the dependency, or accept it in an Accepted ADR naming the advisory id" —
+// a false binary. Iteration 26 took the ADR branch
+// in good faith for a js-yaml advisory, reasoning the fixed version only
+// shipped bundled inside markdownlint-cli2, five days inside the
+// repository's own release-age window — missing that js-yaml@5.2.2 itself,
+// pinned directly via `overrides`, was published nine days EARLIER, clears
+// the same window on its own, and `npm audit` reports 0 vulnerabilities
+// with that pin (verified across two iterations).
+// The remedy must name the pin as a real third option, not push every
+// push-back-band advisory toward either an upgrade nobody can do yet or an
+// ADR nobody needed to write.
+
+test("dependency advisory scan's push-back remedy names all three paths — upgrade, an overrides/resolutions pin, and an Accepted ADR — not the false binary iteration 26 acted on", () => {
+  const report = auditReport([
+    ["js-yaml", "high", ["https://github.com/advisories/GHSA-pm4m-ph32-ghv5"]],
+  ]);
+  const findings = classifyAdvisories(report, { runtimeNames: new Set() });
+  assert.equal(findings.length, 1);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.remedy, /upgrade/i);
+  assert.match(
+    finding.remedy,
+    /overrides.*resolutions|resolutions.*overrides/i,
+  );
+  assert.match(finding.remedy, /Accepted ADR/);
+});
+
 test("dependency advisory scan is a visible skip, naming the reason, when not triggered", () => {
   const { findings, skips } = checkDependencyAdvisories(false);
   assert.deepEqual(findings, []);
   assert.equal(skips.length, 1);
-  assert.match(skips[0], /dependency advisory scan/);
-  assert.match(skips[0], /no dependency change and not a scheduled run/);
+  const skip = skips[0];
+  assert.ok(skip, "expected a skip");
+  assert.match(skip, /dependency advisory scan/);
+  assert.match(skip, /no dependency change and not a scheduled run/);
 });
 
 // --- scripts/licence-table.mjs and scripts/check-licence-policy.mjs — gate
-// 6 check 7 (fix brief 6: a per-licence table, not two enumerated allow
+// 6 check 7 (a per-licence table, not two enumerated allow
 // lists — docs/standards/guardrails/gate-6-pull-request.md's "Licence
 // policy: a table, not two allow lists").
 
@@ -176,7 +205,7 @@ test("compatible(): a non-permissive licence that never ships has nothing downst
   assert.equal(compatible(artistic, "Development", "MIT"), true);
 });
 
-test("SPDX expression evaluation: OR passes if any disjunct is acceptable — audit 6's JSONStream / type-fest regression, MIT OR Apache-2.0 and (MIT OR CC0-1.0)", () => {
+test("SPDX expression evaluation: OR passes if any disjunct is acceptable — the JSONStream / type-fest regression, MIT OR Apache-2.0 and (MIT OR CC0-1.0)", () => {
   assert.equal(
     licenceExpressionAcceptable("MIT OR Apache-2.0", "Runtime", null)
       .acceptable,
@@ -196,7 +225,7 @@ test("SPDX expression evaluation: OR passes if any disjunct is acceptable — au
   assert.equal(blocked.acceptable, false);
   assert.equal(blocked.blockers.length, 2);
   assert.deepEqual(
-    blocked.blockers.map((b) => b.id),
+    blocked.blockers.map(/** @param {{ id: string }} b */ (b) => b.id),
     ["GPL-3.0-only", "AGPL-3.0-only"],
   );
 });
@@ -218,7 +247,7 @@ test("SPDX expression evaluation: AND requires every conjunct to be acceptable",
     "one unacceptable conjunct blocks the whole AND expression",
   );
   assert.deepEqual(
-    verdict.blockers.map((b) => b.id),
+    verdict.blockers.map(/** @param {{ id: string }} b */ (b) => b.id),
     ["GPL-3.0-only"],
     "only the failing conjunct is named — MIT is not the reason this blocks",
   );
@@ -254,8 +283,10 @@ test("SPDX expression evaluation: WITH is one identifier, not silently split int
   );
   assert.equal(verdict.acceptable, false);
   assert.equal(verdict.blockers.length, 1);
+  const blocker = verdict.blockers[0];
+  assert.ok(blocker, "expected one blocker");
   assert.equal(
-    verdict.blockers[0].id,
+    blocker.id,
     "GPL-2.0-only WITH Classpath-exception-2.0",
     "the exception clause must not be dropped from the identifier looked up",
   );
@@ -270,7 +301,7 @@ test("SPDX expression evaluation: an identifier with no table entry blocks, name
 });
 
 test("SPDX expression evaluation: a non-SPDX string is reported as unparseable, quoted whole — not tokenised into a wrong identifier", () => {
-  // Fix 18. A space instead of the SPDX hyphen ('Apache 2.0' rather than
+  // A space instead of the SPDX hyphen ('Apache 2.0' rather than
   // 'Apache-2.0') tokenises into two identifier-shaped words with no
   // operator between them; a parser that stops at the first token the
   // grammar doesn't recognise would silently drop the rest and name '2.0' or
@@ -291,160 +322,4 @@ test("SPDX expression evaluation: a non-SPDX string is reported as unparseable, 
       .acceptable,
     true,
   );
-});
-
-// --- scripts/check-licence.mjs — gate 2 check 16 (completeness), extended
-// by fix brief 6 to also flag a licence with no scripts/licence-table.mjs
-// entry: "a licence in the resolved set with no table entry is a finding at
-// gates 2 and 6" (gate-6-pull-request.md), so a coverage gap is caught the
-// moment the dependency arrives, not only when gate 6 later judges it.
-
-test("missingLicenceTableEntries: a row citing a tabled licence raises nothing; one citing a licence with no table entry names it once, even if several rows share it", () => {
-  const rows = [
-    { dep: "a", version: "1.0.0", licence: "MIT" },
-    { dep: "b", version: "1.0.0", licence: "GPL-3.0-only" },
-    { dep: "c", version: "2.0.0", licence: "GPL-3.0-only" },
-  ];
-  const findings = missingLicenceTableEntries(rows);
-  assert.equal(
-    findings.length,
-    1,
-    "the same untabled licence is named once, not once per row",
-  );
-  assert.match(findings[0].problem, /'GPL-3\.0-only'/);
-});
-
-test("missingLicenceTableEntries: a compound expression's leaf with no table entry is named; the tabled leaf is not", () => {
-  const findings = missingLicenceTableEntries([
-    { dep: "a", version: "1.0.0", licence: "MIT OR GPL-3.0-only" },
-  ]);
-  assert.equal(findings.length, 1);
-  assert.match(findings[0].problem, /GPL-3\.0-only/);
-  assert.doesNotMatch(findings[0].problem, /'MIT'/);
-});
-
-test("missingLicenceTableEntries: a blank or unknown licence is left to the policy check's own finding, not duplicated here", () => {
-  assert.deepEqual(
-    missingLicenceTableEntries([
-      { dep: "a", version: "1.0.0", licence: "" },
-      { dep: "b", version: "1.0.0", licence: "unknown" },
-    ]),
-    [],
-  );
-});
-
-test("checkLicenceCompleteness (end to end): a resolved dependency with no register row AND a register row whose licence has no table entry are both reported when the lock file is in scope", () => {
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-  writeFileSync(
-    join(dir, "package.json"),
-    JSON.stringify({ name: "scratch", private: true, type: "module" }) + "\n",
-  );
-  writeFileSync(
-    join(dir, "package-lock.json"),
-    JSON.stringify({ name: "scratch", lockfileVersion: 3 }) + "\n",
-  );
-  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
-  writeFileSync(
-    join(dir, "docs", "registers", "dependency-licence-register.md"),
-    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
-      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
-      "| copyleft-thing | 1.0.0 | GPL-3.0-only | Direct | Development | tooling | example | | | | |\n",
-  );
-  git(dir, ["add", "-A"]);
-  const r = runScript("scripts/check-licence.mjs", dir, ["package-lock.json"]);
-  assert.equal(r.status, 2);
-  assert.match(
-    r.stderr,
-    /'GPL-3\.0-only'.*has no entry in scripts\/licence-table\.mjs/,
-    "the table-entry gap is caught at gate 2, not only when gate 6 later judges the same row",
-  );
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("licence policy is a visible skip, naming the reason, when not triggered", () => {
-  const { findings, skips } = checkLicencePolicy(false);
-  assert.deepEqual(findings, []);
-  assert.equal(skips.length, 1);
-  assert.match(skips[0], /dependency licence policy/);
-});
-
-test("licence policy refuses a missing register, and refuses a resolved dependency whose licence has no table entry", () => {
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-
-  // No register at all yet: refused, naming that it is missing — never
-  // passed silently for lack of anything to compare against
-  // (gate-6-pull-request.md: "no licence file at all is refused").
-  const missing = runScript("scripts/check-licence-policy.mjs", dir);
-  assert.equal(missing.status, 2);
-  assert.match(missing.stderr, /does not exist/);
-
-  // A register row naming a licence with no table entry (strong copyleft,
-  // never added to scripts/licence-table.mjs) is refused even though the
-  // row itself is complete.
-  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
-  writeFileSync(
-    join(dir, "docs", "registers", "dependency-licence-register.md"),
-    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
-      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
-      "| copyleft-thing | 1.0.0 | GPL-3.0-only | Direct | Development | tooling | example | | | | |\n",
-  );
-  git(dir, ["add", "-A"]);
-  const refused = runScript("scripts/check-licence-policy.mjs", dir);
-  assert.equal(refused.status, 2);
-  assert.match(refused.stderr, /copyleft-thing@1\.0\.0/);
-  assert.match(refused.stderr, /GPL-3\.0-only/);
-  assert.match(refused.stderr, /has no entry in scripts\/licence-table\.mjs/);
-
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("licence policy: an unresolved version is its own finding, and the literal 'undefined' never reaches a diagnostic", () => {
-  // Fix 19. Audit 7's CI: `monocart-coverage-reports@undefined carries
-  // licence 'unknown'` — a failed metadata read (the version) rendered as
-  // data and folded into the same sentence as a second, distinct failure
-  // (the licence).
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
-  writeFileSync(
-    join(dir, "docs", "registers", "dependency-licence-register.md"),
-    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
-      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
-      "| monocart-coverage-reports | undefined | unknown | Direct | Development | tooling | example | | | | |\n",
-  );
-  git(dir, ["add", "-A"]);
-  const result = runScript("scripts/check-licence-policy.mjs", dir);
-  assert.equal(result.status, 2);
-  // The version failure is reported as its own finding, naming the field.
-  assert.match(
-    result.stderr,
-    /monocart-coverage-reports's version could not be resolved/,
-  );
-  // The literal 'undefined' from the failed read never reaches another
-  // diagnostic — no finding calls the dependency "...@undefined".
-  assert.doesNotMatch(result.stderr, /@undefined/);
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("licence policy (full pipeline): a compound SPDX expression passes when at least one disjunct is OSI-approved and compatible — audit 6's JSONStream / type-fest regression", () => {
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-  mkdirSync(join(dir, "docs", "registers"), { recursive: true });
-  writeFileSync(
-    join(dir, "docs", "registers", "dependency-licence-register.md"),
-    "| Dependency | Version | Licence | Direct or transitive | Scope | Used by | Why | Decision record | Obligations | Expires | Approver |\n" +
-      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n" +
-      "| JSONStream | 1.3.5 | MIT OR Apache-2.0 | Transitive | Runtime | tooling | example | | | | |\n" +
-      "| type-fest | 4.41.0 | (MIT OR CC0-1.0) | Transitive | Runtime | tooling | example | | | | |\n",
-  );
-  git(dir, ["add", "-A"]);
-  const r = runScript("scripts/check-licence-policy.mjs", dir);
-  assert.equal(
-    r.status,
-    0,
-    "MIT passes on its own; CC0-1.0 does not need to (it is not OSI-approved), because the OR only needs one",
-  );
-  rmSync(dir, { recursive: true, force: true });
 });

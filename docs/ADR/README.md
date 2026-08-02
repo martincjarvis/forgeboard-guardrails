@@ -70,7 +70,8 @@ account in its own repository.
 - [0001](0001-per-component-version-derivation.md) — versions are derived per
   component from Conventional Commits, by a path-scoped detector.
 - [0002](0002-analysis-tool-distribution.md) — the toolkit bundles no analysis
-  tools; the consuming repository installs them.
+  tools; the consuming repository installs them. Superseded by
+  [0018](0018-dependency-decisions-are-scoped-not-blanket.md).
 - [0003](0003-derive-configuration.md) — the gates derive what they need from
   what a repository already declares, rather than from a configuration file.
 - [0004](0004-development-scope-licence-acceptances.md) — four licences
@@ -95,3 +96,42 @@ account in its own repository.
   whose own message introduces `[large-pr]` is refused at the commit-msg
   hook unless the change-size override register already carries a
   human-approved row for the branch; supersedes 0006.
+- [0011](0011-reconciliation-matches-labels-not-details.md) — the report/CI
+  reconciliation check matches a gate's `FAIL` labels and never the detail
+  beneath them; matching the detail too was rejected as prose-honesty
+  scoring.
+- [0012](0012-residue-corpus-derived-from-file-class.md) — the cspell
+  residue check derives its "used elsewhere" corpus from files not classed
+  `tooling` and carries the toolkit exemption itself; a tree-wide corpus and
+  an externally configured exemption were rejected.
+- [0013](0013-hardcoded-sha-detects-a-shape.md) — the ported-test check
+  flags a 40-character hex SHA in a `test`-classed file and nothing else;
+  semantic detection and a tree-wide search were rejected.
+- [0014](0014-one-command-one-transcript.md) — a report's finding list is
+  the verbatim output of one command, never an assembly of individually
+  chosen checks or a platform's summary of them.
+- [0015](0015-minimum-release-age.md) — a minimum release age is gated at
+  gate 6, refusing dependencies published inside a 7-day window unless a
+  human-approved register row admits them; advisory reporting and a gate
+  with no exception route were both rejected.
+- [0016](0016-record-resolved-semgrep-rule-set.md) — gate 7 records the rule
+  set `semgrep --config auto` actually resolved into each run's output; pinning
+  and vendoring were rejected, and scans stay non-reproducible and
+  network-dependent.
+- [0017](0017-unmodified-plugin-copy-counts-toward-change-size.md) —
+  `Proposed`. A byte-identical copy of the plugin's scripts still counts
+  toward change size; discounting it as generated, or only where verified
+  identical to the plugin reference, was rejected. The copied tooling corpus
+  is measured; a real consuming repository's branch is not, because
+  `.guardrails/` is specified and unimplemented.
+- [0018](0018-dependency-decisions-are-scoped-not-blanket.md) — dependency
+  decisions are scoped by phase: bootstrap and uplift adopt the stack's
+  maintained presets, a development task pushes back on a dependency the plan
+  did not name; a blanket no-new-dependency line was rejected, and the
+  misattributed ADR-0011 citation in `eslint.config.mjs` is corrected.
+  Supersedes 0002.
+- [0019](0019-file-length-at-commit.md) — `Proposed`. File length is enforced
+  at gate 2 over staged content; gate 4 keeps change size, the one measure
+  that needs branch scope. Checking at both gates was rejected because gate 4's
+  copy could never fire once gate 2 refuses the commit. The code-shape warn
+  band is removed: anything surviving to a gate is an error.
