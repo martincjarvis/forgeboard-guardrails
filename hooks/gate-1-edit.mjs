@@ -39,7 +39,7 @@ if (have("npx", ["--no-install", "secretlint", "--version"])) {
     path,
   ]);
   if (scan.status !== 0) {
-    let messages = null;
+    let messages;
     try {
       const parsed = JSON.parse(scan.stdout);
       messages = Array.isArray(parsed) ? parsed : (parsed?.messages ?? null);

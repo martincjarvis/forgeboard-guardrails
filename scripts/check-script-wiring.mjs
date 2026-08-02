@@ -100,7 +100,7 @@ export function checkScriptWiring(
     const wiring = WIRING[name];
     if (wiring) {
       const { file, contains } = wiring;
-      let content = "";
+      let content;
       try {
         content = readFile(file);
       } catch {
