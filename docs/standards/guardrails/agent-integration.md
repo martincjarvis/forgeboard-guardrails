@@ -6,11 +6,14 @@ read_when: Adopting the toolkit in a repository agents work in, or adding suppor
 
 # Agent integration
 
-Two of the nine gates are the agent's rather than git's: the
-[edit gate](gate-1-edit.md) fires on every file write, and the
-[task-completion gate](gate-4-task-completion.md) fires when work is handed
-back. Neither is a git hook, so neither exists unless the harness the agent runs
-in is wired to fire it.
+Two of the nine gates fire in the agent's own session by design — the
+[edit gate](gate-1-edit.md) on every file write, and the
+[task-completion gate](gate-4-task-completion.md) when work is handed back —
+and the [baseline gate](gate-0-baseline.md) fires a third, cheaper check at
+session start so the cheap failures (behind base, a dirty tree, a fresh
+worktree with no `node_modules`) are caught before any work begins. None of
+the three is a git hook, so none exists unless the harness the agent runs in
+is wired to fire it.
 
 A repository is worked in by more than one harness — different people, different
 tools, the same repository. **What the gates require must not depend on
@@ -52,8 +55,17 @@ so it is stated as behaviour:
 
 | Requirement                                                                                                          | Corresponds to |
 | -------------------------------------------------------------------------------------------------------------------- | -------------- |
+| When a session begins, the cheap baseline is surfaced — behind base, clean tree, dependencies present — non-blocking | Gate 0 (quick) |
 | After a file is written, the file is formatted and security-scanned, and a finding in a tracked file fails the write | Gate 1         |
 | Before work is handed back, the whole branch is measured against its base and the findings reported in one pass      | Gate 4         |
+
+**The session-start hook is non-blocking and never rebases.** A rebase under
+an agent holding uncommitted work is destructive — gate 0's own stated reason
+for reporting instead of acting — so the hook surfaces the baseline (the quick
+signals, plus a pointer to `npm run gate:0` for the build and the full suite)
+and lets the operator decide. The build and the suite cost minutes where the
+signals that actually caused failures cost milliseconds, so the synchronous
+hook runs the millisecond half and reports the rest as a named skip.
 
 **Every harness in use gets both, or the gates are advisory.** An agent working
 in an unwired harness writes past exactly the checks that exist to catch it
@@ -146,6 +158,10 @@ reporting; one that stops and asks a question, or stops silently, has not.
 - [ ] Only one of those files holds content; the rest are pointers.
 - [ ] The root file names the `.logs` location where it differs from the default.
 - [ ] Each harness in use fires an edit-time check and a task-completion check.
+- [ ] Each harness in use fires a session-start check that surfaces the cheap
+      baseline (behind base, clean tree, `node_modules` present) non-blocking,
+      never rebases, and defers the build and full suite to `npm run gate:0`
+      with a named skip.
 - [ ] A security finding written into a tracked file fails the write in **every**
       harness, not just the one it was configured in first.
 - [ ] A harness that cannot fire a hook has that recorded, naming which gate is

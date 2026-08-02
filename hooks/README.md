@@ -24,10 +24,11 @@ consumes this toolkit.
 
 ## Hooks
 
-| File                         | Fires on                                                               | Implements                                                                                                                                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gate-1-edit.mjs`            | `PostToolUse` (`Write`\|`Edit`\|`MultiEdit`) — after a file is written | [Gate 1 — Edit](../docs/standards/guardrails/gate-1-edit.md): best-effort formatting (never fails the edit), then a secret scan on tracked files only                                             |
-| `gate-4-task-completion.mjs` | `Stop` — when work is handed back                                      | [Gate 4 — Task completion](../docs/standards/guardrails/gate-4-task-completion.md): change size, file length, complexity, function length and parameter count, measured against the branch's base |
+| File                         | Fires on                                                               | Implements                                                                                                                                                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gate-0-session-start.mjs`   | `SessionStart` — when a session (or task) begins                       | [Gate 0 — Baseline](../docs/standards/guardrails/gate-0-baseline.md): the quick baseline (behind base, clean tree, `node_modules` present), surfaced non-blocking. Never auto-rebase; the build and full suite are deferred to `npm run gate:0` |
+| `gate-1-edit.mjs`            | `PostToolUse` (`Write`\|`Edit`\|`MultiEdit`) — after a file is written | [Gate 1 — Edit](../docs/standards/guardrails/gate-1-edit.md): best-effort formatting (never fails the edit), then a secret scan on tracked files only                                                                                           |
+| `gate-4-task-completion.mjs` | `Stop` — when work is handed back                                      | [Gate 4 — Task completion](../docs/standards/guardrails/gate-4-task-completion.md): change size, file length, complexity, function length and parameter count, measured against the branch's base                                               |
 
 ## lib
 

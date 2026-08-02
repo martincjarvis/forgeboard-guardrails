@@ -47,6 +47,28 @@ baseline is for.
 restore: both fail when the lock file and manifest disagree, which is check 3.
 Installing whatever resolves today answers a different question.
 
+## Session start: the quick baseline
+
+`npm run gate:0` runs all five checks, including a build and the full suite.
+That is right for a human starting work, and wrong for a hook that fires on
+every session: two minutes gets the hook disabled. The session-start hook
+(`hooks/gate-0-session-start.mjs`, fired by the harness on `SessionStart`) runs
+gate 0 in `--quick` mode, which keeps the millisecond checks and defers the
+rest:
+
+- **Runs synchronously** — check 1 (behind base, against the last-known
+  `origin/HEAD` and without a fetch), check 2 (clean tree), and check 3 as a
+  `node_modules`-present probe rather than `npm ci`. These are the signals that
+  actually caused failures: behind base, a dirty tree, a fresh worktree with
+  nothing installed.
+- **Reported, not run** — the build and the full suite appear as a named skip
+  pointing at `npm run gate:0`, never a silent absence.
+
+The hook is non-blocking and never rebases. A rebase under an agent holding
+uncommitted work is destructive — the same reason gate 0 reports rebase state
+rather than performing it — so a baseline finding at session start is a prompt
+naming the command, and the operator decides.
+
 ## Verification
 
 - [ ] The workspace was fetched and rebased before the build, not after.
