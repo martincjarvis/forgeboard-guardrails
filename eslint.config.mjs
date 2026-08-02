@@ -29,6 +29,12 @@
 // ("warn") severity instead.
 import js from "@eslint/js";
 import globals from "globals";
+import {
+  COMPLEXITY_ERROR,
+  FUNCTION_LENGTH_ERROR,
+  PARAM_COUNT_ERROR,
+  MAX_DEPTH,
+} from "./hooks/lib/thresholds.mjs";
 
 export default [
   js.configs.recommended,
@@ -43,18 +49,15 @@ export default [
       eqeqeq: "error",
       "no-var": "error",
       "prefer-const": "error",
-      // Code-shape thresholds from docs/standards/guardrails/thresholds.md —
-      // the error band for production code (hooks/ and scripts/ are both
-      // classed production in .gitattributes), matching the values the
-      // general-purpose backstop already enforces (lizard -C 15 -L 100 -a 7)
-      // so the specialised analyser and the backstop agree on the line. eslint
-      // measures these accurately where lizard's function-span detection
-      // misattributes; `max-depth` has no gap-fill row in thresholds.md, so it
-      // takes the analyser's own default (4) per the doc's "analysers win" rule.
-      complexity: ["error", 15],
-      "max-lines-per-function": ["error", 100],
-      "max-params": ["error", 7],
-      "max-depth": ["error", 4],
+      // Code-shape thresholds, imported rather than repeated: hooks/lib/
+      // thresholds.mjs is where they live, and the gates read the same module.
+      // Both are error-band values — hooks/ and scripts/ are classed production
+      // in .gitattributes — and each is the last acceptable value, so a
+      // function of exactly COMPLEXITY_ERROR passes.
+      complexity: ["error", COMPLEXITY_ERROR],
+      "max-lines-per-function": ["error", FUNCTION_LENGTH_ERROR],
+      "max-params": ["error", PARAM_COUNT_ERROR],
+      "max-depth": ["error", MAX_DEPTH],
     },
   },
 ];

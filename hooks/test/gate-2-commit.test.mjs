@@ -161,6 +161,14 @@ test("gate 2 wires a lint check independently of the build: a lint-only violatio
     join(dir, "eslint.config.mjs"),
     readFileSync(join(ROOT, "eslint.config.mjs"), "utf8"),
   );
+  // The config imports the shared thresholds, so a copy of it needs that
+  // module too — the same dependency a consuming repository inherits when it
+  // takes the config.
+  mkdirSync(join(dir, "hooks", "lib"), { recursive: true });
+  writeFileSync(
+    join(dir, "hooks", "lib", "thresholds.mjs"),
+    readFileSync(join(ROOT, "hooks", "lib", "thresholds.mjs"), "utf8"),
+  );
   git(dir, ["add", "-A"]);
   git(dir, ["commit", "-qm", "chore: scratch lint fixture"]);
 

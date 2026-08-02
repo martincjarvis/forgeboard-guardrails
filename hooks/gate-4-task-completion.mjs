@@ -10,6 +10,17 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { git, resolveBase } from "./lib/run.mjs";
 import { describeUnpushed, readUnpushed } from "./lib/unpushed.mjs";
+import {
+  CHANGE_WARN,
+  CHANGE_ERROR,
+  FILE_LENGTH_ERROR,
+  COMPLEXITY_WARN,
+  COMPLEXITY_ERROR,
+  FUNCTION_LENGTH_WARN,
+  FUNCTION_LENGTH_ERROR,
+  PARAM_COUNT_WARN,
+  PARAM_COUNT_ERROR,
+} from "./lib/thresholds.mjs";
 import { pathToFileURL } from "node:url";
 
 // Re-exported so the test suite imports `describeUnpushed` from this hook
@@ -17,22 +28,7 @@ import { pathToFileURL } from "node:url";
 // of this hook did not.
 export { describeUnpushed };
 
-const CHANGE_WARN = 400;
-const CHANGE_ERROR = 800;
-const FILE_LENGTH_ERROR = 400;
 const OVERRIDE = "[large-pr]";
-
-// Complexity, function length and parameter count (thresholds.md — gap-fill
-// defaults; JavaScript/TypeScript has no stack opinion beyond ESLint's own
-// core rules, so these values ARE the stack's own analyser configuration,
-// not a substitute for one, per thresholds.md: "take the analyser's
-// recommended rule set... only where the stack has no native opinion").
-const COMPLEXITY_WARN = 10;
-const COMPLEXITY_ERROR = 15;
-const FUNCTION_LENGTH_WARN = 60;
-const FUNCTION_LENGTH_ERROR = 100;
-const PARAM_COUNT_WARN = 5;
-const PARAM_COUNT_ERROR = 7;
 
 // File class — derived from .gitattributes through the guardrail-class attribute
 // (file-classes.md, ADR-0003), not from a path regex. An unclassified file is
@@ -290,6 +286,17 @@ async function measureComplexity(names, findings, warnings) {
   const ESLint = await loadESLint();
   if (!ESLint) return;
 
+  // Self-contained by design: `overrideConfigFile: true` means this runs
+  // without the repository's own eslint config, because it has to work in a
+  // repository that does not have one yet — the bootstrap case, and every
+  // scratch repository the tests build. What it must NOT do is carry its own
+  // copy of the numbers; those come from ./lib/thresholds.mjs, the same module
+  // eslint.config.mjs imports, so tuning one cannot silently diverge from the
+  // other.
+  //
+  // The rules run at their WARN values so every function past the warn band is
+  // reported at all; bandVerdict re-derives warn versus block from the measured
+  // number, because eslint's own severity is not this table's band.
   const eslint = new ESLint({
     cwd: process.cwd(),
     overrideConfigFile: true,
