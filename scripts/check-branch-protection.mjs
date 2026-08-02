@@ -296,6 +296,11 @@ function ghAuthenticated(runFn) {
   return runFn("gh", ["api", "user"], { stdio: "ignore" }).status === 0;
 }
 
+// Hoisted for the same reason as check-suppressions.mjs's DELIMITER_RUN: a
+// regex literal inline in a function body defeats lizard's JS span detection,
+// which then reports the enclosing function running to the end of the file.
+const ORIGIN_PREFIX = /^origin\//;
+
 /** An unset local `origin/HEAD` symref (a shallow clone, a fresh
  *  checkout that never ran `git remote set-head origin -a`) is a fixable
  *  local-metadata gap, not a genuine unknown — verified on a
@@ -315,7 +320,7 @@ function ghAuthenticated(runFn) {
  *  @returns {{ ok: true, name: string } | { ok: false, reason: string }} */
 function resolveBranch(resolveBaseFn, runFn) {
   const base = resolveBaseFn();
-  if (base) return { ok: true, name: base.replace(/^origin\//, "") };
+  if (base) return { ok: true, name: base.replace(ORIGIN_PREFIX, "") };
 
   const defaultBranch = runFn("gh", [
     "api",

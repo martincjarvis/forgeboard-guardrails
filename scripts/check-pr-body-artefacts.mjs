@@ -156,13 +156,18 @@ const SECTION_HEADING_RE =
   /^#{1,6}\s.*\b(outstanding|reserved|remain(?:ing|s)?|finding)/i;
 const ANY_HEADING_RE = /^#{1,6}\s/;
 const BOLD_LABEL_RE = /^\*\*[^*]+\*\*\s*$/;
+// Hoisted for the same reason as check-suppressions.mjs's DELIMITER_RUN: a
+// regex literal inline in a function body defeats lizard's JS span detection,
+// which then reports the enclosing function running to the end of the file.
+const LINE_BREAK = /\r?\n/;
+const BULLET_LINE = /^[-*]\s+(.*)$/;
 
 /** Bullet lines inside a disclosed-findings section of `body`. Returns
  *  [{ line, text }], 1-indexed.
  *  @param {string} body
  *  @returns {{ line: number, text: string }[]} */
 export function disclosedFindingLines(body) {
-  const lines = body.split(/\r?\n/);
+  const lines = body.split(LINE_BREAK);
   const findings = [];
   let inSection = false;
   for (let i = 0; i < lines.length; i++) {
@@ -177,7 +182,7 @@ export function disclosedFindingLines(body) {
       continue;
     }
     if (!inSection) continue;
-    const m = /^[-*]\s+(.*)$/.exec(line);
+    const m = BULLET_LINE.exec(line);
     const text = m?.[1];
     if (text !== undefined) findings.push({ line: i + 1, text });
   }
