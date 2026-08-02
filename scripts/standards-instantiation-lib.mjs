@@ -1,34 +1,15 @@
 // cspell:ignore pyproject pytest golangci clippy nunit mstest msbuild pylint virtualenv gofmt phpunit rubocop lede
-// The pure check functions behind `check-standards-instantiation.mjs`, which
-// re-exports everything here and keeps only the CLI glue.
+// Pure check functions behind `check-standards-instantiation.mjs`, which keeps
+// the CLI glue and re-exports everything here. See
+// docs-style.md#standards-in-a-consuming-repository for the checkpoints these
+// implement — only the mechanical two are coded here; the rest ask whether
+// prose is honest, which no script scores.
 //
-// Reference implementation for two of the seven "instantiated docs are tuned to
-// the repository" checkpoints
-// (docs-style.md#standards-in-a-consuming-repository): a stack name outside the
-// derived list, and multi-component content in a single-component repository.
-// Only these two are coded because only these two are mechanical; the other
-// five ask whether prose is honest, which no script scores.
-//
-// checkCspellResidue extends the first checkpoint past `docs/standards/**` — a
-// repository's configuration can carry a stack it does not have, the same as
-// its documents can. Deliberately conservative: an unused word alone is not a
-// finding, only one that also names a stack outside the derived list. A checker
-// that flags every unused word gets turned off.
-//
-// findRemovalsOutsideEnforcementMap checks only *where* a removal was recorded,
-// never whether its reason is honest. docs-style.md requires a PROVENANCE note
-// or an enforcement-map section; a session report is not where anyone looks a
-// year later.
-//
-// **Run this against a CONSUMING repository, never against this one.** This
-// repository is the canonical corpus, not an instantiated copy, and
-// legitimately documents every stack it supports.
-//
-// **Porting the file is not enough — wire it in, at two gates.** Gate 7 alone
-// only ever reports: one bootstrapped repository ran it there and carried 60
-// findings across 13 documents without blocking a merge. It also belongs at
-// gate 6, blocking, change-triggered on the range touching `docs/standards/`.
-// See docs-style.md#enforcement and change-triggered-checks.md.
+// **Run this against a CONSUMING repository, never against this one** — this
+// repository is the canonical corpus. **Porting the file is not enough — wire
+// it in at two gates:** gate 7 (reporting) and gate 6, blocking,
+// change-triggered on a range touching `docs/standards/`. See
+// docs-style.md#enforcement and change-triggered-checks.md.
 import { readFileSync } from "node:fs";
 import {
   trackedFiles,
@@ -168,11 +149,10 @@ export function findCspellResidue(words, corpusText, presentStacks) {
  *  This toolkit is exempt via `isToolkit()`: its own list legitimately names
  *  every stack it documents.
  *
- *  **The corpus excludes `tooling`-classed files, and must.** Once this
- *  module and its test live in the repository they inspect, their own
- *  fixtures contain the dead-stack words — which would vote those words
- *  "used elsewhere" and silence the check in the one repository it exists to
- *  protect.
+ *  **The corpus excludes `tooling`-classed files, and must:** once this module
+ *  and its test live in the repository they inspect, their own fixtures would
+ *  vote the dead-stack words "used elsewhere" and silence the check in the one
+ *  repository it exists to protect.
  *  @param {{ cspellPath?: string, files?: string[], readFile?: (file: string) => string, classify?: (file: string) => string, isToolkit?: () => boolean }} [opts] */
 export function checkCspellResidue({
   cspellPath = "cspell.json",
@@ -211,10 +191,9 @@ export function checkCspellResidue({
   }));
 }
 
-// A ported TEST can carry residue too, and nothing above reads test files.
-// A toolkit self-check that survives porting — one reading this repository's
-// own commit SHA, or asserting its own ADR — fails on a consumer's first CI
-// run, because a consumer's history cannot contain another repository's
+// A ported TEST can carry residue too — a toolkit self-check reading this
+// repository's own commit SHA, or asserting its own ADR, fails on a consumer's
+// first CI run, because a consumer's history cannot contain another repo's
 // commits.
 
 /** A full 40-character hex commit SHA in `text`. Returns [{ line, sha }],
@@ -235,11 +214,10 @@ export function findHardcodedCommitSha(text) {
   return findings;
 }
 
-/** Scoped to files classed `test` (file-classes.md), not every
- *  tracked file — the same file-class scoping `checkCspellResidue` uses. A
- *  tree-wide search would flag a workflow pinning a GitHub Action to its
- *  SHA, which is the opposite defect: a security practice. This toolkit is
- *  exempt outright, the same `isToolkit` reasoning as above.
+/** Scoped to files classed `test` (file-classes.md), not every tracked file:
+ *  a tree-wide search would flag a workflow pinning a GitHub Action to its SHA
+ *  — the opposite defect, a security practice. This toolkit is exempt, the
+ *  same `isToolkit` reasoning as above.
  *  @param {{ files?: string[], readFile?: (file: string) => string, classify?: (file: string) => string, isToolkit?: () => boolean }} [opts] */
 export function checkHardcodedCommitSha({
   files = trackedFiles(),
@@ -326,12 +304,10 @@ function ledeAfter(lines, titleIndex) {
     : null;
 }
 
-/** True for a frontmatter block line, the `# ` title line, or the lede — the
- *  first paragraph right after the H1. Three structural self-description
- *  spots, never the body generally (docs-style.md: "a crude proxy, and
- *  deliberately so"). deployment-strategy.md's
- *  frontmatter was tuned but its lede still read "multi-component"; the
- *  frontmatter/title scan alone could not see it.
+/** True for a frontmatter block line, the `# ` title line, or the lede (the
+ *  first paragraph after the H1) — three structural self-description spots,
+ *  never the body generally (docs-style.md: "a crude proxy, and deliberately
+ *  so").
  *  @param {string} text */
 function frontmatterOrTitleLines(text) {
   const lines = text.split("\n");
