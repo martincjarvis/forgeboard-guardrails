@@ -1033,9 +1033,21 @@ fail=N`) standing in for gate 6's own FAIL and SKIP lines, is the
       and where each came from.
 - [ ] The cheapest check that would catch a given defect is the one that catches
       it — no defect waits for a slower gate that an earlier one could have found.
-- [ ] Indentation, character set and line endings are declared once in
-      `.editorconfig`, and no tool's own configuration contradicts it.
-- [ ] A bespoke check has a recorded reason no existing tool covered it.
+- [ ] No tool's configuration restates a value another shared config already
+      declares: where a shared config exists, tools derive from it rather than
+      each carrying their own copy. `.editorconfig` is the worked example — the
+      cross-tool source for indentation, line endings and whitespace, which
+      prettier, eslint and any editor read rather than restate. The failure is
+      silent: two records of one value drift, and nothing fails when
+      `.editorconfig` says two spaces and a formatter's config says four —
+      files just reformat on alternate commits depending which tool ran last.
+- [ ] Every bespoke check, hook or hand-written rule list answers, in the
+      artefact itself: which existing tool or maintained preset was considered,
+      and why does it not cover this? A blanket "no existing tool covered it"
+      is not an answer — a specific tool or preset must be named. This is the
+      question that catches a bespoke rule list written in place of a preset
+      the stack already ships (a hand-written eslint config that measures no
+      complexity, where `@eslint/js` recommended was there to adopt).
 - [ ] Every blocking check carries a negative fixture, and the fixture is run —
       at gate 7 and in CI, not per commit — and reports `refuses`,
       `does not refuse` or `no fixture`, never a silent pass for the checks
