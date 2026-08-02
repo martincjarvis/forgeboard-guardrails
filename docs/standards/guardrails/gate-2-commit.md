@@ -1,6 +1,6 @@
 ---
 type: reference
-summary: The densest gate — sixteen checks over staged content, in a fixed order, from staged-content isolation through to the changed-component build and tests.
+summary: The densest gate — eighteen checks over staged content, in a fixed order, from staged-content isolation through to the changed-component build and tests.
 read_when: Configuring commit-time checks, or working out why a commit was refused.
 ---
 
@@ -116,6 +116,7 @@ Run over staged files, formatter first so later checks read the final bytes.
 | 8   | Cross-language static analysis | Security      | Source files        | A security or correctness rule matches                                              |
 | 9   | Machine-identifying content    | Security      | All files           | An absolute local path, a user name or host layout detail appears in a tracked file |
 | 10  | File size                      | Size          | All files           | A file exceeds the byte-size limit                                                  |
+| 18  | File length                    | Size          | Production, test    | A production or test file exceeds the line limit                                    |
 
 Check 9 guards the same content the [diagnostic-log rules](diagnostic-logs.md)
 keep out of version control, in the place it is more often leaked: a path pasted
@@ -142,6 +143,19 @@ versioned, the clone stays small, and the history stays rewritable by anyone who
 needs to. Where the remote offers no such support, the choice narrows to
 committing it deliberately or keeping it out, and the register row records which
 was chosen.
+
+**Check 18 reads the staged blob's line count** for production and test files,
+refusing a file over the limit at the commit that causes it. A file's length is
+a property of the file, true at every moment rather than only across a branch —
+which is why this check sits here and not at [gate 4](gate-4-task-completion.md):
+caught at the commit that causes it the fix is extracting one function; caught
+500 lines later it is a redesign
+([ADR-0019](../../ADR/0019-file-length-at-commit.md)). Generated files are
+exempt (`guardrail-generated`), for the same reason check 10's byte limit
+exempts what no author can meaningfully edit. **There is no warn band.** A
+warning is a hint for an agent to act on _before_ it commits; anything that
+survives to a gate is an error, so a test file blocks like any other rather than
+warning past the band and carrying on.
 
 ## 2.3 Repository rules
 
@@ -274,6 +288,7 @@ command below takes that list.
 | 15  | Suppression register             | `git grep -nE 'eslint-disable\|nosemgrep\|ts-expect-error'`, compared against the register                                                                                                                           |
 | 16  | Dependency licence register      | `npm ls --all --json` · `dotnet list package --include-transitive`, compared against the register                                                                                                                    |
 | 17  | Third-party attribution register | `node scripts/check-third-party-attribution.mjs`, compared against the register (runs when the register is staged)                                                                                                   |
+| 18  | File length                      | `git show :<path> \| wc -l` — staged line count, production and test only; `> 400` blocks (no warn band)                                                                                                             |
 
 Prefer Node tooling where the stack has no native equivalent — the formatter,
 the prose lint, the spell check and the secret scan are stack-independent, and
@@ -311,6 +326,9 @@ formatter for C#, the compiler's own analysers over an external pass.
 - [ ] An absolute local path or a user name in a tracked file is refused, and a
       placeholder passes.
 - [ ] A file over the byte-size limit is refused before it enters the history.
+- [ ] A production or test file over the line limit is refused at the commit
+      that causes it; a generated file is exempt, and a file at exactly the
+      limit passes (a threshold is the last acceptable value).
 - [ ] A documentation file breaking a structural prose rule is refused.
 - [ ] A commit touching one markdown file lints that one file alone — the prose
       check is scoped to the staged subset, and an unrelated malformed draft

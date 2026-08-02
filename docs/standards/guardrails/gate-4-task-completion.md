@@ -1,10 +1,10 @@
 ---
 type: reference
-summary: The branch-scoped size gate — change size, file length, complexity and agent-document length, with push back rather than a warning for production files.
-read_when: Finishing a unit of work, or deciding whether a size finding should stop the work or merely print.
+summary: The branch-scoped size gate — change size only, the one measure no single commit shows.
+read_when: Finishing a unit of work, or deciding whether a change-size finding should stop the work.
 ---
 
-<!-- cspell:ignore cyclomatic shortstat symref -->
+<!-- cspell:ignore shortstat symref -->
 
 # Gate 4 — Task completion
 
@@ -17,17 +17,33 @@ Measures the **whole branch against its base**, so it catches accumulation that
 no single commit shows. Collects every finding before reporting — no stop at the
 first failure, because the author wants the full list once.
 
-| #   | Check               | Type | Measures                                                   | Applies to                                     | Warn band                   | Error band | Override        |
-| --- | ------------------- | ---- | ---------------------------------------------------------- | ---------------------------------------------- | --------------------------- | ---------- | --------------- |
-| 1   | Change size         | Size | Added + deleted lines across the branch                    | Production, configuration and tooling together | Push back                   | Block      | Recorded marker |
-| 2   | File length         | Size | Lines per file                                             | Production, test                               | Push back (production only) | Block      | None            |
-| 3   | Context-file length | Size | Lines per agent-facing document                            | Agent context                                  | Warn                        | Block      | None            |
-| 4   | Complexity          | Size | Cyclomatic complexity, function length and parameter count | Production, test                               | Push back (production only) | Block      | None            |
+| #   | Check       | Type | Measures                                | Applies to                                     | Warn band | Error band | Override        |
+| --- | ----------- | ---- | --------------------------------------- | ---------------------------------------------- | --------- | ---------- | --------------- |
+| 1   | Change size | Size | Added + deleted lines across the branch | Production, configuration and tooling together | Push back | Block      | Recorded marker |
 
-Every row has both bands, with the verdicts the Size type fixes. Only change
-size takes an override, and the marker reaches nothing else — a branch may
-legitimately be large; a single function may not legitimately be
-incomprehensible.
+Change size is the one measure that needs this gate's branch scope: added plus
+deleted across the whole branch is a number no single commit shows. Per-file and
+per-function measures do not need it, and they are not here:
+
+- **File length** is enforced at [gate 2, check 18](gate-2-commit.md), over the
+  staged blob — a file is over its limit at every moment, not only across a
+  branch, so the commit that causes it is where it is refused
+  ([ADR-0019](../../ADR/0019-file-length-at-commit.md)).
+- **Complexity, function length, parameter count and nesting depth** are
+  enforced by [gate 2's check 11](gate-2-commit.md), which runs the repository's
+  eslint config over staged files. That config carries `complexity`,
+  `max-lines-per-function`, `max-params` and `max-depth` at their error values
+  ([thresholds](thresholds.md#the-stacks-analysers-win)). A second pass here
+  measured the same thing with the same tool a second time.
+- **Agent-context length** — lines per agent-facing document — is implemented in
+  [gate 6](gate-6-pull-request.md) (`scripts/gate-6-pull-request.mjs`), where
+  its finding reads `gate 4 — agent-context length`. That label is a misnomer
+  this record corrects: the check runs at gate 6, against `HEAD:<file>`, not at
+  gate 4. Moving the code is a separate question.
+
+A second copy of any of these at gate 4 could never fire, because gate 2 already
+refused the commit — a check that reads green while unable to fail, which is the
+defect class this repository exists to catch.
 
 **The base is derived (`resolveBase()`), or given.** Invoked with no
 argument — the Stop hook, on every hand-off — it derives the base from
@@ -42,7 +58,7 @@ skipped](cross-gate-rules.md#a-check-that-skips-on-every-surface-it-runs-on-has-
 
 **One more fact, not a refusal: how many commits on the branch are not on the
 remote.** The hook reports it for the reviewer the work is handed back to — the
-same shape as the size and length facts — and stops there. It does not push:
+same shape as the size fact — and stops there. It does not push:
 pushing would act on the agent's own claim of completion (the claim this
 workflow does not trust — the agent commits, a reviewer verifies by
 measurement, then pushes), it is outward-facing and irreversible, and gate 4
@@ -67,38 +83,21 @@ a commit message note, a comment, a chat transcript — cannot be found by the
 reviewer or the pipeline, which leaves the push back indistinguishable from a
 warning that was ignored.
 
-It applies to the classes each check already counts, and only those:
-
-| Check                   | Pushes back for                                    | Warns for           |
-| ----------------------- | -------------------------------------------------- | ------------------- |
-| Change size             | Production, configuration **and** tooling together | —                   |
-| File length, complexity | Production files                                   | Test files          |
-| Context-file length     | —                                                  | Agent-context files |
-
-Change size never separates its three counted classes, because it is one number
-about one branch: a change of four hundred configuration lines and one of four
-hundred production lines both warrant the same question, and a mixed total is
-not made safe by its composition. The per-file measures do separate, because a
-long test file is repetitive by nature and a long agent document may be complete
-rather than bloated — pushing back on those trains the author to dismiss the
-check.
-
-Production code is where the per-file measures bite hardest: it is the code that
-is read most, changed most, and reviewed under the most pressure.
-
-Test and documentation lines are excluded from change size entirely, for the
-same reason in a stronger form: a threshold that punishes tests teaches the
-worker to write fewer of them.
+Change size counts production, configuration **and** tooling together as one
+number, because it is one number about one branch: a change of four hundred
+configuration lines and one of four hundred production lines both warrant the
+same question, and a mixed total is not made safe by its composition. Test and
+documentation lines are excluded entirely, for a stronger reason: a threshold
+that punishes tests teaches the worker to write fewer of them.
 
 **Push back in an unattended run.** [Gate 6](gate-6-pull-request.md) has nobody
 to ask. A finding that pushes back locally becomes, server-side, a check for the
 recorded answer: for change size, a human-approved row in [the change-size
 override register](registers.md#the-change-size-override-register), matched by
 branch — the bare `[large-pr]` string is not enough on its own
-([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix));
-a resolved decision record or a register row for anything else. No answer on
-record is a failure there, which is what stops push back from degrading into a
-warning the moment the author is not watching.
+([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)).
+No answer on record is a failure there, which is what stops push back from
+degrading into a warning the moment the author is not watching.
 
 **An agent never applies the override marker on its own authority.** It
 reports the counted size and what makes up the bulk — this check's own output
@@ -107,55 +106,17 @@ instruction of, the human who also fills in the register row's Approved by
 cell. Locally, the bare marker still clears this check for an author present
 to have typed it; the register requirement above is the unattended half.
 
-## Agent-facing documents
-
-Documents an agent loads as context are governed by the Agent Skills format, not
-by this standard's own invention. The relevant rules, and what the gate checks:
-
-| Rule                                                                                     | Checked as                               |
-| ---------------------------------------------------------------------------------------- | ---------------------------------------- |
-| Required frontmatter: a name and a description                                           | Present and non-empty                    |
-| Name: 1–64 characters, lowercase alphanumeric and single hyphens, matching its directory | Pattern and length                       |
-| Description: 1–1024 characters, stating both what it does and when to use it             | Length; the "when" is a review judgement |
-| Body under 500 lines and roughly 5,000 tokens                                            | The error threshold above                |
-| Detail moved to referenced files, one level deep, never nested chains                    | Reference depth                          |
-
-**Each reference document should have a skill definition beside it.** The
-reference states what is true; the skill states what an agent should do about
-it, in full, without the agent having to infer procedure from prose written for
-someone else. Where only one exists, the usual defect is a reference document
-carrying agent instructions as an aside — which is the right place for a pointer
-and the wrong place for a procedure.
-
-Two rules the gate cannot check, which the reviewer must:
-
-- **A reference must say when to load it.** "Read the error reference if the API
-  returns a non-200 status" is progressive disclosure; "see the references
-  folder for details" is a table of contents the agent has no trigger for.
-- **Splitting is not the same as shortening.** The limit exists because
-  everything in the loaded file competes for the agent's attention. Content that
-  the agent would get right without being told should be cut, not relocated.
-
 ## Running it by hand
 
-| Check                 | Command                                                                                                                                                                                       |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Change size           | `git diff --shortstat origin/main...HEAD -- <production, config and tooling paths>`                                                                                                           |
-| Per-file line counts  | `git ls-files -- <paths> \| xargs wc -l \| sort -n`                                                                                                                                           |
-| Complexity            | The stack's own analyser — `npx eslint --rule '{"complexity":["error",15]}' <paths>`                                                                                                          |
-| Agent-document length | `wc -l <agent context paths>`                                                                                                                                                                 |
-| Agent frontmatter     | `npx skills-ref validate ./<skill directory>`                                                                                                                                                 |
-| Override marker       | `git log origin/main..HEAD --format=%B \| grep '\[large-pr\]'` (clears this check locally; gate 6 additionally requires a human-approved row — `node scripts/check-change-size-override.mjs`) |
+| Check           | Command                                                                                                                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change size     | `git diff --shortstat origin/main...HEAD -- <production, config and tooling paths>`                                                                                                           |
+| Override marker | `git log origin/main..HEAD --format=%B \| grep '\[large-pr\]'` (clears this check locally; gate 6 additionally requires a human-approved row — `node scripts/check-change-size-override.mjs`) |
 
-This gate runs the stack's own analyser, which is fast and already installed.
-`lizard` — which covers the languages a single linter does not, and reports
-complexity, function length and parameter count in one pass — is the
-general-purpose backstop, and runs at [gate 7](gate-7-on-demand.md) with the
-other heavyweight checks rather than on every hand-off
+`lizard` — the general-purpose complexity backstop — runs at
+[gate 7](gate-7-on-demand.md) with the other heavyweight checks rather than on
+every hand-off
 ([cost tiers](cross-gate-rules.md#checks-are-tiered-by-cost-and-the-tier-decides-the-gate)).
-The backstop is not skipped because a specialised analyser covers the stack: it
-should find nothing there, and finding nothing is the point. Which values apply
-is a separate question, answered by [Thresholds](thresholds.md).
 
 ## Verification
 
@@ -169,36 +130,25 @@ is a separate question, answered by [Thresholds](thresholds.md).
 - [ ] A branch whose size comes entirely from `tooling` files still pushes
       back in the warn band — change size does not exempt any counted class
       from the question.
-- [ ] A production file in the warn band produces a push back, not a printed line
-      the worker walks past.
 - [ ] The push back names both options — split, or justify — and the answer is a
       resolved decision record, not a note or a transcript.
-- [ ] The same measurement on a test or documentation file warns without pushing back.
-- [ ] A function in the complexity warn band pushes back; one above the error
-      band blocks, and no marker overrides it.
-- [ ] An agent-facing document over the warn limit warns; over the error limit it blocks.
-- [ ] Every agent-facing document has a valid name and description in its frontmatter.
-- [ ] An over-length agent document is split with a stated load trigger per
-      reference, not merely moved.
 - [ ] A push back left unanswered fails the pull request pipeline rather than
       passing silently.
 - [ ] Tests and documentation do not count toward change size.
 - [ ] All findings are reported in one pass, not one per run.
-- [ ] Deleted files do not produce a length or complexity finding.
 
 ## References
 
 - [Thresholds](thresholds.md) — the bands, and when the stack's analyser overrides them.
+- [Gate 2 — Commit](gate-2-commit.md) — where file length and complexity are
+  refused, at the commit that causes them.
 - [Agent integration](agent-integration.md) — firing this gate in every harness.
 - [File classes](file-classes.md) — which class a file is in, and therefore its verdict.
 - [Gate 6 — Pull request pipeline](gate-6-pull-request.md) — where an unanswered
-  push back is caught.
+  push back is caught, and where the agent-context length check actually runs.
 - [Registers](registers.md#the-change-size-override-register) — the
   change-size override register the merge gate checks.
 - [Cross-gate rules](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix) —
   why the marker alone is not enough server-side.
-- Agent Skills specification (<https://agentskills.io/specification>) — the
-  frontmatter fields and the progressive-disclosure recommendation.
-- Agent Skills authoring guidance
-  (<https://agentskills.io/skill-creation/best-practices>) — the source of the
-  cut-before-relocate rule.
+- [ADR-0019](../../ADR/0019-file-length-at-commit.md) — why file length moved to
+  gate 2, and why a gate-4 copy was rejected.

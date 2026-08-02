@@ -55,21 +55,14 @@ no linter at all.
 | Change size, warn                    | 400 lines                                                                                                                                                                                                                                                                                                   | Added + deleted, production, configuration and tooling only                                                                                                         |
 | Change size, error                   | 800 lines                                                                                                                                                                                                                                                                                                   | As above                                                                                                                                                            |
 | Change size override marker          | `[large-pr]` in a branch commit message locally; server-side also requires a human-approved row in [the change-size override register](registers.md#the-change-size-override-register), matched by branch ([an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix)) | Change size only, not the length or complexity limits                                                                                                               |
-| File length, warn                    | 300 lines — gap-fill                                                                                                                                                                                                                                                                                        | Production and test files                                                                                                                                           |
-| File length, error                   | 400 lines — gap-fill                                                                                                                                                                                                                                                                                        | Production and test files                                                                                                                                           |
-| File length, tooling warn            | 600 lines — gap-fill                                                                                                                                                                                                                                                                                        | Tooling files ([ADR-0008](../../ADR/0008-tooling-complexity-band.md))                                                                                               |
+| File length, error                   | 400 lines — gap-fill                                                                                                                                                                                                                                                                                        | Production and test files; gate 2, check 18                                                                                                                         |
 | File length, tooling error           | 800 lines — gap-fill                                                                                                                                                                                                                                                                                        | Tooling files ([ADR-0008](../../ADR/0008-tooling-complexity-band.md))                                                                                               |
-| Agent-facing document, warn          | 200 lines                                                                                                                                                                                                                                                                                                   | Files an agent loads as context                                                                                                                                     |
+| Agent-facing document, warn          | 200 lines                                                                                                                                                                                                                                                                                                   | Files an agent loads as context; checked at [gate 6](gate-6-pull-request.md)                                                                                        |
 | Agent-facing document, error         | 500 lines                                                                                                                                                                                                                                                                                                   | As above; matches the Agent Skills recommendation                                                                                                                   |
-| Cyclomatic complexity, warn          | 10 per function — gap-fill                                                                                                                                                                                                                                                                                  | Production and test code                                                                                                                                            |
 | Cyclomatic complexity, error         | 15 per function — gap-fill                                                                                                                                                                                                                                                                                  | Production and test code                                                                                                                                            |
-| Cyclomatic complexity, tooling warn  | 20 per function — gap-fill                                                                                                                                                                                                                                                                                  | Tooling code ([ADR-0008](../../ADR/0008-tooling-complexity-band.md))                                                                                                |
 | Cyclomatic complexity, tooling error | 25 per function — gap-fill                                                                                                                                                                                                                                                                                  | Tooling code ([ADR-0008](../../ADR/0008-tooling-complexity-band.md))                                                                                                |
-| Function length, warn                | 60 lines — gap-fill                                                                                                                                                                                                                                                                                         | Production and test code                                                                                                                                            |
 | Function length, error               | 100 lines — gap-fill                                                                                                                                                                                                                                                                                        | Production and test code                                                                                                                                            |
-| Function length, tooling warn        | 150 lines — gap-fill                                                                                                                                                                                                                                                                                        | Tooling code ([ADR-0008](../../ADR/0008-tooling-complexity-band.md))                                                                                                |
 | Function length, tooling error       | 200 lines — gap-fill                                                                                                                                                                                                                                                                                        | Tooling code ([ADR-0008](../../ADR/0008-tooling-complexity-band.md))                                                                                                |
-| Parameter count, warn                | 5 per function — gap-fill                                                                                                                                                                                                                                                                                   | Production and test code                                                                                                                                            |
 | Parameter count, error               | 7 per function — gap-fill                                                                                                                                                                                                                                                                                   | Production and test code                                                                                                                                            |
 | Dependency advisory, block           | High and above for runtime; critical for development-only                                                                                                                                                                                                                                                   | Resolved dependencies                                                                                                                                               |
 | Dependency advisory, push back       | Medium for runtime; high for development-only                                                                                                                                                                                                                                                               | Resolved dependencies                                                                                                                                               |
@@ -84,6 +77,15 @@ no linter at all.
 | Diagnostic log retention             | 24 hours                                                                                                                                                                                                                                                                                                    | Local gate logs                                                                                                                                                     |
 | Coverage floor, repository           | None — the repository declares it                                                                                                                                                                                                                                                                           | The coverage command owns the comparison                                                                                                                            |
 | Coverage floor, changed lines        | 80%                                                                                                                                                                                                                                                                                                         | Lines added or modified by the change                                                                                                                               |
+
+**A threshold is the last acceptable value.** A complexity of 15 passes and 16
+blocks; a file of 400 lines passes and 401 blocks. That is the reading eslint's
+own rule options take (`complexity: ["error", 15]` needs no off-by-one), and it
+is the only reading now that the warn band is gone — `hooks/lib/thresholds.mjs`
+is the single declaration both the eslint config and the gates import. A measure
+with both a warn and an error row above (change size, agent-facing document)
+pushes back at the lower value and blocks at the higher one; every other row is
+a single error value, and anything past it is a finding.
 
 ## Rules
 
@@ -109,31 +111,28 @@ no linter at all.
 - **Tooling has its own complexity and length band, decided on its own terms
   rather than inherited or left absent** ([ADR-0008](../../ADR/0008-tooling-complexity-band.md),
   `Accepted`). File length, cyclomatic complexity and function length each
-  gain a tooling-scoped pair, wider than production's — a gate script has a
+  gain a tooling-scoped error value, wider than production's — a gate script has a
   different shape than product code, often more branching by necessity (a
   check that classifies several finding kinds) and often more acceptable at
   greater length (a single file implementing one gate's full logic) — but a
-  band, not an absence: the code deciding what merges is not exempt from
+  ceiling, not an absence: the code deciding what merges is not exempt from
   being examined, only held to a wider ceiling than the code it gates.
   **Parameter count is not widened.** A function that takes many parameters
   is exactly as hard to call correctly whether the file is tooling or
   product code, and nothing about being a gate script relaxes that — tooling
   keeps that one measure's existing "production and test code" scope, which
-  is to say no mechanical parameter-count check applies to it at all, the
-  same as today.
+  is to say no mechanical parameter-count check applies to it at all.
   **What the tooling numbers were derived from:** the same way production's
   own gap-fill numbers were — a round, conventional figure with a stated
   multiple of production's, not read off a specific analyser's shipped
   defaults (no established analyser publishes a distinct band for
   "infrastructure or gate script," so this is gap-fill same as production's
   own numbers, only for a class with no analyser opinion of its own to
-  observe in the first place). File length doubles production's pair
-  (300/400 → 600/800). Cyclomatic complexity keeps production's own 5-point
-  warn-to-error gap, shifted up by ten (10/15 → 20/25). Function length
-  doubles production's error threshold with a proportionally wider warn gap
-  (60/100 → 150/200, a 50-line gap against production's 40). These are
-  indicative starting points, not load-bearing precision — a repository is
-  free to set its own, the same as every other gap-fill value in this table.
+  observe in the first place). File length doubles production's value
+  (400 → 800). Cyclomatic complexity is set ten higher (15 → 25). Function
+  length doubles production's value (100 → 200). These are indicative
+  starting points, not load-bearing precision — a repository is free to set
+  its own, the same as every other gap-fill value in this table.
 
 ## Verification
 
@@ -159,8 +158,8 @@ no linter at all.
       a production or test file is never measured against the tooling
       numbers by mistake.
 - [ ] This table and [file classes](file-classes.md) state the tooling band
-      identically — the same six numbers, not restated differently in each
-      place.
+      identically — the same three error values, not restated differently in
+      each place.
 
 ## References
 
@@ -170,3 +169,5 @@ no linter at all.
 - [ADR-0008](../../ADR/0008-tooling-complexity-band.md) — tooling's own
   complexity and length band, and why the current exemption was not
   affirmed instead.
+- [ADR-0019](../../ADR/0019-file-length-at-commit.md) — file length enforced at
+  gate 2, and the warn band removed.

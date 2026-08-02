@@ -130,3 +130,8 @@ account in its own repository.
   did not name; a blanket no-new-dependency line was rejected, and the
   misattributed ADR-0011 citation in `eslint.config.mjs` is corrected.
   Supersedes 0002.
+- [0019](0019-file-length-at-commit.md) — `Proposed`. File length is enforced
+  at gate 2 over staged content; gate 4 keeps change size, the one measure
+  that needs branch scope. Checking at both gates was rejected because gate 4's
+  copy could never fire once gate 2 refuses the commit. The code-shape warn
+  band is removed: anything surviving to a gate is an error.
