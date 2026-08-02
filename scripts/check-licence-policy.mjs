@@ -117,6 +117,30 @@ function cellsOf(row) {
     .map((c) => c.trim());
 }
 
+/** One row parsed from a register line, or `null` when the line is a
+ *  separator, header, placeholder or otherwise not a data row. The per-line
+ *  half of `parseRegisterRows`, split out so the loop reads as iteration and
+ *  the row shape reads as parsing.
+ *  @param {string} line
+ *  @returns {{ dep: string, version: string, licence: string, scope: string, decisionRecord: string, approver: string } | null} */
+function rowFromLine(line) {
+  if (!line.startsWith("|") || line.includes("---")) return null;
+  const cells = cellsOf(line);
+  if (cells.length < 5) return null;
+  const [dep, version = "", licence, , scope] = cells;
+  if (!dep || (/dependency/i.test(dep) && /version/i.test(version)))
+    return null;
+  if (dep.startsWith("_") || dep.startsWith("No rows")) return null;
+  return {
+    dep,
+    version,
+    licence: (licence ?? "").trim(),
+    scope: (scope ?? "").trim(),
+    decisionRecord: (cells[7] ?? "").trim(),
+    approver: (cells[10] ?? "").trim(),
+  };
+}
+
 /** Rows as { dep, version, licence, scope, decisionRecord, approver }, from
  *  the same register check-licence.mjs parses — column order per
  *  registers.md: Dependency, Version, Licence, Direct or transitive, Scope,
@@ -125,20 +149,8 @@ function cellsOf(row) {
 function parseRegisterRows(md) {
   const rows = [];
   for (const line of md.split("\n")) {
-    if (!line.startsWith("|") || line.includes("---")) continue;
-    const cells = cellsOf(line);
-    if (cells.length < 5) continue;
-    const [dep, version = "", licence, , scope] = cells;
-    if (!dep || (/dependency/i.test(dep) && /version/i.test(version))) continue;
-    if (dep.startsWith("_") || dep.startsWith("No rows")) continue;
-    rows.push({
-      dep,
-      version,
-      licence: (licence ?? "").trim(),
-      scope: (scope ?? "").trim(),
-      decisionRecord: (cells[7] ?? "").trim(),
-      approver: (cells[10] ?? "").trim(),
-    });
+    const row = rowFromLine(line);
+    if (row) rows.push(row);
   }
   return rows;
 }

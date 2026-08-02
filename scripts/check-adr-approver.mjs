@@ -95,16 +95,16 @@ export function citedAdrNumbers(registerText) {
   const numbers = new Set();
   if (!registerText) return numbers;
   let decisionCol = -1;
-  for (const line of registerText.split(/\r?\n/)) {
+  for (const line of registerText.split(LINE_BREAK)) {
     if (!line.startsWith("|")) continue;
     const cells = cellsOf(line);
     if (decisionCol === -1) {
-      const idx = cells.findIndex((c) => /^decision record$/i.test(c));
+      const idx = cells.findIndex((c) => DECISION_RECORD_HEADING.test(c));
       if (idx !== -1) decisionCol = idx;
       continue; // the header row itself never carries a citation
     }
-    if (cells.every((c) => /^:?-+:?$/.test(c))) continue; // separator row
-    for (const m of (cells[decisionCol] ?? "").matchAll(/ADR-0*(\d+)/gi)) {
+    if (cells.every((c) => SEPARATOR_CELL.test(c))) continue; // separator row
+    for (const m of (cells[decisionCol] ?? "").matchAll(ADR_CITATION)) {
       const num = m[1];
       if (num) numbers.add(num.padStart(4, "0"));
     }
@@ -149,14 +149,24 @@ export function adrNumbersCitedByRegisters(registersDir = REGISTERS_DIR) {
 // the field lookup this replaced searched the whole file, so a document
 // whose body happened to contain a line starting "status:" outside the
 // frontmatter would have matched that instead.
+// Hoisted for the same reason as check-suppressions.mjs's DELIMITER_RUN: a
+// regex literal inline in a function body defeats lizard's JS span detection,
+// which then reports the enclosing function running to the end of the file.
+const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---/;
+const LINE_BREAK = /\r?\n/;
+const FIELD_LINE = /^([A-Za-z][\w-]*):\s*(.*)$/;
+const DECISION_RECORD_HEADING = /^decision record$/i;
+const SEPARATOR_CELL = /^:?-+:?$/;
+const ADR_CITATION = /ADR-0*(\d+)/gi;
+
 /** @param {string} text @returns {Record<string, string>} */
 function parseFrontmatter(text) {
   /** @type {Record<string, string>} */
   const fields = {};
-  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  const fm = FRONTMATTER_BLOCK.exec(text);
   const block = fm?.[1] ?? "";
-  for (const line of block.split(/\r?\n/)) {
-    const m = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
+  for (const line of block.split(LINE_BREAK)) {
+    const m = FIELD_LINE.exec(line);
     const key = m?.[1];
     const val = m?.[2];
     if (key !== undefined && val !== undefined)
@@ -185,16 +195,42 @@ export function looksLikeTeamLabel(name) {
   );
 }
 
+/** One ADR's finding, or `null` when it is not reserved-class or already
+ *  carries a human approver. The per-file half of `checkAdrApprover`, split
+ *  out so the loop reads as iteration and the verdict reads as judgement.
+ *  Reserved-class is derived two ways, citation first: an ADR any register
+ *  row cites in its Decision record column is reserved-class regardless of
+ *  its wording; an ADR no row cites yet falls back to the vocabulary check,
+ *  for the case a risk is accepted in an ADR before any row exists to point
+ *  at it.
+ *  @param {string} path @param {string} text @param {string} filename @param {Set<string>} citedNumbers
+ *  @returns {{ check: string, path: string, problem: string, remedy: string } | null} */
+function adrApproverFinding(path, text, filename, citedNumbers) {
+  const status = frontmatterField(text, "status");
+  if (!/^Accepted$/i.test(status)) return null; // Proposed stays freely editable — ADR/README.md
+  const number = /^(\d+)-/.exec(filename)?.[1]?.padStart(4, "0");
+  const citedByRegister = number !== undefined && citedNumbers.has(number);
+  if (!citedByRegister && !acceptsRiskLicenceSuppressionOrOptOut(text))
+    return null;
+  const approver = frontmatterField(text, "approver");
+  if (!approver || looksLikeTeamLabel(approver)) {
+    return {
+      check: "ADR approver",
+      path,
+      problem: approver
+        ? `${path} is Accepted and reads as accepting a risk, licence, suppression or opt-out, but its approver ('${approver}') reads as a team label, not a person`
+        : `${path} is Accepted and reads as accepting a risk, licence, suppression or opt-out, but has no approver field`,
+      remedy:
+        "add `approver: <a human's name>` to the frontmatter, naming the person who accepted this on the record — the same requirement a register row's Approver column already carries; an agent may not fill this in itself",
+    };
+  }
+  return null;
+}
+
 /** Every finding: an Accepted ADR that accepts a risk, licence, suppression
  *  or opt-out, with no non-empty, non-team-label `approver` in its own
  *  frontmatter. `adrDir` and `registersDir` are injectable for testing, the
- *  same shape acceptedAdvisoryIds already takes.
- *
- *  Reserved-class is derived two ways, citation first: an ADR any register
- *  row cites in its Decision record column is reserved-class regardless of
- *  its wording; an ADR no row cites yet falls back to the
- *  vocabulary check, for the case a risk is accepted in an ADR before any
- *  row exists to point at it. */
+ *  same shape acceptedAdvisoryIds already takes. */
 export function checkAdrApprover(
   adrDir = "docs/ADR",
   registersDir = REGISTERS_DIR,
@@ -218,25 +254,8 @@ export function checkAdrApprover(
     } catch {
       continue;
     }
-    const status = frontmatterField(text, "status");
-    if (!/^Accepted$/i.test(status)) continue; // Proposed stays freely editable — ADR/README.md
-    const number = /^(\d+)-/.exec(f)?.[1]?.padStart(4, "0");
-    const citedByRegister = Boolean(number) && citedNumbers.has(number);
-    if (!citedByRegister && !acceptsRiskLicenceSuppressionOrOptOut(text))
-      continue;
-
-    const approver = frontmatterField(text, "approver");
-    if (!approver || looksLikeTeamLabel(approver)) {
-      findings.push({
-        check: "ADR approver",
-        path,
-        problem: approver
-          ? `${path} is Accepted and reads as accepting a risk, licence, suppression or opt-out, but its approver ('${approver}') reads as a team label, not a person`
-          : `${path} is Accepted and reads as accepting a risk, licence, suppression or opt-out, but has no approver field`,
-        remedy:
-          "add `approver: <a human's name>` to the frontmatter, naming the person who accepted this on the record — the same requirement a register row's Approver column already carries; an agent may not fill this in itself",
-      });
-    }
+    const finding = adrApproverFinding(path, text, f, citedNumbers);
+    if (finding) findings.push(finding);
   }
   return findings;
 }

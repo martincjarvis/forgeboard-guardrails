@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// cspell:ignore PYTHONUTF nloc symref bypassable
+// cspell:ignore nloc symref bypassable unpushed
 // Gate 6 — Pull request pipeline, local-check surface. Re-runs the gates 2-5
 // checks against the pull request's range, on a clean checkout that has no
 // staged index — see docs/standards/guardrails/gate-6-pull-request.md, "check
@@ -24,42 +24,53 @@
 // see .github/workflows/pull-request.yml for how it is wired to a pull
 // request event, and skills/repository-bootstrap/SKILL.md for where an
 // implementer is pointed at it.
-import { existsSync, statSync, appendFileSync } from "node:fs";
+//
+// The per-concern legs run from their own modules — dependency-tree checks
+// (gate-6-dependency-checks.mjs), per-file content checks
+// (gate-6-content-checks.mjs), the SARIF scanners (gate-6-scans.mjs), the
+// build/test/coverage leg (gate-6-test-coverage.mjs) and the reporting leg
+// (gate-6-report.mjs) — each a subject seam split out to keep this entry
+// point under the file-length band (ADR-0009). This file owns the base/range
+// resolution, the inline whole-repository checks that have no separate
+// concern of their own, and the gate-4 task-completion measures; it imports
+// and re-exports each leg so any importer of this script is unaffected.
+import { existsSync } from "node:fs";
 import {
   git,
   run,
   have,
   isText,
-  classOf,
   changedFiles,
   resolveBase,
   deriveComponent,
-  classifyTestCoverageOutcome,
-  extractCoverageAndTestSummary,
-  classifyDiffCoverOutcome,
-  diffCoverTotalLines,
-  classifyOsvScannerOutcome,
-  extractOsvSarifFindings,
-  report,
+  classOf,
 } from "./lib.mjs";
 import { checkLinks } from "./check-links.mjs";
 import {
   checkSuppressions,
   unapprovedSuppressionFindings,
 } from "./check-suppressions.mjs";
-import { checkMachineId } from "./check-machine-id.mjs";
-import { checkLicenceCompleteness } from "./check-licence.mjs";
-import { checkLicencePolicy } from "./check-licence-policy.mjs";
-import { checkDependencyAdvisories } from "./check-dependency-advisories.mjs";
-import {
-  checkMinimumReleaseAge,
-  checkMinimumReleaseAgeStaleness,
-} from "./check-minimum-release-age.mjs";
 import { checkCommitRange } from "./check-scope.mjs";
 import { checkAdrApprover } from "./check-adr-approver.mjs";
 import { checkApprovalProvenanceRange } from "./check-approval-provenance.mjs";
 import { checkChangeSizeOverride } from "./check-change-size-override.mjs";
-import { normalizeSarifPaths, filterSuppressedSarif } from "./lib.mjs";
+import { runDependencyChecks } from "./gate-6-dependency-checks.mjs";
+import { runContentChecks } from "./gate-6-content-checks.mjs";
+import { runScans } from "./gate-6-scans.mjs";
+import { runBuildTestCoverage } from "./gate-6-test-coverage.mjs";
+import { writeGate6Report } from "./gate-6-report.mjs";
+
+// Re-exported so any importer of this script keeps resolving the helpers that
+// moved into the per-concern modules above unchanged — the public surface of
+// this entry point did not change, only where each concern lives (mirrors the
+// licence-table.mjs / hooks/lib/unpushed.mjs splits).
+export {
+  runDependencyChecks,
+  runContentChecks,
+  runScans,
+  runBuildTestCoverage,
+  writeGate6Report,
+};
 
 /** @type {{check: string, path?: string, problem?: string, remedy?: string}[]} */
 const findings = [];
@@ -69,18 +80,6 @@ const fail = (check, path, problem, remedy) =>
   findings.push({ check, path, problem, remedy });
 /** @param {string} s */
 const skip = (s) => skips.push(s);
-
-// Populated once the test/coverage command below has run, pass or fail —
-// gate-6-pull-request.md "coverage legible without a download": the reader
-// has to see the number on this run's own page, not only on a passing one.
-/** @type {{tests: number|null, pass: number|null, fail: number|null, linesCoveragePercent: number|null} | null} */
-let coverageTestSummary = null;
-
-// Same reason as coverageTestSummary above, for check 8's own number —
-// diff-cover's percentage of the lines this range actually touched, distinct
-// from the flat floor coverageTestSummary carries.
-/** @type {number | null} */
-let changedLineCoveragePercent = null;
 
 // --- Resolve the base and the range ---------------------------------------
 // `GITHUB_BASE_REF` is the pull request's base branch name in a `pull_request`
@@ -114,262 +113,31 @@ const changed = changedFiles(range);
 const changedText = changed.filter(isText);
 process.stderr.write(`gate 6: ${changed.length} file(s) changed in range\n`);
 
-// --- Check 3 (gate 2) — dependency lock sync -------------------------------
-// pre-commit.mjs reads `git show HEAD:package.json` against the staged blob
-// (`:package.json`); a checkout has no staged blob, so the second read moves
-// to the base ref instead — same comparison, same two ends, different source
-// for the "before" side.
-const DEP_FIELDS = [
-  "dependencies",
-  "devDependencies",
-  "peerDependencies",
-  "optionalDependencies",
-  "bundleDependencies",
-  "overrides",
-  "resolutions",
-];
-/** @param {string} ref */
-function depsAt(ref) {
-  const r = git(["show", ref]);
-  if (r.status !== 0) return "";
-  try {
-    const p = JSON.parse(r.stdout);
-    return JSON.stringify(
-      Object.fromEntries(DEP_FIELDS.filter((f) => p[f]).map((f) => [f, p[f]])),
-    );
-  } catch {
-    return "";
-  }
-}
+// --- Dependency-tree checks (gate 6 checks 3, 16, 7, 6, 11, and release-age
+// register staleness). depsAt reads the base ref's manifest rather than a
+// staged blob; see gate-6-dependency-checks.mjs for the checkout adaptation
+// and the change-triggered shape these checks share.
 {
-  const manifestChanged = changed.includes("package.json");
-  const lockChanged = changed.includes("package-lock.json");
-  const depsChanged =
-    depsAt(`${base}:package.json`) !== depsAt("HEAD:package.json");
-  if (depsChanged && !lockChanged) {
-    fail(
-      "dependency lock sync",
-      "package.json",
-      "a dependency in package.json changed but package-lock.json did not move in this range",
-      "commit the regenerated lock file alongside the manifest change",
-    );
-  }
-  if (lockChanged && !manifestChanged) {
-    fail(
-      "dependency lock sync",
-      "package-lock.json",
-      "package-lock.json moved with no manifest change in this range",
-      "state the upgrade in a commit message or a decision record, or include the manifest change",
-    );
-  }
-
-  // Check 16 (gate 2) — dependency licence register completeness. Reuses
-  // check-licence.mjs unmodified; only the "is the lock file in scope"
-  // decision differs from pre-commit.mjs (staged vs. range).
-  const lic = checkLicenceCompleteness(lockChanged);
-  findings.push(...lic.findings);
-  skips.push(...lic.skips);
-
-  // Check 7 (gate 6) — dependency licence policy. Reads the same register as
-  // completeness above, judged against the allow list rather than for a
-  // missing row (registers.md: "completeness and policy are different
-  // checks"); change-triggered the same way.
-  const policy = checkLicencePolicy(lockChanged);
-  findings.push(...policy.findings);
-  skips.push(...policy.skips);
-
-  // Check 6 (gate 6) — dependency advisory scan. Change-triggered like the
-  // licence register above, plus scheduled: GITHUB_EVENT_NAME is "schedule"
-  // when the sibling cron trigger (dependency-advisory-schedule.yml) invokes
-  // this same script, so the advisory database is checked even on a day
-  // nobody touched a dependency (change-triggered-checks.md).
-  const scheduled = process.env.GITHUB_EVENT_NAME === "schedule";
-  const advisories = checkDependencyAdvisories(lockChanged || scheduled);
-  findings.push(...advisories.findings);
-  skips.push(...advisories.skips);
-
-  // Check 11 (gate 6) — minimum release age. Change-triggered like the two
-  // dependency checks above, plus scheduled: a dependency old enough to pass
-  // when adopted stays old enough, so only a new dependency (or a new advisory
-  // scan) raises the question. The window is derived from npm's own
-  // `min-release-age` config (.npmrc); see check-minimum-release-age.mjs for
-  // the tooling ladder and why the resolver flag alone is not the gate.
-  const releaseAge = checkMinimumReleaseAge(lockChanged || scheduled);
-  findings.push(...releaseAge.findings);
-  skips.push(...releaseAge.skips);
+  const r = runDependencyChecks({ base, changed });
+  findings.push(...r.findings);
+  skips.push(...r.skips);
 }
 
-// Check 11 (gate 6) — minimum release age register staleness. Register hygiene
-// rather than a dependency question: runs whenever the register exists, the
-// same way the change-size-override and unapproved-suppression checks below do,
-// because a row that has aged past the window is stale regardless of whether a
-// dependency moved in this range.
+// --- Per-file content checks (gate 2 checks 10, 9, 6): file size,
+// machine-identifying content, and the secret scan over the changed text.
 {
-  const staleness = checkMinimumReleaseAgeStaleness();
-  findings.push(...staleness.findings);
-  skips.push(...staleness.skips);
+  const r = runContentChecks({ changed, changedText });
+  findings.push(...r.findings);
+  skips.push(...r.skips);
 }
 
-// --- Check 10 (gate 2) — file size -----------------------------------------
-// A checkout has no staged/working-tree split to protect (gate-6: "the
-// checkout already IS the branch"), so the file on disk is read directly
-// rather than through `git cat-file -s :<path>`.
-const SIZE_WARN = 1_000_000;
-const SIZE_ERROR = 5_000_000;
-for (const f of changed) {
-  if (!existsSync(f)) continue; // deleted in this range
-  const bytes = statSync(f).size;
-  if (bytes >= SIZE_ERROR) {
-    fail(
-      "file size (error)",
-      f,
-      `${f} is ${bytes} bytes (>= ${SIZE_ERROR} error limit)`,
-      "store large objects via large-file storage, or remove the file",
-    );
-  } else if (bytes >= SIZE_WARN) {
-    fail(
-      "file size (warn)",
-      f,
-      `${f} is ${bytes} bytes (>= ${SIZE_WARN} warn limit)`,
-      "store large objects via large-file storage, or record why here",
-    );
-  }
-}
-
-// --- Check 9 (gate 2) — machine-identifying content ------------------------
-for (const f of checkMachineId(changedText)) findings.push(f);
-
-// --- Check 6 (gate 2) — secret scan -----------------------------------------
-if (changedText.length) {
-  if (have("npx", ["--no-install", "secretlint", "--version"])) {
-    const scan = run("npx", ["--no-install", "secretlint", ...changedText]);
-    if (scan.status !== 0) {
-      // Path is empty, not the joined file list: secretlint's own text names
-      // the file and line per finding, and a comma-joined path breaks the
-      // annotation below rather than pointing at anything real (gate 7's
-      // repository-wide scan uses the same empty-path shape for the same
-      // reason).
-      fail(
-        "secret scan",
-        "",
-        (scan.stdout || "") + (scan.stderr || ""),
-        "remove the credential, or revoke and rotate if already pushed",
-      );
-    }
-  } else {
-    skip("secret scan — secretlint not installed, changed files not scanned");
-  }
-}
-
-// --- Check 8 (gate 2) — cross-language static analysis (semgrep) -----------
-// Deferred locally because `--config auto` is network-bound (cross-gate
-// rules: cost tiers); a CI runner has network, so it runs for real here
-// rather than the visible skip pre-commit.mjs prints. `--error` is required —
-// without it semgrep exits 0 regardless of findings, which would make this a
-// check that always passes. Scoped to the files this range changed, the same
-// "adapt the staged scope to the range" rule as every other file-scoped
-// check; the repository-wide sweep is gate 7's job, not this one's.
-// PYTHONUTF8 avoids a Windows-only crash: semgrep's SARIF writer defaults to
-// the console code page (cp1252), which cannot encode some rule messages
-// (emoji in a rule's own text) and throws instead of writing the file. No
-// `--quiet`: the per-finding detail goes to the SARIF file the workflow
-// uploads, but the human summary ("Findings: N (N blocking)") is what this
-// check's own `problem` text has to show — quiet suppresses that too, and
-// the finding would otherwise carry no readable content of its own.
-if (changedText.length) {
-  if (have("semgrep", ["--version"])) {
-    const sarif = "semgrep-results.sarif";
-    const sg = run(
-      "semgrep",
-      [
-        "--config",
-        "auto",
-        "--error",
-        "--sarif",
-        "--output",
-        sarif,
-        ...changedText,
-      ],
-      { env: { ...process.env, PYTHONUTF8: "1" } },
-    );
-    const sgOut = (sg.stdout || "") + (sg.stderr || "");
-    process.stderr.write(sgOut);
-    normalizeSarifPaths(sarif);
-    // Drop results suppressed in source before upload; see
-    // filterSuppressedSarif (lib.mjs) for why the register, not the SARIF
-    // file, is the audit trail for an accepted finding.
-    filterSuppressedSarif(sarif);
-    if (sg.status !== 0) {
-      // Path is empty for the same reason as the secret scan above: the
-      // per-finding location lives in the SARIF file, not in a joined list
-      // of every file that was scanned. The annotation and step summary get
-      // semgrep's one-line "Findings: N (N blocking)" rather than its full
-      // scan banner — the banner already went to stderr above for anyone
-      // reading the raw log, and the SARIF upload carries the per-line detail
-      // natively; repeating the whole banner in a native annotation is noise.
-      // semgrep writes the summary to stderr, not stdout — search both.
-      const summary =
-        /Findings:.*$/m.exec(sgOut)?.[0] ??
-        "semgrep exited non-zero; see the uploaded SARIF report";
-      fail(
-        "cross-language analysis (semgrep)",
-        "",
-        summary,
-        "triage each finding; suppress per-rule per-path with a register row if accepted",
-      );
-    }
-  } else {
-    skip(
-      "cross-language analysis (semgrep) — not on PATH; the workflow's install step should have put it there",
-    );
-  }
-}
-
-// --- Check 10 (gate 6) — cross-stack dependency scan (osv-scanner) -
-// Whole-repository, not range-scoped: it reads the resolved dependency tree,
-// not the files this range touched (the same reason checks 6/7 above read
-// the whole tree rather than the diff). Re-run here server-side, with a
-// SARIF upload, the way cross-gate-rules.md requires of anything blocking
-// that also runs at a local gate (gate 5 — scripts/gate-5-push.mjs).
-if (have("osv-scanner", ["--version"])) {
-  const sarif = "osv-results.sarif";
-  const osv = run("osv-scanner", [
-    "--format",
-    "sarif",
-    "--output",
-    sarif,
-    "-r",
-    ".",
-  ]);
-  const osvOut = (osv.stdout || "") + (osv.stderr || "");
-  process.stderr.write(osvOut);
-  normalizeSarifPaths(sarif);
-  filterSuppressedSarif(sarif); // same in-source-suppression rule as semgrep's SARIF above
-  // The exit code alone cannot distinguish "vulnerabilities found"
-  // from "the scan itself did not complete" (a live CI run failed
-  // this exact check with osv-scanner's own startup banner as the problem
-  // text and no vulnerability id in it, while the standalone osv-scanner
-  // check on the same commit passed clean). Read the SARIF file just written
-  // — already the structured, suppression-filtered output — rather than the
-  // exit code plus a raw text dump.
-  const outcome = classifyOsvScannerOutcome(
-    osv.status,
-    extractOsvSarifFindings(sarif),
-  );
-  if (outcome.kind === "vulnerabilities") {
-    fail(
-      "cross-stack dependency scan (osv-scanner)",
-      "",
-      outcome.findings.join(", "),
-      "upgrade the flagged dependency, or record why the advisory does not apply",
-    );
-  } else if (outcome.kind === "unavailable") {
-    skip(`cross-stack dependency scan (osv-scanner) — ${outcome.detail}`);
-  }
-} else {
-  skip(
-    "cross-stack dependency scan (osv-scanner) — not on PATH; the workflow's install step should have put it there",
-  );
+// --- Cross-language and cross-stack SARIF scanners (semgrep, osv-scanner).
+// Network-bound at the local gates; re-run here server-side with a SARIF
+// upload — see gate-6-scans.mjs.
+{
+  const r = runScans({ changedText });
+  findings.push(...r.findings);
+  skips.push(...r.skips);
 }
 
 // --- Check 17 (gate 2) — link and anchor integrity --------------------------
@@ -446,146 +214,12 @@ for (const f of checkApprovalProvenanceRange(logRange)) findings.push(f);
 // gates skip untouched components for speed; this gate does not, so the
 // optimisation never becomes an unverified claim." One command also produces
 // the two evidence artefacts gate 6 names: JUnit (row 10) and Cobertura
-// coverage with its floor enforced (row 11, and gate 5 check 1).
-{
-  const build = run("npm", ["run", "build"]);
-  if (build.status !== 0) {
-    fail(
-      "build (tsc)",
-      undefined,
-      (build.stdout || "") + (build.stderr || ""),
-      "fix the type/analysis error above; a warning is a failure",
-    );
-  }
-  // Check 11 (gate 2) — per-path lint. Whole-repository, not range-scoped,
-  // for the same reason build and test just above are: this gate does not
-  // take the local gates' skip-untouched-component shortcut.
-  const lint = run("npm", ["run", "lint"]);
-  if (lint.status !== 0) {
-    fail(
-      "lint (eslint)",
-      undefined,
-      (lint.stdout || "") + (lint.stderr || ""),
-      "fix the lint violation; a warning is a failure",
-    );
-  }
-  const test = run("npx", [
-    "c8",
-    "--check-coverage",
-    "--lines=80",
-    "--reporter=text",
-    "--reporter=cobertura",
-    "node",
-    "--test",
-    "--test-reporter=spec",
-    "--test-reporter-destination=stdout",
-    "--test-reporter=junit",
-    "--test-reporter-destination=test-results.xml",
-    "hooks/test/hooks.test.mjs",
-  ]);
-  const testOut = (test.stdout || "") + (test.stderr || "");
-  process.stderr.write(testOut);
-  // Read regardless of pass/fail — a reader on a failing run needs the same
-  // figures a passing one shows, not a placeholder that only appears when
-  // everything already went right.
-  coverageTestSummary = extractCoverageAndTestSummary(testOut);
-  if (test.status !== 0) {
-    // Name which of the two this actually was, rather than a
-    // compound "either...or" finding that cannot name its own cause
-    // (gate-5-push.md: "A broken coverage command blocks the push without
-    // claiming a shortfall").
-    const outcome = classifyTestCoverageOutcome(testOut);
-    if (outcome.kind === "test-failure") {
-      fail(
-        "unit tests",
-        undefined,
-        outcome.detail,
-        "fix the failing test(s); the output above names each one",
-      );
-    } else if (outcome.kind === "coverage-shortfall") {
-      fail(
-        "coverage",
-        undefined,
-        outcome.detail,
-        "add tests for the uncovered lines the report above names",
-      );
-    } else {
-      fail(
-        "unit tests / coverage",
-        undefined,
-        outcome.detail,
-        "read the output above for why the command itself could not run",
-      );
-    }
-  }
-  // Gate 5 check 2 — integration tests. None configured for any component
-  // yet (gate-5-push.mjs states the same visible skip locally).
-  skip(
-    "integration tests — none configured for any component yet; gate 5 has nothing to run",
-  );
-}
-
-// --- Check 8 (gate 6) — changed-line coverage (gate-6-pull-request.md
-// "coverage and untrusted runs") ---------------------------------------------
-// A different number from the flat floor above, computed a different way: a
-// repository comfortably over its overall floor can add an entirely
-// uncovered function and stay there, so this reads the Cobertura report the
-// block above just wrote **and** the diff against the range's base, and
-// fails independently of the overall figure. `diff-cover` is the
-// Node-ecosystem tool the standard names — a new dependency, and ADR-0002's
-// own line ("analysis tools are dev dependencies of whoever runs them")
-// permits that; it is pinned in package.json like every other analysis tool
-// here, not fetched from the network at run time.
-const COBERTURA_REPORT = "coverage/cobertura-coverage.xml";
-if (!existsSync(COBERTURA_REPORT)) {
-  // The build/lint/test block above already reported why — a broken command
-  // never reached either reporter — so this is a skip, not a second finding
-  // for the same root cause.
-  skip(
-    "changed-line coverage — no coverage report produced by the run above; see the coverage/unit-tests finding for why",
-  );
-} else if (have("npx", ["--no-install", "diff-cover", "--version"])) {
-  const dc = run("npx", [
-    "--no-install",
-    "diff-cover",
-    COBERTURA_REPORT,
-    "--compare-branch",
-    base,
-    "--fail-under",
-    "80",
-  ]);
-  const dcOut = (dc.stdout || "") + (dc.stderr || "");
-  process.stderr.write(dcOut);
-  // A Cobertura report with zero instrumented statements (an
-  // earlier step's test run crashed before writing real coverage) makes
-  // diff-cover print `Total: 0 lines` and `Coverage: 100%`, exiting 0: a
-  // percentage from an empty denominator, not a pass. Checked before the
-  // exit-code branch below, and regardless of it, so this case cannot be
-  // read as a clean 100%.
-  const dcTotal = diffCoverTotalLines(dcOut);
-  if (dcTotal === 0) {
-    changedLineCoveragePercent = null;
-    skip(
-      "changed-line coverage — the report covers zero instrumented statements (Total: 0 lines); a percentage from an empty denominator is not a pass — see the coverage/unit-tests finding above for why nothing was measured",
-    );
-  } else {
-    const dcPercent = /^Coverage: ([\d.]+)%/m.exec(dcOut);
-    changedLineCoveragePercent = dcPercent ? Number(dcPercent[1]) : null;
-    if (dc.status !== 0) {
-      const outcome = classifyDiffCoverOutcome(dcOut);
-      fail(
-        "changed-line coverage",
-        undefined,
-        outcome.detail,
-        "add tests for the uncovered lines diff-cover named above",
-      );
-    }
-  }
-} else {
-  skip(
-    "changed-line coverage — diff-cover not installed; run `npm install` to pull the dev dependency",
-  );
-}
+// coverage with its floor enforced (row 11, and gate 5 check 1). The same
+// leg measures changed-line coverage (gate 6 check 8) against the Cobertura
+// report it just wrote — see gate-6-test-coverage.mjs.
+const coverage = runBuildTestCoverage({ base });
+findings.push(...coverage.findings);
+skips.push(...coverage.skips);
 
 // --- Gate 4 — task completion, over the same range --------------------------
 // Change size and file length are already implemented range-scoped — hooks/
@@ -712,86 +346,11 @@ for (const f of checkChangeSizeOverride(logRange)) findings.push(f);
 }
 
 // --- Report -----------------------------------------------------------------
-// GitHub Actions renders `::error file=,line=::message` as a native
-// annotation on the changed lines of a pull request — no extra action or
-// artefact download needed for the checks this script owns directly (the
-// SARIF upload step in the workflow covers semgrep the same native way).
-const onActions = process.env.GITHUB_ACTIONS === "true";
-/** @param {{check: string, path?: string, problem?: string, remedy?: string}} f */
-function annotate(f) {
-  if (!onActions) return;
-  const m = /^(.*):(\d+)$/.exec(f.path || "");
-  const loc = m ? `file=${m[1]},line=${m[2]}` : f.path ? `file=${f.path}` : "";
-  const msg = `${f.check}: ${((f.problem || "").toString().split("\n")[0] ?? "").slice(0, 400)}`;
-  console.log(loc ? `::error ${loc}::${msg}` : `::error::${msg}`);
-}
-
-for (const f of findings) annotate(f);
-
-// gate-6-pull-request.md "coverage legible without a download": these
-// figures have to be on this run's own page whether the run passed or
-// failed — never left to an uploaded Cobertura/JUnit file nobody opens.
-// `null` (the command crashed before either reporter printed) is shown as
-// its own line rather than silently omitted, which would read the same as
-// zero.
-function coverageTestLines() {
-  if (!coverageTestSummary) {
-    return [
-      "**Coverage and tests:** the test/coverage command did not produce a " +
-        "readable summary — see the job log for why it did not run to completion.",
-    ];
-  }
-  const {
-    tests,
-    pass,
-    fail: failCount,
-    linesCoveragePercent,
-  } = coverageTestSummary;
-  const testPart =
-    tests === null || tests === undefined
-      ? "test counts unavailable"
-      : `${pass ?? "?"}/${tests} test(s) passed${failCount ? ` (${failCount} failed)` : ""}`;
-  const coveragePart =
-    linesCoveragePercent === null || linesCoveragePercent === undefined
-      ? "line coverage unavailable"
-      : `${linesCoveragePercent}% line coverage (overall floor)`;
-  // Check 8's own figure, distinct from the overall floor above — evidence
-  // row 11's "delta against the base" (gate-6-pull-request.md "coverage
-  // legible without a download").
-  const changedLinePart =
-    changedLineCoveragePercent === null ||
-    changedLineCoveragePercent === undefined
-      ? "changed-line coverage unavailable"
-      : `${changedLineCoveragePercent}% changed-line coverage`;
-  return [
-    `**Coverage and tests:** ${testPart} · ${coveragePart} · ${changedLinePart}`,
-  ];
-}
-
-const summaryFile = process.env.GITHUB_STEP_SUMMARY;
-if (summaryFile) {
-  const lines = [
-    "## Gate 6 — pull request checks",
-    "",
-    `Range: \`${range}\` — ${changed.length} file(s) changed.`,
-    "",
-    ...coverageTestLines(),
-    "",
-    findings.length ? `**${findings.length} finding(s):**` : "**No findings.**",
-    ...findings.map(
-      (f) =>
-        `- \`${f.check}\`${f.path ? ` (${f.path})` : ""}: ${f.problem ?? ""}`,
-    ),
-    "",
-    skips.length ? `**${skips.length} skipped check(s):**` : "",
-    ...skips.map((s) => `- ${s}`),
-    "",
-  ];
-  try {
-    appendFileSync(summaryFile, lines.join("\n") + "\n");
-  } catch {
-    /* best effort — evidence still went to stderr/annotations above */
-  }
-}
-
-report("gate 6", findings, skips);
+writeGate6Report({
+  findings,
+  skips,
+  coverageTestSummary: coverage.coverageTestSummary,
+  changedLineCoveragePercent: coverage.changedLineCoveragePercent,
+  range,
+  changed,
+});

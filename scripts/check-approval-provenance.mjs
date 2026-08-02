@@ -88,6 +88,27 @@ function cellsOf(line) {
     .map((c) => c.trim());
 }
 
+/** One row parsed from a register line, or `null` when the line is a
+ *  separator, header, placeholder or otherwise not a data row. The per-line
+ *  half of `parseRegisterRows`, split out so the loop reads as iteration and
+ *  the row shape reads as parsing. `next` is the following line, used to
+ *  detect the header row by the `| --- |` separator that follows it.
+ *  @param {string} line @param {string} next
+ *  @returns {{ identity: string, approver: string } | null} */
+function rowFromLine(line, next) {
+  if (!line.startsWith("|")) return null;
+  const cells = cellsOf(line);
+  if (isSeparatorRow(cells)) return null;
+  if (next.startsWith("|") && isSeparatorRow(cellsOf(next))) return null; // header row
+  if (cells.length < 3) return null;
+  const first = cells[0];
+  if (!first || first.startsWith("_") || /^No rows/i.test(first)) return null;
+  return {
+    identity: `${cells[0]}|${cells[1] ?? ""}`.trim().toLowerCase(),
+    approver: (cells[cells.length - 1] ?? "").trim(),
+  };
+}
+
 /** Every row in a register's markdown table, as `{ identity, approver }` —
  *  `identity` is the first two cells, lower-cased (Code+Scope, or
  *  Dependency+Version; generic across every register shape, since Approver
@@ -105,18 +126,8 @@ export function parseRegisterRows(text) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line === undefined) continue;
-    if (!line.startsWith("|")) continue;
-    const cells = cellsOf(line);
-    if (isSeparatorRow(cells)) continue;
-    const next = lines[i + 1] ?? "";
-    if (next.startsWith("|") && isSeparatorRow(cellsOf(next))) continue; // header row
-    if (cells.length < 3) continue;
-    const first = cells[0];
-    if (!first || first.startsWith("_") || /^No rows/i.test(first)) continue;
-    rows.push({
-      identity: `${cells[0]}|${cells[1] ?? ""}`.trim().toLowerCase(),
-      approver: (cells[cells.length - 1] ?? "").trim(),
-    });
+    const row = rowFromLine(line, lines[i + 1] ?? "");
+    if (row) rows.push(row);
   }
   return rows;
 }
