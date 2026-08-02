@@ -49,16 +49,21 @@ export function usesOverrideMarker(logText) {
   return (logText || "").includes(OVERRIDE);
 }
 
+// A branch name written as a markdown code span. The register's own header and
+// every row write it that way, so the raw branch a gate compares against never
+// matches the identity unless the backticks come off first.
+const CODE_SPAN = /`/g;
+
 /** Every row in the change-size override register identified by `branch`
  *  (the Branch column, register's first cell) whose Approver cell names a
  *  human. `parseRegisterRows` is the generic reader every other register in
  *  this repository already shares — this module adds no parser of its own.
  *  @param {string} registerText @param {string} branch */
 export function approvedOverrideRowsForBranch(registerText, branch) {
-  const want = `${(branch || "").trim().toLowerCase()}|`;
+  const want = `${(branch || "").trim().replace(CODE_SPAN, "").toLowerCase()}|`;
   return parseRegisterRows(registerText).filter(
     (r) =>
-      r.identity.startsWith(want) &&
+      r.identity.replace(CODE_SPAN, "").startsWith(want) &&
       r.approver &&
       !looksLikeTeamLabel(r.approver),
   );

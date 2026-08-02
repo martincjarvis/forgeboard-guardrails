@@ -375,6 +375,28 @@ test("approvedOverrideRowsForBranch matches by branch, case-insensitively, ignor
   );
 });
 
+test("approvedOverrideRowsForBranch matches a Branch cell written as a code span, which is how the register writes it", () => {
+  // The fixture above writes the branch bare; the real register writes
+  // `| \`rebuild\` |`, as its own header and every worked example do. Compared
+  // raw, the backticks meant the identity never matched the branch a gate
+  // hands in, so an approved row read as absent and the override could not be
+  // claimed on any branch.
+  const registerText = [
+    "| Branch | Filed | Counted lines | Composition | Justification | Removable when | Approved by |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    "| `rebuild` | 2026-08-01 | 2464 | typing pass | repository-wide setting | merges | Martin Jarvis |",
+  ].join("\n");
+  assert.equal(
+    approvedOverrideRowsForBranch(registerText, "rebuild").length,
+    1,
+  );
+  assert.equal(
+    approvedOverrideRowsForBranch(registerText, "other").length,
+    0,
+    "a different branch must still not match",
+  );
+});
+
 test("checkChangeSizeOverride wires the log read, the register read and the branch together — injected, no real repository needed", () => {
   const registerText = [
     "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |",
