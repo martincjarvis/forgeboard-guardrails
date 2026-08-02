@@ -129,6 +129,60 @@ test("newlyApprovedRegisterRowFindings: the same row is not refused when it alre
   );
 });
 
+test("regression: a change-size override row approved at one counted size is not refused when the size is re-measured — identity is Branch + Filed, not Branch + Counted lines", () => {
+  // The live incident this repository hit: a `rebuild` row was approved at 2124
+  // counted lines, then a later commit re-measured it at 2464. While identity was
+  // Branch + Counted lines (the first two cells parseRegisterRows reads), the
+  // re-measured row landed as a brand-new identity already carrying an approver,
+  // so the approval was refused as though never given. Filed — an ISO date, never
+  // edited — is now the second column, so re-measuring Counted lines (which
+  // follows the identity) leaves the row's identity untouched. See
+  // docs/registers/change-size-override-register.md.
+  const header =
+    "| Branch | Filed | Counted lines | Composition | Justification | Removable when | Approved by |\n" +
+    "| --- | --- | --- | --- | --- | --- | --- |\n";
+  const before =
+    header +
+    "| `rebuild` | 2026-08-01 | 2124 | 1990 production, 134 configuration | repository-wide setting, cannot split per file | rebuild merges | Martin Jarvis |\n";
+  const after =
+    header +
+    "| `rebuild` | 2026-08-01 | 2464 | 2325 production, 139 configuration | repository-wide setting, cannot split per file | rebuild merges | Martin Jarvis |\n";
+  assert.deepEqual(
+    newlyApprovedRegisterRowFindings(
+      "docs/registers/change-size-override-register.md",
+      before,
+      after,
+    ),
+    [],
+  );
+});
+
+test("contrast: the same re-measurement is refused while Counted lines is the second column — the defect Filed as identity removes", () => {
+  // Proves the fix by inverting it: under the old column order, the identity was
+  // Branch + Counted lines, so every re-measurement produced a new identity, and
+  // an approval recorded against the previous figure arrived pre-approved against
+  // a figure the 'before' text never held — exactly the shape Filed replaces.
+  const oldHeader =
+    "| Branch | Counted lines | Composition | Justification | Removable when | Approved by |\n" +
+    "| --- | --- | --- | --- | --- | --- |\n";
+  const before =
+    oldHeader +
+    "| `rebuild` | 2124 | 1990 production, 134 configuration | repository-wide setting, cannot split per file | rebuild merges | Martin Jarvis |\n";
+  const after =
+    oldHeader +
+    "| `rebuild` | 2464 | 2325 production, 139 configuration | repository-wide setting, cannot split per file | rebuild merges | Martin Jarvis |\n";
+  const findings = newlyApprovedRegisterRowFindings(
+    "docs/registers/change-size-override-register.md",
+    before,
+    after,
+  );
+  assert.equal(findings.length, 1);
+  const finding = findings[0];
+  assert.ok(finding, "expected one finding");
+  assert.match(finding.problem, /no row with that identity existed/);
+  assert.match(finding.problem, /2464/);
+});
+
 test("checkApprovalProvenanceStaged: dispatches an ADR path and a register path to the right rule, ignoring everything else", () => {
   const stagedFiles = [
     "docs/ADR/0007-x.md",

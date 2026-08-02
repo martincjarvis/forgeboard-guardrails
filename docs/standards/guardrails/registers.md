@@ -254,13 +254,14 @@ name attached.
 
 A row is required before `[large-pr]` clears the merge gate; see
 [an override is not a fix](cross-gate-rules.md#an-override-answers-a-push-back-it-is-not-a-fix).
-Identified by branch, not by rule and path — a change-size override is a
+Identified by branch and filing date, not by rule and path — a change-size override is a
 decision about one branch's own size, not about a rule silenced at a location.
 
 | Column         | Holds                                                                                                                                          |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch         | The branch (or pull request) the override applies to                                                                                           |
-| Counted lines  | The measured change size the override answers, at the time filed                                                                               |
+| Filed          | The ISO date the row was filed. Never edited afterwards — with Branch it is the row's identity                                                 |
+| Counted lines  | The measured change size the override answers; updates freely with every re-measurement                                                        |
 | Composition    | What is driving the bulk — named, not merely totalled                                                                                          |
 | Justification  | Why this size is accepted rather than the change split                                                                                         |
 | Removable when | What would let the row go — normally "the change is split" or "the ported tooling is customised enough that its size no longer needs excusing" |
