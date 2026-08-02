@@ -15,6 +15,17 @@ export const REGISTER = "docs/registers/suppression-register.md";
 // invoker (pre-commit.mjs) when the function is imported rather than run as a CLI.
 const SELF_URL = import.meta.url;
 
+// A run of comma/whitespace delimiters. Hoisted to a module const rather than
+// written inline at the call site in splitRules(): measured here, lizard's JS
+// span detector reports splitRules as running to the end of the file while this
+// regex literal sits inline in its body (splitRules is 7 lines; lizard reported
+// a 276-line span), and reports it at its true span once the literal is lifted
+// out. No other construct in the function triggers this, and the failure is
+// not established upstream — lizard's known issues all undercount functions
+// rather than inflating a span — so this is resolved as ours, by how the
+// source is written, not by suppressing the finding.
+const DELIMITER_RUN = /[\s,]+/;
+
 // Each marker: a directive and a function pulling every rule it names, as an
 // array. Multiple rules on one line are legal — two analysers can
 // name the same defect differently, or one fires several rules at one site
@@ -76,7 +87,7 @@ const MARKERS = [
 function splitRules(rest) {
   if (!rest) return [];
   return rest
-    .split(/[\s,]+/)
+    .split(DELIMITER_RUN)
     .map((t) => t.trim())
     .filter((t) => /^[A-Za-z][\w./-]*$/.test(t));
 }
