@@ -119,6 +119,22 @@ export function isText(file) {
   return !BINARY.test(file);
 }
 
+// Backticks anywhere in a register cell. Every register writes its identity
+// cells as markdown code spans — a branch, a dependency, a rule name — while
+// the value a gate compares against arrives bare, off the command line or out
+// of the resolved dependency tree. Compared raw, the two never match and an
+// approved row reads as absent.
+const CODE_SPAN = /`/g;
+
+/** A register cell's text with its code-span backticks removed, for comparing
+ *  against a bare value. Shared rather than re-declared per check: the same
+ *  mismatch has now been found in two registers, and a third copy is a third
+ *  chance to forget it.
+ *  @param {string | null | undefined} cell */
+export function bareCell(cell) {
+  return (cell || "").replace(CODE_SPAN, "").trim();
+}
+
 /** Print a diagnosis (cross-gate rule: name the check, the path, the remedy).
  *  Always exits (0 when no findings, 2 otherwise) — typed `never` so callers
  *  narrow correctly after a failure report rather than reading past it.

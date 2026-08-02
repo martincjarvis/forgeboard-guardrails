@@ -35,7 +35,7 @@
 // (cross-gate-rules.md#prefer-established-tooling-to-bespoke-checks).
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { run, report, readStaged } from "./lib.mjs";
+import { bareCell, run, report, readStaged } from "./lib.mjs";
 import { parseRegisterRows } from "./check-approval-provenance.mjs";
 import { looksLikeTeamLabel } from "./check-adr-approver.mjs";
 
@@ -49,21 +49,16 @@ export function usesOverrideMarker(logText) {
   return (logText || "").includes(OVERRIDE);
 }
 
-// A branch name written as a markdown code span. The register's own header and
-// every row write it that way, so the raw branch a gate compares against never
-// matches the identity unless the backticks come off first.
-const CODE_SPAN = /`/g;
-
 /** Every row in the change-size override register identified by `branch`
  *  (the Branch column, register's first cell) whose Approver cell names a
  *  human. `parseRegisterRows` is the generic reader every other register in
  *  this repository already shares — this module adds no parser of its own.
  *  @param {string} registerText @param {string} branch */
 export function approvedOverrideRowsForBranch(registerText, branch) {
-  const want = `${(branch || "").trim().replace(CODE_SPAN, "").toLowerCase()}|`;
+  const want = `${bareCell(branch).toLowerCase()}|`;
   return parseRegisterRows(registerText).filter(
     (r) =>
-      r.identity.replace(CODE_SPAN, "").startsWith(want) &&
+      bareCell(r.identity).startsWith(want) &&
       r.approver &&
       !looksLikeTeamLabel(r.approver),
   );

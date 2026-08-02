@@ -37,7 +37,13 @@
 // version eventually passes the window on its own, and the staleness check
 // below reports rows that have aged out so they cannot accumulate into
 // permanent exemptions.
-import { readStaged, report, resolvedDependencyTree, run } from "./lib.mjs";
+import {
+  bareCell,
+  readStaged,
+  report,
+  resolvedDependencyTree,
+  run,
+} from "./lib.mjs";
 import { pathToFileURL } from "node:url";
 
 export const REGISTER = "docs/registers/minimum-release-age-register.md";
@@ -207,7 +213,7 @@ export function admittedKeys(rows) {
   return new Set(
     rows
       .filter((r) => (r.approver ?? "").trim())
-      .map((r) => `${r.dep}@${r.version}`),
+      .map((r) => `${bareCell(r.dep)}@${bareCell(r.version)}`),
   );
 }
 

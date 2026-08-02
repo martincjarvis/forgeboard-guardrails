@@ -28,9 +28,11 @@ is why it is a column rather than a value the check re-fetches every run.
 
 ## Register
 
-| Dependency | Version | Published | Justification | Removable when | Approved by |
-| ---------- | ------- | --------- | ------------- | -------------- | ----------- |
-| _none yet_ |         |           |               |                |             |
+| Dependency          | Version | Published  | Justification                                                                                                                                                                                 | Removable when                                                        | Approved by |
+| ------------------- | ------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------- |
+| `markdownlint-cli2` | 0.23.2  | 2026-07-27 | Direct dev dependency, resolved by `npm install` while the eslint uplift was in progress. Not chosen for this branch and not needed by it — the lockfile simply moved to the current release. | 2026-08-03, when it passes the 7-day window. Remove the row that day. |             |
+| `minimatch`         | 10.2.6  | 2026-07-27 | Transitive, reached through the markdown and lint tooling. No direct dependency names it, so pinning it back would mean overriding a resolution nothing in this branch asked to change.       | 2026-08-03, when it passes the 7-day window. Remove the row that day. |             |
+| `brace-expansion`   | 2.1.3   | 2026-07-28 | Transitive, reached through the same tooling as `minimatch`. Same reasoning: no direct dependency names it.                                                                                   | 2026-08-04, when it passes the 7-day window. Remove the row that day. |             |
 
 The **Removable when** column is the point of the exercise, the same as every
 other register here. For this register it is mechanical: once the version's
