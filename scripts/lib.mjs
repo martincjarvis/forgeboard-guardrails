@@ -191,6 +191,14 @@ export function readStaged(file) {
   return r.status === 0 ? r.stdout : readFileSync(file, "utf8");
 }
 
+/** A git command's combined stdout+stderr, for problem text — both streams
+ *  the user needs to see when a command fails, read once rather than each
+ *  call site reconstructing the pair.
+ *  @param {{ stdout?: string, stderr?: string }} r @returns {string} */
+function gitOutput(r) {
+  return (r.stdout || "") + (r.stderr || "");
+}
+
 /** Runs fn() with the working tree matching the staged index — the
  *  hide-and-restore isolation family (gate-2-commit.md, "Two ways to
  *  isolate"), for checks 12/13 (build, unit tests) which need the real
@@ -236,8 +244,7 @@ export function withStagedWorkingTree(fn) {
     return {
       isolationFailed: true,
       problem:
-        (created.stdout || "") +
-        (created.stderr || "") +
+        gitOutput(created) +
         (snapshot
           ? ""
           : "`git stash create` produced no snapshot to restore from"),
@@ -247,7 +254,7 @@ export function withStagedWorkingTree(fn) {
   if (stored.status !== 0) {
     return {
       isolationFailed: true,
-      problem: (stored.stdout || "") + (stored.stderr || ""),
+      problem: gitOutput(stored),
     };
   }
 
@@ -291,7 +298,7 @@ export function withStagedWorkingTree(fn) {
     if (checkout.status !== 0) {
       return {
         isolationFailed: true,
-        problem: (checkout.stdout || "") + (checkout.stderr || ""),
+        problem: gitOutput(checkout),
       };
     }
     const verify = git(["diff", "--name-only"]);

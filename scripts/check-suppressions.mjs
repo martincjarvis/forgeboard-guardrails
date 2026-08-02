@@ -81,6 +81,39 @@ function splitRules(rest) {
     .filter((t) => /^[A-Za-z][\w./-]*$/.test(t));
 }
 
+/** The header row and the "no rows" sentinel both parse to a row-shaped
+ *  object if read literally; this is the skip predicate for them.
+ *  @param {string} code @param {string} scope @returns {boolean} */
+function isHeaderOrPlaceholder(code, scope) {
+  return (
+    !code ||
+    (/code/i.test(code) && /scope/i.test(scope)) ||
+    code.startsWith("_") ||
+    code.startsWith("No rows")
+  );
+}
+
+/** One register line as a fully-parsed row, or null when it is not a data
+ *  row (blank, separator, header, or placeholder). Read in one place so the
+ *  marker lookup and the completeness check share the same parse.
+ *  @param {string} line
+ *  @returns {{ code: string, scope: string, justification: string, removalCondition: string, approver: string } | null} */
+function parseSuppressionRow(line) {
+  if (!line.startsWith("|") || line.includes("---")) return null;
+  const cells = cellsOf(line);
+  if (cells.length < 2) return null;
+  const code = (cells[0] ?? "").trim();
+  const scope = (cells[1] ?? "").trim();
+  if (isHeaderOrPlaceholder(code, scope)) return null;
+  return {
+    code,
+    scope,
+    justification: (cells[2] ?? "").trim(),
+    removalCondition: (cells[3] ?? "").trim(),
+    approver: (cells[4] ?? "").trim(),
+  };
+}
+
 /** Every register row, fully parsed. Columns: Code | Scope | Justification |
  *  Removable when | Approved by (registers.md). The marker-matching
  *  lookup below only ever needed the first two cells; register-row
@@ -96,21 +129,8 @@ export function suppressionRegisterRows() {
     return rows;
   }
   for (const line of md.split("\n")) {
-    if (!line.startsWith("|") || line.includes("---")) continue;
-    const cells = cellsOf(line);
-    if (cells.length < 2) continue;
-    const code = (cells[0] ?? "").trim();
-    const scope = (cells[1] ?? "").trim();
-    // Skip the header row and the "no rows" sentinel.
-    if (!code || (/code/i.test(code) && /scope/i.test(scope))) continue;
-    if (code.startsWith("_") || code.startsWith("No rows")) continue;
-    rows.push({
-      code,
-      scope,
-      justification: (cells[2] ?? "").trim(),
-      removalCondition: (cells[3] ?? "").trim(),
-      approver: (cells[4] ?? "").trim(),
-    });
+    const row = parseSuppressionRow(line);
+    if (row) rows.push(row);
   }
   return rows;
 }

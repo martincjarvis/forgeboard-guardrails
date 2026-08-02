@@ -63,6 +63,47 @@ function defaultGetConfig() {
   return run("npm", ["config", "get", "min-release-age"]).stdout;
 }
 
+/** One resolved dependency's release-age outcome, or null to pass over it:
+ *  skip when the version is empty or undetermined, `undetermined` when the
+ *  publish date is missing or unparseable, skip when a register row admits
+ *  it, otherwise a `finding` when it is inside the window. Split out of
+ *  classifyReleaseAge's loop so the loop stays a single classify-and-bin
+ *  rather than carrying the date/age branching inline.
+ *  @param {string} name
+ *  @param {string} version
+ *  @param {Map<string, string>} publishDates
+ *  @param {{ windowDays: number, today: Date, admitted: Set<string> }} opts */
+function classifyOneRelease(
+  name,
+  version,
+  publishDates,
+  { windowDays, today, admitted },
+) {
+  if (!version || /^undefined$/i.test(version)) return null;
+  const key = `${name}@${version}`;
+  const publishedRaw = publishDates?.get(key);
+  const published = publishedRaw ? new Date(publishedRaw) : null;
+  if (!published || Number.isNaN(published.getTime())) {
+    return { undetermined: key };
+  }
+  if (admitted.has(key)) return null;
+  const ageDays = (today.getTime() - published.getTime()) / MS_PER_DAY;
+  if (ageDays >= windowDays) return null;
+  return {
+    finding: {
+      check: "minimum release age",
+      path: name,
+      problem:
+        `${key} was published ${ageDays.toFixed(1)} days ago, inside the ` +
+        `${windowDays}-day minimum release age window — a dependency this ` +
+        `recent is the supply-chain attack window the policy exists to refuse`,
+      remedy:
+        `wait for ${key} to pass the ${windowDays}-day window, or record a ` +
+        `human-approved exception row in ${REGISTER} naming this dependency and version`,
+    },
+  };
+}
+
 /** Pure classification: given the resolved tree (a Map name -> version), a map
  *  of publish dates (key `name@version` -> ISO string), the window in days,
  *  and the set of `name@version` keys a human-approved register row admits,
@@ -87,29 +128,13 @@ export function classifyReleaseAge(
   const undetermined = [];
   if (!windowDays || windowDays <= 0) return { findings, undetermined };
   for (const [name, version] of resolved?.entries?.() ?? []) {
-    if (!version || /^undefined$/i.test(version)) continue;
-    const key = `${name}@${version}`;
-    const publishedRaw = publishDates?.get(key);
-    const published = publishedRaw ? new Date(publishedRaw) : null;
-    if (!published || Number.isNaN(published.getTime())) {
-      undetermined.push(key);
-      continue;
-    }
-    if (admitted.has(key)) continue;
-    const ageDays = (today.getTime() - published.getTime()) / MS_PER_DAY;
-    if (ageDays < windowDays) {
-      findings.push({
-        check: "minimum release age",
-        path: name,
-        problem:
-          `${key} was published ${ageDays.toFixed(1)} days ago, inside the ` +
-          `${windowDays}-day minimum release age window — a dependency this ` +
-          `recent is the supply-chain attack window the policy exists to refuse`,
-        remedy:
-          `wait for ${key} to pass the ${windowDays}-day window, or record a ` +
-          `human-approved exception row in ${REGISTER} naming this dependency and version`,
-      });
-    }
+    const result = classifyOneRelease(name, version, publishDates, {
+      windowDays,
+      today,
+      admitted,
+    });
+    if (result?.undetermined) undetermined.push(result.undetermined);
+    else if (result?.finding) findings.push(result.finding);
   }
   return { findings, undetermined };
 }
@@ -121,6 +146,19 @@ function cellsOf(row) {
     .replace(/\|$/, "")
     .split("|")
     .map((c) => c.trim());
+}
+
+/** The register's own header row, or an empty leading cell — neither is a
+ *  data row.
+ *  @param {string} dep @param {string} version @returns {boolean} */
+function isHeaderOrEmpty(dep, version) {
+  return !dep || (/dependency/i.test(dep) && /version/i.test(version));
+}
+
+/** The italicised `_none yet_` or `No rows yet` placeholder rows.
+ *  @param {string} dep @returns {boolean} */
+function isPlaceholder(dep) {
+  return dep.startsWith("_") || /^no rows/i.test(dep);
 }
 
 /** Rows as { dep, version, published, justification, removableWhen, approver },
@@ -145,8 +183,8 @@ export function parseRegisterRows(md) {
       removableWhen = "",
       approver = "",
     ] = cells;
-    if (!dep || (/dependency/i.test(dep) && /version/i.test(version))) continue;
-    if (dep.startsWith("_") || /^no rows/i.test(dep)) continue;
+    if (isHeaderOrEmpty(dep, version)) continue;
+    if (isPlaceholder(dep)) continue;
     rows.push({
       dep,
       version,

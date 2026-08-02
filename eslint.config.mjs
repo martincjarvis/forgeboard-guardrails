@@ -43,6 +43,18 @@ export default [
       eqeqeq: "error",
       "no-var": "error",
       "prefer-const": "error",
+      // Code-shape thresholds from docs/standards/guardrails/thresholds.md —
+      // the error band for production code (hooks/ and scripts/ are both
+      // classed production in .gitattributes), matching the values the
+      // general-purpose backstop already enforces (lizard -C 15 -L 100 -a 7)
+      // so the specialised analyser and the backstop agree on the line. eslint
+      // measures these accurately where lizard's function-span detection
+      // misattributes; `max-depth` has no gap-fill row in thresholds.md, so it
+      // takes the analyser's own default (4) per the doc's "analysers win" rule.
+      complexity: ["error", 15],
+      "max-lines-per-function": ["error", 100],
+      "max-params": ["error", 7],
+      "max-depth": ["error", 4],
     },
   },
 ];

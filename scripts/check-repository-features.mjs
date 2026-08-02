@@ -75,6 +75,28 @@ function classifyGated(name, value, visibility, availableMessage, skips, add) {
   }
 }
 
+/** A feature that is free on every plan and every visibility, so "disabled"
+ *  is always a genuine finding and never a plan-or-visibility skip — the
+ *  simpler counterpart to classifyGated above, for the two Dependabot
+ *  toggles.
+ *  @param {string} feature
+ *  @param {string} readKey
+ *  @param {"enabled" | "disabled" | null} state
+ *  @param {string[]} skips
+ *  @param {(check: string, problem: string) => void} add */
+function classifyUngated(feature, readKey, state, skips, add) {
+  if (state === "disabled") {
+    add(
+      feature,
+      `${feature} are off; they are free on every plan and every repository visibility`,
+    );
+  } else if (state === null || state === undefined) {
+    skips.push(`${feature} — could not read \`${readKey}\``);
+  } else {
+    skips.push(`${feature} — enabled`);
+  }
+}
+
 /** Pure verdict over already-fetched state — exported and tested directly
  *  against constructed fixtures, the same split evaluateBranchProtection
  *  uses (check-branch-protection.mjs).
@@ -111,32 +133,20 @@ export function evaluateRepositoryFeatures({
   // Free on every plan and every visibility (verified directly: PUT
   // succeeded against a private GitHub-Free repository) — "disabled" is
   // always a genuine finding here, never a plan-or-visibility skip.
-  if (dependabotAlerts === "disabled") {
-    add(
-      "Dependabot alerts",
-      "Dependabot alerts are off; they are free on every plan and every repository visibility",
-    );
-  } else if (dependabotAlerts === null || dependabotAlerts === undefined) {
-    skips.push("Dependabot alerts — could not read `vulnerability-alerts`");
-  } else {
-    skips.push("Dependabot alerts — enabled");
-  }
-
-  if (dependabotSecurityUpdates === "disabled") {
-    add(
-      "Dependabot security updates",
-      "Dependabot security updates are off; they are free on every plan and every repository visibility",
-    );
-  } else if (
-    dependabotSecurityUpdates === null ||
-    dependabotSecurityUpdates === undefined
-  ) {
-    skips.push(
-      "Dependabot security updates — could not read `automated-security-fixes`",
-    );
-  } else {
-    skips.push("Dependabot security updates — enabled");
-  }
+  classifyUngated(
+    "Dependabot alerts",
+    "vulnerability-alerts",
+    dependabotAlerts,
+    skips,
+    add,
+  );
+  classifyUngated(
+    "Dependabot security updates",
+    "automated-security-fixes",
+    dependabotSecurityUpdates,
+    skips,
+    add,
+  );
 
   classifyGated(
     "secret scanning",

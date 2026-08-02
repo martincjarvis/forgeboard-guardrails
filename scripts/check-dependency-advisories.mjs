@@ -79,6 +79,35 @@ function advisoryIdsOf(info) {
     .filter(Boolean);
 }
 
+/** One vulnerability's finding, or null when it is below policy or accepted.
+ *  Split out of classifyAdvisories's loop so the loop stays a single
+ *  classify-and-push rather than carrying the severity/scope/acceptance
+ *  branching inline.
+ *  @param {string} name
+ *  @param {{ severity: string, via: { url: string }[] }} info
+ *  @param {{ runtimeNames: Set<string>, acceptedIds: Set<string> }} opts */
+function classifyOneAdvisory(name, info, { runtimeNames, acceptedIds }) {
+  const scope = runtimeNames.has(name) ? "runtime" : "dev";
+  const severity = info.severity === "medium" ? "moderate" : info.severity;
+  const blocks = rank(severity) >= rank(BLOCK[scope]);
+  const pushesBack = !blocks && rank(severity) >= rank(PUSH_BACK[scope]);
+  if (!blocks && !pushesBack) return null;
+
+  const ids = advisoryIdsOf(info);
+  if (pushesBack && ids.some((id) => acceptedIds.has(id))) return null;
+
+  return {
+    check: "dependency advisory scan",
+    path: name,
+    problem:
+      `${name} carries a ${severity} advisory (${scope} dependency)` +
+      (ids.length ? `: ${ids.join(", ")}` : ""),
+    remedy: blocks
+      ? "upgrade or remove the dependency; block severity has no accepted-record path"
+      : "upgrade the dependency, pin the specific vulnerable transitive dependency via `overrides`/`resolutions` where that version itself clears policy, or accept it in an Accepted ADR naming the advisory id",
+  };
+}
+
 /** Pure classification: given an `npm audit --json` report and the runtime
  *  dependency names and accepted advisory ids resolved elsewhere, return the
  *  findings. Kept separate from the impure orchestration below so it can be
@@ -94,25 +123,11 @@ export function classifyAdvisories(
   for (const [name, info] of Object.entries(
     auditReport?.vulnerabilities ?? {},
   )) {
-    const scope = runtimeNames.has(name) ? "runtime" : "dev";
-    const severity = info.severity === "medium" ? "moderate" : info.severity;
-    const blocks = rank(severity) >= rank(BLOCK[scope]);
-    const pushesBack = !blocks && rank(severity) >= rank(PUSH_BACK[scope]);
-    if (!blocks && !pushesBack) continue;
-
-    const ids = advisoryIdsOf(info);
-    if (pushesBack && ids.some((id) => acceptedIds.has(id))) continue;
-
-    findings.push({
-      check: "dependency advisory scan",
-      path: name,
-      problem:
-        `${name} carries a ${severity} advisory (${scope} dependency)` +
-        (ids.length ? `: ${ids.join(", ")}` : ""),
-      remedy: blocks
-        ? "upgrade or remove the dependency; block severity has no accepted-record path"
-        : "upgrade the dependency, pin the specific vulnerable transitive dependency via `overrides`/`resolutions` where that version itself clears policy, or accept it in an Accepted ADR naming the advisory id",
+    const finding = classifyOneAdvisory(name, info, {
+      runtimeNames,
+      acceptedIds,
     });
+    if (finding) findings.push(finding);
   }
   return findings;
 }

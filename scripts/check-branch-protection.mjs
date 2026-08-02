@@ -74,6 +74,14 @@ function applyJobBodyLine(job, line, indent, bodyIndent) {
   }
 }
 
+/** One line of a workflow by index, as a string — the `?? ""` is defensive
+ *  over an already-in-bounds index, read in one place rather than repeated
+ *  at each call site where it earns its own complexity point.
+ *  @param {string[]} lines @param {number} i @returns {string} */
+function rawLine(lines, i) {
+  return lines[i] ?? "";
+}
+
 /** Parses `jobs:` into [{ id, name, matrix }], reading only the job's own
  *  top-level keys (indent === the job body's own indent) so a step's
  *  `name:`, indented deeper under `steps:`, is never mistaken for the job's.
@@ -88,14 +96,14 @@ function parseWorkflowJobs(workflowText) {
   const jobsAt = lines.findIndex((l) => /^jobs:\s*$/.test(l));
   if (jobsAt === -1 || jobsAt + 1 >= lines.length) return [];
 
-  const jobIdIndent = indentOf(lines[jobsAt + 1] ?? "");
+  const jobIdIndent = indentOf(rawLine(lines, jobsAt + 1));
   const jobs = [];
   let job = null;
   let bodyIndent = null;
 
   for (let i = jobsAt + 1; i < lines.length; i++) {
-    const line = (lines[i] ?? "").trim();
-    const indent = indentOf(lines[i] ?? "");
+    const line = rawLine(lines, i).trim();
+    const indent = indentOf(rawLine(lines, i));
     if (indent < jobIdIndent) break; // left the jobs: block
 
     if (indent === jobIdIndent) {
@@ -152,6 +160,46 @@ export function deriveRequiredContexts(workflowText) {
 
 const RUN_SCRIPT = "run `node scripts/configure-branch-protection.mjs`";
 
+/** The required-status-check contexts a protection object already names, as
+ *  a Set — built once rather than reconstructed inline where each `?.`/`??`
+ *  read would add its own complexity point.
+ *  @param {BranchProtection} protection @returns {Set<string>} */
+function requiredContextSet(protection) {
+  return new Set([
+    ...(protection.required_status_checks?.checks ?? []).map((c) => c.context),
+    ...(protection.required_status_checks?.contexts ?? []),
+  ]);
+}
+
+/** The pull-request-review state this policy cares about — whether an
+ *  approving review is required, and whether a stale one is dismissed on a
+ *  new push.
+ *  @param {BranchProtection["required_pull_request_reviews"]} reviews
+ *  @returns {{ required: boolean, dismissesStale: boolean }} */
+function reviewState(reviews) {
+  return {
+    required:
+      Boolean(reviews) && (reviews?.required_approving_review_count ?? 0) >= 1,
+    dismissesStale: Boolean(reviews?.dismiss_stale_reviews),
+  };
+}
+
+/** The remaining boolean flags policyGaps tests, each read once through its
+ *  own `?.` rather than in the record literals.
+ *  @param {BranchProtection} protection */
+function protectionFlags(protection) {
+  return {
+    strict: Boolean(protection.required_status_checks?.strict),
+    enforceAdmins: Boolean(protection.enforce_admins?.enabled),
+    conversationResolution: Boolean(
+      protection.required_conversation_resolution?.enabled,
+    ),
+    forcePushes: Boolean(protection.allow_force_pushes?.enabled),
+    deletions: Boolean(protection.allow_deletions?.enabled),
+    linearHistory: Boolean(protection.required_linear_history?.enabled),
+  };
+}
+
 /** Every policy 16-24 gap (gate-6-pull-request.md, "6.3 Merge policy"), as
  *  `{ isGap, problem }` records against an already-fetched protection
  *  object — data, not a branching function, so evaluateBranchProtection
@@ -162,14 +210,10 @@ const RUN_SCRIPT = "run `node scripts/configure-branch-protection.mjs`";
  *  @param {string[]} requiredContexts
  *  @returns {{isGap: boolean, problem: string}[]} */
 function policyGaps(protection, branch, requiredContexts) {
-  const configured = new Set([
-    ...(protection.required_status_checks?.checks ?? []).map((c) => c.context),
-    ...(protection.required_status_checks?.contexts ?? []),
-  ]);
+  const configured = requiredContextSet(protection);
   const missing = requiredContexts.filter((c) => !configured.has(c));
-  const reviews = protection.required_pull_request_reviews;
-  const hasApproval =
-    Boolean(reviews) && (reviews?.required_approving_review_count ?? 0) >= 1;
+  const reviews = reviewState(protection.required_pull_request_reviews);
+  const flags = protectionFlags(protection);
 
   return [
     {
@@ -177,35 +221,35 @@ function policyGaps(protection, branch, requiredContexts) {
       problem: `required status check(s) not in the protected branch's required list: ${missing.join(", ")}`,
     },
     {
-      isGap: !protection.required_status_checks?.strict,
+      isGap: !flags.strict,
       problem: `${branch} does not require a pull request to be up to date with the base before merging`,
     },
     {
-      isGap: !protection.enforce_admins?.enabled,
+      isGap: !flags.enforceAdmins,
       problem: `administrators can merge past a failing required check on ${branch} (no admin override should exist)`,
     },
     {
-      isGap: !hasApproval,
+      isGap: !reviews.required,
       problem: `${branch} does not require an approving review before merge`,
     },
     {
-      isGap: hasApproval && !reviews?.dismiss_stale_reviews,
+      isGap: reviews.required && !reviews.dismissesStale,
       problem: `${branch} does not dismiss a stale approval on a new push`,
     },
     {
-      isGap: !protection.required_conversation_resolution?.enabled,
+      isGap: !flags.conversationResolution,
       problem: `${branch} does not require review conversations to be resolved`,
     },
     {
-      isGap: Boolean(protection.allow_force_pushes?.enabled),
+      isGap: flags.forcePushes,
       problem: `force pushes are allowed on ${branch}`,
     },
     {
-      isGap: Boolean(protection.allow_deletions?.enabled),
+      isGap: flags.deletions,
       problem: `${branch} can be deleted`,
     },
     {
-      isGap: !protection.required_linear_history?.enabled,
+      isGap: !flags.linearHistory,
       problem: `${branch} does not require a linear history (a merge commit can still land)`,
     },
   ];
