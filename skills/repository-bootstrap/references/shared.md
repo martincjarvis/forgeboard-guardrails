@@ -40,7 +40,7 @@ Platform tooling first — each is one toggle, no code:
   (`gh api -X PUT repos/{owner}/{repo}/vulnerability-alerts` and
   `.../automated-security-fixes`), or the platform's equivalent.
 - **Release age**: the package manager's own window — npm ≥ 11.6:
-  `min-release-age=10080` (minutes; 7 days) in `.npmrc`
+  `min-release-age=7` (days) in `.npmrc`
   (`templates/node/npmrc`). Blocks freshly-published versions, the
   supply-chain attack's favourite hour.
 - **Static security scan (SAST)**: CodeQL default setup
