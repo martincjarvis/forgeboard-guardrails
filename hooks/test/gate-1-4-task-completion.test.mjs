@@ -2,7 +2,7 @@
 // Split from hooks.test.mjs — subject group: gate-1-4-task-completion.
 // Loaded by hooks/test/hooks.test.mjs; not invoked directly by the test runner.
 import { test } from "node:test";
-import { mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { writeFileSync, readFileSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { parseNumstatZ, describeUnpushed } from "../gate-4-task-completion.mjs";
@@ -15,7 +15,6 @@ import {
   scratchRepo,
   runHook,
   lines,
-  complexFunction,
 } from "./support.mjs";
 
 test("gate 1 ignores a file that does not exist", () => {
@@ -197,84 +196,6 @@ test("the override marker clears change size", () => {
     "chore: accepted [large-pr]",
   ]);
   assert.equal(runHook("gate-4-task-completion.mjs", dir).status, 0);
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("the override marker does not clear file length", () => {
-  // thresholds.md: the marker reaches change size only, "not the length or
-  // complexity limits". A branch may legitimately be large; a single file may
-  // not legitimately be that long.
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-  writeFileSync(join(dir, "big.ts"), lines(900));
-  git(dir, ["add", "-A"]);
-  git(dir, ["commit", "-qm", "feat: one long file"]);
-  git(dir, [
-    "commit",
-    "-q",
-    "--allow-empty",
-    "-m",
-    "chore: accepted [large-pr]",
-  ]);
-  const r = runHook("gate-4-task-completion.mjs", dir);
-  assert.equal(r.status, 2, "the marker clears change size, never file length");
-  assert.match(r.stderr, /split it into smaller units/);
-  assert.doesNotMatch(
-    r.stderr,
-    /change size/,
-    "change size was cleared by the marker",
-  );
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("gate 4 blocks a production file with a function over the complexity error threshold", () => {
-  // gate-4-task-completion.md row 4, thresholds.md: complexity error is 15.
-  // 16 chained branches gives McCabe complexity 17 — over the error band.
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-  writeFileSync(join(dir, "complex.mjs"), complexFunction("tooComplex", 16));
-  git(dir, ["add", "-A"]);
-  git(dir, ["commit", "-qm", "feat: a very branchy function"]);
-  const r = runHook("gate-4-task-completion.mjs", dir);
-  assert.equal(r.status, 2, "a production function over the error band blocks");
-  assert.match(r.stderr, /cyclomatic complexity is 17/);
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("gate 4 pushes back (does not block) a production function in the complexity warn band", () => {
-  // 11 branches gives complexity 12 — inside the 10-14 warn band.
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-  writeFileSync(join(dir, "warnish.mjs"), complexFunction("warnish", 11));
-  git(dir, ["add", "-A"]);
-  git(dir, ["commit", "-qm", "feat: a moderately branchy function"]);
-  const r = runHook("gate-4-task-completion.mjs", dir);
-  assert.equal(
-    r.status,
-    0,
-    "the warn band pushes back (prints) but does not block",
-  );
-  assert.match(r.stderr, /cyclomatic complexity is 12/);
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("gate 4 warns but does not block a test file over the complexity error threshold", () => {
-  // file-classes.md / "push back is not a warning": complexity pushes back
-  // for production files; a test file only ever warns, never blocks —
-  // proven decisively here with a function well past the error band (17).
-  const dir = scratchRepo();
-  git(dir, ["checkout", "-qb", "feature"]);
-  writeFileSync(join(dir, ".gitattributes"), "spec/** guardrail-class=test\n");
-  mkdirSync(join(dir, "spec"), { recursive: true });
-  writeFileSync(
-    join(dir, "spec", "complex.spec.mjs"),
-    complexFunction("tooComplex", 16),
-  );
-  git(dir, ["add", "-A"]);
-  git(dir, ["commit", "-qm", "test: a very branchy test helper"]);
-  const r = runHook("gate-4-task-completion.mjs", dir);
-  assert.equal(r.status, 0, "a test file never blocks on complexity");
-  assert.match(r.stderr, /cyclomatic complexity is 17/);
   rmSync(dir, { recursive: true, force: true });
 });
 

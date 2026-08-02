@@ -66,6 +66,26 @@ export {
   semgrepRuleRecord,
 };
 
+/** Is this path declared generated? A separate attribute, never a sixth
+ *  guardrail-class (file-classes.md) — a lock file keeps its class for every
+ *  other check; only change size and the length limit read this one.
+ *
+ *  `check-attr` prints a line for a path no .gitattributes mentions, so only
+ *  `set` counts: `unspecified` and `unset` both read like a value otherwise.
+ *  @param {string} file @returns {boolean} */
+export function isGenerated(file) {
+  const r = git(["check-attr", "guardrail-generated", "--", file]);
+  if (r.status !== 0) return false;
+  const marker = "guardrail-generated:";
+  const idx = r.stdout.indexOf(marker);
+  if (idx < 0) return false;
+  const value = r.stdout
+    .slice(idx + marker.length)
+    .trim()
+    .split("\n")[0];
+  return value === "set";
+}
+
 /** The guardrail-class of one path, derived from .gitattributes (ADR-0003). An
  *  unclassified file is production — the fail-safe direction (file-classes.md).
  *  @param {string} file @returns {string} */

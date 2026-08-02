@@ -61,12 +61,8 @@ test("gate 2 checks 12/13 read the staged tree, not a working-tree fix that was 
   // broken file, overwrite the working copy back to valid WITHOUT re-staging;
   // without isolation the build reads the fix and the commit is wrongly allowed.
   const dir = scratchRepo();
-  // Pin line-ending handling for this test: a global core.autocrlf=true (the
-  // common Windows default) makes git rewrite LF to CRLF on any checkout-like
-  // write, including a stash pop — turning the isolation's restore step into
-  // a spurious merge conflict that has nothing to do with the behaviour under
-  // test. The real repository pins the same thing via `.gitattributes`
-  // (`text=auto eol=lf`); this scratch repo has none, so it is set directly.
+  // A global core.autocrlf=true turns the isolation's restore into a spurious
+  // merge conflict. The real repository pins this via .gitattributes.
   git(dir, ["config", "core.autocrlf", "false"]);
   // A package.json + build script committed on main, before the branch under
   // test — so this commit never touches package.json itself, and dependency
@@ -199,11 +195,8 @@ test("gate 2 wires a lint check independently of the build: a lint-only violatio
 
 test("eslint --max-warnings 0 refuses a rule configured at its own default (warn) severity", () => {
   // cross-gate-rules.md: "No gate emits a warning it does not treat as a
-  // failure" and "a rule configured at a linter's own warn severity still
-  // [fails]." --max-warnings 0 wherever eslint runs.
-  // Every rule in eslint.config.mjs is already "error" (checked directly, not
-  // inferred), so this proves the FLAG closes the gap, independent of
-  // whether any rule happens to be misconfigured today.
+  // failure." Every rule in eslint.config.mjs is already "error", so this
+  // proves the --max-warnings 0 FLAG closes the gap on its own.
   const dir = mkdtempSync(join(tmpdir(), "lint-"));
   writeFileSync(
     join(dir, "warn.mjs"),

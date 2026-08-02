@@ -1,26 +1,20 @@
 #!/usr/bin/env node
 // Gate 4 — Task completion. Fires when work is handed back.
 //
-// Measures the whole branch against its base and reports every finding in one
-// pass — no stop at the first, because the author wants the full list once.
+// Measures **change size** — added plus deleted across the branch, which no
+// single commit shows. That branch scope is the whole reason this gate exists.
+//
+// File length and complexity are NOT here. They are per-file and per-function
+// properties, true at every moment rather than only across a branch, and gate 2
+// refuses them at the commit that causes them. Checking them here as well would
+// leave a check that can never fail, because gate 2 already refused the commit.
 // See docs/standards/guardrails/gate-4-task-completion.md.
 //
 // Exit 0 reports. Exit 2 blocks the hand-off.
 // cspell:ignore unpushed Unpushed
-import { existsSync, readFileSync, statSync } from "node:fs";
 import { git, resolveBase } from "./lib/run.mjs";
 import { describeUnpushed, readUnpushed } from "./lib/unpushed.mjs";
-import {
-  CHANGE_WARN,
-  CHANGE_ERROR,
-  FILE_LENGTH_ERROR,
-  COMPLEXITY_WARN,
-  COMPLEXITY_ERROR,
-  FUNCTION_LENGTH_WARN,
-  FUNCTION_LENGTH_ERROR,
-  PARAM_COUNT_WARN,
-  PARAM_COUNT_ERROR,
-} from "./lib/thresholds.mjs";
+import { CHANGE_WARN, CHANGE_ERROR } from "./lib/thresholds.mjs";
 import { pathToFileURL } from "node:url";
 
 // Re-exported so the test suite imports `describeUnpushed` from this hook
@@ -155,173 +149,7 @@ function measureChangeSize(base, findings, warnings) {
   }
 }
 
-/** Files this branch added, copied, modified or renamed, relative to base —
- *  shared by the file-length and complexity measures below.
- *  @param {string} base
- *  @returns {import("node:child_process").SpawnSyncReturns<string>} */
-function changedFileNames(base) {
-  return git(["diff", "--name-only", "--diff-filter=ACMR", `${base}...HEAD`]);
-}
-
-// Check 2 — file length (thresholds.md, gate-4-task-completion.md row 2).
-// Production and test files only; production over the error band blocks,
-// test over it warns (its own warn band) — a long test file is usually
-// repetitive rather than badly designed. A generated production file (a
-// `*.g.cs`, say) carries the same "no remedy" property a generated lock
-// file does, so it is exempt from this limit too (file-classes.md).
-/** @param {import("node:child_process").SpawnSyncReturns<string>} names @param {string[]} findings @param {string[]} warnings */
-function measureFileLength(names, findings, warnings) {
-  if (names.status !== 0) return;
-  for (const file of names.stdout.split("\n")) {
-    if (!file || !existsSync(file) || !statSync(file).isFile()) continue;
-    const cls = classOf(file);
-    if (cls !== "production" && cls !== "test") continue;
-    if (isGenerated(file)) continue;
-    const lines = readFileSync(file, "utf8").split("\n").length;
-    if (lines <= FILE_LENGTH_ERROR) continue;
-    const msg = `${file} is ${lines} lines (> ${FILE_LENGTH_ERROR}); split it into smaller units.`;
-    if (cls === "production") findings.push(msg);
-    else warnings.push(msg.replace(";", " (test file — warn band);"));
-  }
-}
-
-// Check 4 — complexity, function length, parameter count (thresholds.md,
-// gate-4-task-completion.md row 4). Production and test files only, over the
-// same changed set file length uses. Production over the error band blocks;
-// everything else — production's own warn band, and a test file regardless
-// of how far over the error band it is — only warns, the same class split
-// file length already applies ("push back is not a warning": push back is
-// for production files, test files only ever warn).
-//
-// ESLint's own message names the actual measured value, so each rule runs at
-// the WARN threshold with ESLint's own severity forced to "error" (so every
-// function past it is reported at all), and bandVerdict re-derives push back
-// versus block from the number in the message — ESLint's severity is not
-// this table's warn band (thresholds.md: "a tool's own warning severity is
-// not this table's warn band").
-/** @param {string} cls @param {number} actual @param {number} warnThreshold @param {number} errorThreshold @returns {"block" | "warn" | null} */
-function bandVerdict(cls, actual, warnThreshold, errorThreshold) {
-  if (actual < warnThreshold) return null;
-  return cls === "production" && actual >= errorThreshold ? "block" : "warn";
-}
-
-const RULES = [
-  {
-    ruleId: "complexity",
-    re: /has a complexity of (\d+)/,
-    warn: COMPLEXITY_WARN,
-    error: COMPLEXITY_ERROR,
-    label: "cyclomatic complexity",
-  },
-  {
-    ruleId: "max-lines-per-function",
-    re: /has too many lines \((\d+)\)/,
-    warn: FUNCTION_LENGTH_WARN,
-    error: FUNCTION_LENGTH_ERROR,
-    label: "function length",
-  },
-  {
-    ruleId: "max-params",
-    re: /has too many parameters \((\d+)\)/,
-    warn: PARAM_COUNT_WARN,
-    error: PARAM_COUNT_ERROR,
-    label: "parameter count",
-  },
-];
-
-/** Changed files ESLint can usefully parse, narrowed to production/test.
- *  @param {import("node:child_process").SpawnSyncReturns<string>} names
- *  @returns {string[]} */
-function codeFilesFrom(names) {
-  if (!names || names.status !== 0) return [];
-  return names.stdout
-    .split("\n")
-    .filter((f) => f && /\.(mjs|cjs|js|mts|cts)$/.test(f))
-    .filter((f) => existsSync(f) && statSync(f).isFile())
-    .filter((f) => {
-      const cls = classOf(f);
-      return cls === "production" || cls === "test";
-    });
-}
-
-/** ADR-0002: the toolkit bundles no analysis tools — a consuming repository
- *  installs eslint itself. A dynamic import, not a static one: this same
- *  hook file is what a consuming repository receives verbatim
- *  (skills/repository-bootstrap), so a repository that has not yet installed
- *  eslint must get a named, visible skip rather than a crash on module load. */
-async function loadESLint() {
-  try {
-    return (await import("eslint")).ESLint;
-  } catch {
-    process.stderr.write(
-      "gate 4: complexity — eslint not installed; complexity, function length and parameter count not measured\n",
-    );
-    return null;
-  }
-}
-
-/** One ESLint message, translated into a push-back/block finding or nothing.
- *  @param {string} file @param {string} cls
- *  @param {{ ruleId: string | null, message: string, line?: number }} message
- *  @param {string[]} findings @param {string[]} warnings */
-function recordComplexityMessage(file, cls, message, findings, warnings) {
-  const rule = RULES.find((r) => r.ruleId === message.ruleId);
-  if (!rule) return;
-  const actual = Number(rule.re.exec(message.message)?.[1]);
-  if (!Number.isFinite(actual)) return;
-  const verdict = bandVerdict(cls, actual, rule.warn, rule.error);
-  if (!verdict) return;
-  const msg =
-    `${file}:${message.line} ${rule.label} is ${actual} ` +
-    `(warn >= ${rule.warn}, error >= ${rule.error}); split or simplify the function.`;
-  if (verdict === "block") findings.push(msg);
-  else warnings.push(msg);
-}
-
-/** @param {import("node:child_process").SpawnSyncReturns<string>} names @param {string[]} findings @param {string[]} warnings */
-async function measureComplexity(names, findings, warnings) {
-  const codeFiles = codeFilesFrom(names);
-  if (!codeFiles.length) return;
-
-  const ESLint = await loadESLint();
-  if (!ESLint) return;
-
-  // Self-contained by design: `overrideConfigFile: true` means this runs
-  // without the repository's own eslint config, because it has to work in a
-  // repository that does not have one yet — the bootstrap case, and every
-  // scratch repository the tests build. What it must NOT do is carry its own
-  // copy of the numbers; those come from ./lib/thresholds.mjs, the same module
-  // eslint.config.mjs imports, so tuning one cannot silently diverge from the
-  // other.
-  //
-  // The rules run at their WARN values so every function past the warn band is
-  // reported at all; bandVerdict re-derives warn versus block from the measured
-  // number, because eslint's own severity is not this table's band.
-  const eslint = new ESLint({
-    cwd: process.cwd(),
-    overrideConfigFile: true,
-    overrideConfig: {
-      rules: {
-        complexity: ["error", COMPLEXITY_WARN],
-        "max-lines-per-function": ["error", FUNCTION_LENGTH_WARN],
-        "max-params": ["error", PARAM_COUNT_WARN],
-      },
-    },
-  });
-  const results = await eslint.lintFiles(codeFiles);
-  for (const result of results) {
-    const file = codeFiles.find((f) =>
-      result.filePath.replace(/\\/g, "/").endsWith(f.replace(/\\/g, "/")),
-    );
-    if (!file) continue;
-    const cls = classOf(file);
-    for (const message of result.messages) {
-      recordComplexityMessage(file, cls, message, findings, warnings);
-    }
-  }
-}
-
-async function main() {
+function main() {
   // An explicit base (argv[2]) wins over resolveBase(). Invoked
   // standalone (the Stop hook, hooks.json) this hook has always had to
   // derive its own base and resolveBase() is the right, and only, way to do
@@ -359,14 +187,10 @@ async function main() {
   // analyser overrides them for this repository.
   process.stderr.write(
     `gate 4: thresholds change-warn=${CHANGE_WARN} change-error=${CHANGE_ERROR} ` +
-      `file-length-error=${FILE_LENGTH_ERROR} (standard defaults; file class via git check-attr)\n`,
+      `(standard defaults; file class via git check-attr)\n`,
   );
 
   measureChangeSize(base, findings, warnings);
-
-  const names = changedFileNames(base);
-  measureFileLength(names, findings, warnings);
-  await measureComplexity(names, findings, warnings);
 
   for (const w of warnings) process.stderr.write(`gate 4: ${w}\n`);
   for (const f of findings) process.stderr.write(`gate 4: ${f}\n`);
@@ -385,5 +209,5 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  await main();
+  main();
 }

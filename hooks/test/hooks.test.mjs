@@ -13,6 +13,7 @@ import "./gate-1-4-task-completion.test.mjs";
 import "./change-size-override-register.test.mjs";
 import "./gate-4-file-classes.test.mjs";
 import "./gate-2-commit.test.mjs";
+import "./gate-2-file-length.test.mjs";
 import "./gate-6-dependency-advisories-and-licence-policy.test.mjs";
 import "./licence-register-completeness.test.mjs";
 import "./gate-6-licence-register-row-decisions.test.mjs";

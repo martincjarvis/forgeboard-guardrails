@@ -16,7 +16,10 @@ import {
   report,
   readStaged,
   withStagedWorkingTree,
+  classOf,
+  isGenerated,
 } from "./lib.mjs";
+import { FILE_LENGTH_ERROR } from "../hooks/lib/thresholds.mjs";
 import {
   checkSuppressions,
   pendingSuppressionApprovals,
@@ -124,6 +127,32 @@ for (const f of staged) {
       remedy: "store large objects via large-file storage, or record why here",
     });
   }
+}
+if (findings.length) report("gate 2", findings, skips);
+
+// Check 18 — file length, from the staged blob. A file's length is a property
+// of the file, true at every moment — not something only a branch reveals — so
+// it is refused at the commit that causes it, when the fix is extracting one
+// function rather than redesigning a file 400 lines later. Gate 4 does not
+// also check it: a second copy there could never fire, because this one has
+// already refused the commit.
+//
+// No warn band. A warning is a hint for an agent to act on before it commits;
+// anything that survives to a gate is an error.
+for (const f of staged) {
+  const cls = classOf(f);
+  if (cls !== "production" && cls !== "test") continue;
+  if (isGenerated(f)) continue;
+  const blob = git(["cat-file", "-p", `:${f}`]);
+  if (blob.status !== 0) continue;
+  const lines = blob.stdout.split("\n").length;
+  if (lines <= FILE_LENGTH_ERROR) continue;
+  findings.push({
+    check: "file length",
+    path: f,
+    problem: `${f} is ${lines} lines (> ${FILE_LENGTH_ERROR})`,
+    remedy: "split it into smaller units along a subject seam",
+  });
 }
 if (findings.length) report("gate 2", findings, skips);
 
