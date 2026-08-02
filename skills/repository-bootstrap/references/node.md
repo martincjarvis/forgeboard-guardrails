@@ -25,4 +25,7 @@ Wiring:
 - `verify` script:
   `npm run format:check && npm run lint && npm run typecheck && npm test`
   (include coverage in `npm test` where the floor is set).
-- Pin the Node floor in `"engines"` and use that version in CI setup-node.
+- Pin the Node floor in `"engines"` and point CI setup-node at it
+  (`node-version-file: package.json`), so the two cannot drift. Set the floor
+  to what the toolchain itself supports — current cspell needs Node ≥ 22.18,
+  so a floor of 20 passes locally on newer Node and fails in CI.
