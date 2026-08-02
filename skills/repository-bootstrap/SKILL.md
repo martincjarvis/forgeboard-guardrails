@@ -77,10 +77,13 @@ then hooks, then CI.
   pipeline.
 - **Record**: write `.guardrails.json` mapping every capability to its tool or
   its `off` entry. Add a `CODEOWNERS` line for it (create the file if absent)
-  naming the repository owner. Anything the record, report or PR cites must
-  resolve from the consuming repository — link the plugin's published
-  standards URL, never a plugin-relative path like `docs/standards.md` that
-  does not exist there.
+  naming the repository owner.
+- **Standards page**: copy the plugin's `docs/standards.md` into the
+  repository as `docs/guardrails.md`, tuned to it — replace the plugin's
+  tool-reference pointer with the tools actually chosen here, and drop or
+  rewrite any link that does not resolve inside this repository. The
+  repository's docs describe the repository, not the plugin; nothing the
+  record, report or PR cites may need the plugin installed to read.
 - **Branch review**: when a remote exists and you have permission, require PRs
   and mark the verify check required —
   `gh api repos/{owner}/{repo}/branches/{branch}/protection` or the platform

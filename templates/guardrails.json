@@ -1,5 +1,5 @@
 {
-  "//": "Guardrails record — see https://github.com/martincjarvis/forgeboard-guardrails/blob/main/docs/standards.md for what each capability means. Every capability appears once: either the tool implementing it, or off with why and who. Changes require human review via CODEOWNERS.",
+  "//": "Guardrails record — docs/guardrails.md says what each capability means here. Every capability appears once: either the tool implementing it, or off with why and who. Changes require human review via CODEOWNERS.",
   "format": { "tool": "" },
   "lint": { "tool": "" },
   "typecheck": { "tool": "" },
