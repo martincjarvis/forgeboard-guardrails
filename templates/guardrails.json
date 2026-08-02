@@ -1,0 +1,13 @@
+{
+  "//": "Copied to a consuming repository as .guardrails.json. Every capability from docs/standards.md appears once: either the tool implementing it, or off with why and who. Changes require human review via CODEOWNERS.",
+  "format": { "tool": "" },
+  "lint": { "tool": "" },
+  "typecheck": { "tool": "" },
+  "tests": { "tool": "" },
+  "coverage": { "tool": "" },
+  "commit-messages": { "tool": "" },
+  "secrets": { "tool": "" },
+  "spelling": { "tool": "" },
+  "ci-verify": { "tool": "" },
+  "branch-review": { "tool": "" }
+}

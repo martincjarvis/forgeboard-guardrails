@@ -4,7 +4,7 @@ Default choices for a Node 20+ repository. An existing equivalent always wins.
 
 | Capability        | Tool                                                | Notes                                                                                       |
 | ----------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `format`          | prettier                                            | `templates/node/.prettierrc.json`; auto-fix via lint-staged                                 |
+| `format`          | prettier                                            | `templates/node/prettierrc.json`; auto-fix via lint-staged                                  |
 | `lint`            | eslint + `@eslint/js` recommended                   | `--max-warnings 0`; flat config `templates/node/eslint.config.mjs`; add `typescript-eslint` |
 | `typecheck`       | `tsc --noEmit`                                      | TS repos; for JS, `checkJs` via jsconfig is optional, else `off` with reason                |
 | `tests`           | `node --test`, or the repo's existing runner        | Do not replace vitest/jest if present                                                       |
@@ -19,7 +19,7 @@ Wiring:
   - `.husky/pre-commit`: `npx lint-staged`
   - `.husky/commit-msg`: `npx --no-install commitlint --edit "$1"`
   - `.husky/pre-push`: `npm run verify`
-- lint-staged: `templates/node/.lintstagedrc.json` — formatter first, then
+- lint-staged: `templates/node/lintstagedrc.json` — formatter first, then
   checks, so checks judge the formatted bytes. Staged files only; tree-wide
   sweeps belong in `verify`.
 - `verify` script:

@@ -1,0 +1,25 @@
+{
+  "//": "This repository's own record — mostly-markdown repo, so lint/typecheck cover no code and are off with reasons.",
+  "format": { "tool": "prettier" },
+  "lint": { "tool": "markdownlint-cli2" },
+  "typecheck": {
+    "off": true,
+    "why": "no typed code; repo is markdown + JSON templates",
+    "who": "martincjarvis"
+  },
+  "tests": { "tool": "node --test" },
+  "coverage": {
+    "off": true,
+    "why": "tests assert template/link integrity, not code branches",
+    "who": "martincjarvis"
+  },
+  "commit-messages": { "tool": "commitlint" },
+  "secrets": {
+    "off": true,
+    "why": "GitHub push protection enabled; no lint-staged secretlint while repo ships no runnable code",
+    "who": "martincjarvis"
+  },
+  "spelling": { "tool": "cspell" },
+  "ci-verify": { "tool": "github-actions" },
+  "branch-review": { "tool": "github-branch-protection" }
+}

@@ -1,0 +1,18 @@
+{
+  "*.{md,mdx}": [
+    "prettier --write",
+    "markdownlint-cli2",
+    "cspell lint --no-progress --no-must-find-files"
+  ],
+  "*.{js,mjs,cjs,ts,tsx,jsx}": [
+    "prettier --write",
+    "eslint --max-warnings 0 --no-warn-ignored",
+    "cspell lint --no-progress --no-must-find-files",
+    "secretlint"
+  ],
+  "*.{json,jsonc,yml,yaml}": [
+    "prettier --write",
+    "cspell lint --no-progress --no-must-find-files",
+    "secretlint"
+  ]
+}

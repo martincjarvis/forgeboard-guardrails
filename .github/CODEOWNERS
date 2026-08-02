@@ -1,0 +1,3 @@
+# Guardrail decisions require a human review.
+/.guardrails.json @martincjarvis
+/.github/CODEOWNERS @martincjarvis

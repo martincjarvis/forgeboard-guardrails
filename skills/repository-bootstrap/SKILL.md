@@ -61,7 +61,9 @@ then hooks, then CI.
 - **Reuse, then template.** A capability the repository already implements is
   recorded in `.guardrails.json` as-is. Missing ones take the plugin's
   `templates/` file for the stack, adapted to the repository — never the other
-  way round.
+  way round. Template filenames are stored without their leading dot
+  (`lintstagedrc.json`, `gitattributes`) so they stay inert in the plugin;
+  restore the dot when copying (`.lintstagedrc.json`, `.gitattributes`).
 - **One verify entry point.** Create the stack's canonical chained command
   (`npm run verify`, a `verify` target, `nox`/`make verify`) that runs
   format-check, lint, typecheck, and tests. CI and developers run the same

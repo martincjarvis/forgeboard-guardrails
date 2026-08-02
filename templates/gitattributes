@@ -1,0 +1,8 @@
+# One line-ending truth across platforms, so the formatter's output is stable
+# and a Windows checkout doesn't fail the format gate.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary

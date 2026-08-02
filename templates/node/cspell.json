@@ -1,0 +1,11 @@
+{
+  "version": "0.2",
+  "language": "en,en-GB",
+  "words": [],
+  "ignorePaths": [
+    "node_modules/**",
+    "coverage/**",
+    "dist/**",
+    "package-lock.json"
+  ]
+}
