@@ -71,7 +71,10 @@ then hooks, then CI.
   chaining each stack's own verify (e.g. `npm run verify` running
   `dotnet build -warnaserror && dotnet test` after the Node steps) — pick
   the runner the repository already leans on. IaC files count as a stack:
-  [references/infra.md](references/infra.md).
+  [references/infra.md](references/infra.md). Any repository script wired
+  into verify is invoked through its interpreter (`bash scripts/x.sh`,
+  `node scripts/x.mjs`) — a bare `scripts/x.sh` breaks on a missing exec
+  bit or a Windows checkout.
 - **Hooks**: commit = format + lint + secrets + spelling over staged files
   only; commit-msg = commit message lint; push = verify. Wire through the
   existing hook manager; install the stack's usual one only if none exists.
