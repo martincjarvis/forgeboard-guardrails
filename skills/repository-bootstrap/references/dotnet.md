@@ -58,15 +58,24 @@ reported by the audit; an unsupported version is a finding, not a choice.
 - **Architecture — ArchUnitNET** (or NetArchTest): dependency-rule tests
   asserting the intended slicing, run as ordinary tests.
 
-**Coverage note.** TUnit runs on Microsoft.Testing.Platform, where the
-VSTest-era collectors (coverlet.collector) do not apply. Measure with the
-platform's coverage extension (`dotnet test -- --coverage
---coverage-output-format cobertura`) and publish the file to the PR (CI
-summary step). Enforce the 80% floor on the produced cobertura file with
-the platform's threshold support where available; where it is not, the
-floor check in CI reads the cobertura line-rate — record whichever
-mechanism is used in `.guardrails.json`. Verify the floor can fail before
-claiming it.
+**Coverage note (verified live).** TUnit runs on Microsoft.Testing.Platform,
+where the VSTest-era collectors (coverlet.collector) do not apply. What
+works, end to end:
+
+- Opt into the MTP `dotnet test` runner in `global.json`:
+  `"test": { "runner": "Microsoft.Testing.Platform" }` (on .NET 10 the old
+  VSTest path hard-errors).
+- Measure: `dotnet test <sln> -- --coverage --coverage-settings
+coverage.settings.xml --coverage-output-format cobertura`. The settings
+  file must be the **full RunSettings document**
+  (`<RunSettings><DataCollectionRunSettings>…<CodeCoverage>`) — a bare
+  `<configuration>` fragment is rejected as invalid. Scope it to production
+  code: include the product assembly, exclude tests, `Program.cs` and
+  `*.g.cs` (Functions source-gen otherwise dominates the denominator).
+- Floor: the extension has no threshold flag; assert the cobertura
+  `line-rate` ≥ 0.8 with a small checked-in script in `verify`, and print
+  the figure to the PR summary. Demonstrate the floor failing before
+  claiming it.
 
 ## Wiring
 
