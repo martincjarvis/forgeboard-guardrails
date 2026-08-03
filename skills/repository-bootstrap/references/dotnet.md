@@ -66,12 +66,15 @@ works, end to end:
   `"test": { "runner": "Microsoft.Testing.Platform" }` (on .NET 10 the old
   VSTest path hard-errors).
 - Measure: `dotnet test <sln> -- --coverage --coverage-settings
-coverage.settings.xml --coverage-output-format cobertura`. The settings
+coverage.runsettings --coverage-output-format cobertura`. The settings
   file must be the **full RunSettings document**
   (`<RunSettings><DataCollectionRunSettings>…<CodeCoverage>`) — a bare
   `<configuration>` fragment is rejected as invalid. Scope it to production
   code: include the product assembly, exclude tests, `Program.cs` and
   `*.g.cs` (Functions source-gen otherwise dominates the denominator).
+  Name it `coverage.runsettings`, not `coverage.*.xml` — coverage-output
+  ignore patterns (`coverage.*.xml` in `.gitignore`) will silently swallow
+  an XML-named scope file, and CI then runs with no settings at all.
 - Floor: the extension has no threshold flag; assert the cobertura
   `line-rate` ≥ 0.8 with a small checked-in script in `verify`, and print
   the figure to the PR summary. Demonstrate the floor failing before

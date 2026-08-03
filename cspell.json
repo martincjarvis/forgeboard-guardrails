@@ -25,6 +25,7 @@
     "pytest",
     "Reqnroll",
     "rseidelsohn",
+    "runsettings",
     "secretlint",
     "semgrep",
     "Testcontainers",
