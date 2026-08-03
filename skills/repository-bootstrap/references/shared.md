@@ -75,3 +75,11 @@ the actor this capability exists to stop; proven live during E2E, where a
 direct push to a "protected" branch succeeded until it was enabled. Never
 weaken existing protection; only add. Without admin permission, emit the
 exact commands in the report instead.
+
+**Solo maintainer**: GitHub refuses self-approval, so a required review
+deadlocks a one-account repository. Drop the review requirement, keep
+everything else — PR-only, required `verify` check, `enforce_admins`,
+linear history. Ratification still holds: nothing reaches the default
+branch except through a PR the human opened or merged deliberately; what
+is lost is only the second pair of eyes, and that is a fact about the
+team, not the tooling.
