@@ -78,6 +78,13 @@ then hooks, then CI.
 - **Hooks**: commit = format + lint + secrets + spelling over staged files
   only; commit-msg = commit message lint; push = verify. Wire through the
   existing hook manager; install the stack's usual one only if none exists.
+- **Agent hooks** — enforcement reaches the agent before the commit: wire
+  format-on-edit and verify-at-stop for each agent harness the survey found
+  in use (or the one this session runs in). Claude Code:
+  [templates/claude-hooks.json](../../templates/claude-hooks.json) merged
+  into the repository's `.claude/settings.json`; other harnesses take the
+  same two behaviours in their own hook mechanism. A repository whose
+  contributors use no agent records `off` with that reason.
 - **CI**: one workflow running `verify` on pull requests
   ([templates/github/guardrails.yml](../../templates/github/guardrails.yml)).
   If CI already exists, add the verify job to it; do not add a parallel

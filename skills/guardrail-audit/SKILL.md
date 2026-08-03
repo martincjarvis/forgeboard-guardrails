@@ -5,9 +5,13 @@ description: Use when asked to audit, assess, or check a repository's guardrails
 
 # Guardrail audit
 
-Read-only. Report the state of the eleven capabilities in
-[docs/standards.md](../../docs/standards.md) for this repository, ordered so
-someone can work top-down. Nothing is changed; the fixes are the ask.
+Read-only, and **run manually** — a human invokes it, on demand or before a
+release; it is not a scheduled job or a gate. Report the state of the eleven
+capabilities in [docs/standards.md](../../docs/standards.md) for this
+repository as a **checklist checked with evidence**: every row is ticked or
+not, and a ticked row carries the command output or file:line that proves
+it — a tick with no evidence beside it is not a tick. Nothing is changed;
+the fixes are the ask.
 
 ## Method
 
@@ -67,14 +71,18 @@ off by a ratified decision.
 
 1. **Verdict line** — e.g. "6 of 11 present, 2 partial, 1 absent, 1 off, 1
    proposed".
-2. **Wiring findings, ordered by leverage** — each: capability, state,
+1. **The checklist** — one row per capability and per adequacy item:
+   `[x]`/`[ ]`, state, and the evidence (quoted command output or
+   file:line) on the same row or directly beneath it. This table is the
+   audit; the sections below elaborate it.
+1. **Wiring findings, ordered by leverage** — each: capability, state,
    evidence (quoted command/file), and the exact fix (command or file to
    add). A `partial` whose fix is one line ranks above an `absent` needing a
    day.
-3. **Adequacy findings** — the review-skill results: missing test tiers and
+1. **Adequacy findings** — the review-skill results: missing test tiers and
    journeys, logging gaps, platform currency. Same shape: evidence, then the
    concrete first step.
-4. **Appendix** — ratified `off` decisions with owner; suppression counts;
+1. **Appendix** — ratified `off` decisions with owner; suppression counts;
    anything working that a reader might not expect.
 
 If asked to fix the findings afterwards, that is

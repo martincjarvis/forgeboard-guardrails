@@ -7,12 +7,25 @@ Default choices for a Node 20+ repository. An existing equivalent always wins.
 | `format`          | prettier                                            | `templates/node/prettierrc.json`; auto-fix via lint-staged                                     |
 | `lint`            | eslint + `@eslint/js` recommended                   | `--max-warnings 0`; flat config `templates/node/eslint.config.mjs`; add `typescript-eslint`    |
 | `typecheck`       | `tsc --noEmit`                                      | TS repos; for JS, `checkJs` via jsconfig is optional, else `off` with reason                   |
-| `tests`           | `node --test`, or the repo's existing runner        | Do not replace vitest/jest if present                                                          |
+| `tests`           | `node --test` / vitest, layered — see below         | Do not replace an existing runner                                                              |
 | `coverage`        | c8 (`--check-coverage --lines=80`) or runner-native | Floor enforced by the runner, tune per repo                                                    |
 | `commit-messages` | commitlint + `@commitlint/config-conventional`      | `templates/node/commitlint.config.cjs`                                                         |
 | `secrets`         | secretlint (recommended preset + pattern rule)      | `templates/node/secretlintrc.json` — pattern rule blocks home-dir/UNC paths (personal details) |
 | `spelling`        | cspell                                              | seed project words into `cspell.json` during bootstrap so it starts green                      |
 | `supply-chain`    | npm `min-release-age` + host toggles                | `templates/node/npmrc`; Dependabot + CodeQL per shared.md                                      |
+
+Testing tiers:
+
+- **Unit** — `node --test` (or the repo's vitest/jest): pure, mock-free
+  where possible, fast.
+- **Integration** — same runner against real dependencies; Testcontainers
+  where a database or broker is involved.
+- **E2E user journeys** — Playwright for anything with a UI or HTTP
+  surface; `@cucumber/cucumber` where the team wants the journey in
+  Gherkin. One journey per feature, declared before implementation, failing
+  first.
+- **Architecture** — dependency-cruiser: dependency-rule tests asserting
+  the intended module boundaries, run in `verify`.
 
 Wiring:
 

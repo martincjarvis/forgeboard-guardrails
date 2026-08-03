@@ -5,23 +5,24 @@ but not an outdated platform: target the newest LTS (currently .NET 10). A
 repository pinned to an older LTS gets the upgrade proposed at bootstrap and
 reported by the audit; an unsupported version is a finding, not a choice.
 
-| Capability        | Tool                          | Notes                                                                     |
-| ----------------- | ----------------------------- | ------------------------------------------------------------------------- |
-| `format`          | `dotnet format`               | `--verify-no-changes` in `verify`; plain `dotnet format` in the hook      |
-| `lint`            | SDK analysers                 | `AnalysisLevel` latest + `TreatWarningsAsErrors` in Directory.Build.props |
-| `typecheck`       | the compiler                  | `dotnet build -warnaserror` — the build is the type check                 |
-| `tests`           | `dotnet test`                 | Keep the repo's existing framework (xunit/NUnit/MSTest)                   |
-| `coverage`        | coverlet (`coverlet.msbuild`) | `dotnet test -p:CollectCoverage=true -p:Threshold=80`; fails below floor  |
-| `commit-messages` | see [shared.md](shared.md)    | commitlint                                                                |
-| `secrets`         | see [shared.md](shared.md)    | gitleaks `protect --staged` fits a no-Node repo                           |
-| `spelling`        | see [shared.md](shared.md)    | cspell                                                                    |
-| `ci-verify`       | see [shared.md](shared.md)    | `verify` runs restore, format check, build, test                          |
-| `branch-review`   | see [shared.md](shared.md)    | Host branch protection                                                    |
+| Capability        | Tool                       | Notes                                                                       |
+| ----------------- | -------------------------- | --------------------------------------------------------------------------- |
+| `format`          | `dotnet format`            | `--verify-no-changes` in `verify`; plain `dotnet format` in the hook        |
+| `lint`            | SDK analysers              | `AnalysisLevel` latest + `TreatWarningsAsErrors` in Directory.Build.props   |
+| `typecheck`       | the compiler               | `dotnet build -warnaserror` — the build is the type check                   |
+| `tests`           | TUnit                      | New projects; keep an existing suite's framework, migrate opportunistically |
+| `coverage`        | Microsoft.Testing.Platform | `dotnet test -- --coverage`; see the coverage note below                    |
+| `commit-messages` | see [shared.md](shared.md) | commitlint                                                                  |
+| `secrets`         | see [shared.md](shared.md) | gitleaks `protect --staged` fits a no-Node repo                             |
+| `spelling`        | see [shared.md](shared.md) | cspell                                                                      |
+| `ci-verify`       | see [shared.md](shared.md) | `verify` runs restore, format check, build, test                            |
+| `branch-review`   | see [shared.md](shared.md) | Host branch protection                                                      |
+| `supply-chain`    | see [shared.md](shared.md) | NuGet audit runs on restore; Dependabot covers `nuget`                      |
 
-Wiring:
+## Central configuration — one decision per repository
 
-- `Directory.Build.props` at the repo root is the enforcement point — one
-  decision for every project, no per-`.csproj` drift:
+- **`Directory.Build.props`** at the root is the enforcement point — no
+  per-`.csproj` drift:
 
   ```xml
   <PropertyGroup>
@@ -32,8 +33,43 @@ Wiring:
   </PropertyGroup>
   ```
 
-- Severities are pinned in `.editorconfig`; suppressions carry a reason on the
-  same line.
+- **`Directory.Packages.props` — central package management.** Every package
+  version lives here (`ManagePackageVersionsCentrally=true`); `.csproj` files
+  carry `<PackageReference Include="..." />` with no `Version`. One file to
+  review for supply-chain changes, one place Dependabot updates.
+- Severities pinned in `.editorconfig`; suppressions carry a reason on the
+  same line. SDK pinned in `global.json`; CI reads it
+  (`setup-dotnet` with `global-json-file`).
+
+## Testing tiers
+
+- **Unit — TUnit.** Source-generated, Microsoft.Testing.Platform native,
+  parallel by default. Runs under `dotnet test` with
+  `<TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>`
+  in `Directory.Build.props`.
+- **Integration / multi-component E2E — .NET Aspire.** The AppHost models the
+  components (Functions app, web front-end, databases); tests use
+  `Aspire.Hosting.Testing`'s `DistributedApplicationTestingBuilder` to run
+  the real component graph locally and drive it over HTTP. This is the local
+  E2E story — no cloud deployment needed to exercise a journey.
+- **E2E user journeys — Reqnroll.** Gherkin features, one journey per
+  product feature, bound to step definitions that drive the Aspire-hosted
+  app. The journey is declared before implementation and fails first.
+- **Architecture — ArchUnitNET** (or NetArchTest): dependency-rule tests
+  asserting the intended slicing, run as ordinary tests.
+
+**Coverage note.** TUnit runs on Microsoft.Testing.Platform, where the
+VSTest-era collectors (coverlet.collector) do not apply. Measure with the
+platform's coverage extension (`dotnet test -- --coverage
+--coverage-output-format cobertura`) and publish the file to the PR (CI
+summary step). Enforce the 80% floor on the produced cobertura file with
+the platform's threshold support where available; where it is not, the
+floor check in CI reads the cobertura line-rate — record whichever
+mechanism is used in `.guardrails.json`. Verify the floor can fail before
+claiming it.
+
+## Wiring
+
 - Hook manager: [Husky.Net](https://alirezanet.github.io/Husky.Net/) as a
   local dotnet tool (`dotnet tool install husky`), or plain git hooks via
   `git config core.hooksPath .githooks` if the team wants zero extra tools.
@@ -41,5 +77,4 @@ Wiring:
   - commit-msg: commitlint (see shared.md)
   - pre-push: the `verify` command
 - `verify` (script or `Directory.Build.targets` target):
-  `dotnet restore --locked-mode && dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test -p:CollectCoverage=true -p:Threshold=80 -p:ThresholdType=line -p:ThresholdStat=total`
-- Pin the SDK in `global.json` and use that version in CI setup-dotnet.
+  `dotnet restore --locked-mode && dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test`
