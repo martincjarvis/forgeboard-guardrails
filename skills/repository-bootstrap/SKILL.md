@@ -106,6 +106,14 @@ then hooks, then CI.
   rewrite any link that does not resolve inside this repository. The
   repository's docs describe the repository, not the plugin; nothing the
   record, report or PR cites may need the plugin installed to read.
+- **Test tiers**: the `tests` standard is layered — classify the existing
+  suite by tier and **write the first E2E journey for each existing
+  user-facing feature**, black-box through its public surface (the package's
+  exports entry, the served HTTP endpoint via the stack's real local host —
+  see the stack reference's testing tiers). Wiring the gate without the
+  journey ships a suite the audit immediately flags. Remaining tier gaps are
+  recorded in the report; a journey for a _new_ feature is written failing
+  first, but bootstrap's journeys assert what already works.
 - **Supply chain**: apply the platform toggles (advisories, release-age
   window, SAST) per [references/shared.md](references/shared.md#supply-chain);
   platform tooling unavailable → wire the backup tools it names. No
@@ -127,7 +135,9 @@ The wiring is not done until each capability has refused a bad input:
    dummy, and delete it after.
 4. Break a test (or add a failing one on a scratch branch) → `verify` and the
    push hook refuse; restore → green.
-5. Run the full `verify` clean, and — when a remote exists — push a branch,
+5. Break the E2E journey's expectation → red; restore → green. A journey
+   that has never failed has never been shown to test anything.
+6. Run the full `verify` clean, and — when a remote exists — push a branch,
    open a PR, and watch the CI check go green before calling CI wired.
 
 Existing repository: `verify` may reveal pre-existing failures. Do not fix the
