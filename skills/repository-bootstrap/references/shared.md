@@ -60,6 +60,8 @@ rule pack for SAST, `lizard` for complexity where the linter has no rule —
 each runs fine as a CI step; record whichever is used in
 `.guardrails.json`.
 
+**Dependabot config location**: exactly `.github/dependabot.yml` — placed in `.github/workflows/` it is silently ignored and Dependabot never runs; verified the mistake live. Under .NET CPM and for CI action tags, resolve current versions the same way as packages: `dotnet add package` writes the current version into Directory.Packages.props, and an action major is checked against its releases page — both were written from memory in round 2 and were stale.
+
 **Dependabot auto-merge.** Patch/minor updates can merge themselves once
 the required `verify` check passes:
 [templates/github/dependabot-auto-merge.yml](../../../templates/github/dependabot-auto-merge.yml)
