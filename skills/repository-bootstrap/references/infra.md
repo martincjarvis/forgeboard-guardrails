@@ -19,8 +19,7 @@ their ignore lists.
 
 CI setup: use only actions you have verified exist — there is **no**
 `azure/setup-bicep`; install the release binary
-(`curl -sSL https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64`,
-`chmod +x`). dotnet comes from `actions/setup-dotnet` with
+(`sudo curl -sSL https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64 -o /usr/local/bin/bicep && sudo chmod +x /usr/local/bin/bicep` — sudo, or a user-writable PATH dir; runners refuse chmod in /usr/local/bin without it). dotnet comes from `actions/setup-dotnet` with
 `global-json-file`. An action name that merely sounds right fails the whole
 job at setup.
 
