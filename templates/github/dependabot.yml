@@ -1,4 +1,7 @@
-# Adapt ecosystems/directories to the repository. The commit-message prefix
+# Adapt ecosystems/directories to the repository. With .NET central package
+# management, the nuget ecosystem must scan the directory holding
+# Directory.Packages.props (usually /) — scoped narrower, Dependabot cannot
+# see the versions and closes its own PRs as obsolete. The commit-message prefix
 # matters: without it, nuget (and some other ecosystems) produce bare "Bump X"
 # subjects that fail the conventional-commit gate on the PR range.
 version: 2
