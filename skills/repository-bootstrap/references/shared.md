@@ -60,6 +60,14 @@ rule pack for SAST, `lizard` for complexity where the linter has no rule —
 each runs fine as a CI step; record whichever is used in
 `.guardrails.json`.
 
+**Dependabot auto-merge.** Patch/minor updates can merge themselves once
+the required `verify` check passes:
+[templates/github/dependabot-auto-merge.yml](../../../templates/github/dependabot-auto-merge.yml)
+plus the repository setting (`gh api -X PATCH repos/{owner}/{repo} -F allow_auto_merge=true`).
+Majors always wait for a human. A required _review_ also blocks
+auto-merge — on a solo-maintainer repository pick one: reviews off, or a
+ruleset with Dependabot as a bypass actor.
+
 ## `branch-review`
 
 - Default branch takes changes by PR only.

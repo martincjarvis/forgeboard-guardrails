@@ -50,11 +50,17 @@ reported by the audit; an unsupported version is a finding, not a choice.
 - **Integration / multi-component E2E — .NET Aspire.** The AppHost models the
   components (Functions app, web front-end, databases); tests use
   `Aspire.Hosting.Testing`'s `DistributedApplicationTestingBuilder` to run
-  the real component graph locally and drive it over HTTP. This is the local
-  E2E story — no cloud deployment needed to exercise a journey.
+  the real component graph locally and drive it over HTTP. Caveat, verified:
+  the Functions integration wants a docker-hosted storage emulator — in an
+  environment without docker, an HTTP-only Functions journey runs fine
+  against the real host directly (`func start`, poll, drive over HTTP, kill;
+  CI installs `azure-functions-core-tools`). Record which shape is in use.
 - **E2E user journeys — Reqnroll.** Gherkin features, one journey per
-  product feature, bound to step definitions that drive the Aspire-hosted
-  app. The journey is declared before implementation and fails first.
+  product feature, bound to step definitions that drive the hosted app. The
+  journey is declared before implementation and fails first. Caveat,
+  current: Reqnroll has no Microsoft.Testing.Platform binding, so on an
+  MTP/TUnit solution write the journey as a TUnit test and record the
+  Gherkin layer as deferred until Reqnroll supports MTP.
 - **Architecture — ArchUnitNET** (or NetArchTest): dependency-rule tests
   asserting the intended slicing, run as ordinary tests.
 
