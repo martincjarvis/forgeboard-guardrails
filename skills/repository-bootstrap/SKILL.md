@@ -64,6 +64,14 @@ then hooks, then CI.
   way round. Template filenames are stored without their leading dot
   (`lintstagedrc.json`, `gitattributes`) so they stay inert in the plugin;
   restore the dot when copying (`.lintstagedrc.json`, `.gitattributes`).
+- **Never write a version number from memory.** Your remembered "current"
+  version is training-cutoff stale; a manifest written that way is born
+  majors behind and Dependabot floods the new repository with major-update
+  PRs on day one. Add every tool through the package manager so it resolves
+  today's release (`npm install -D <pkg>` with no range, `dotnet add package`
+  with no `Version` under CPM); the release-age window already guards
+  against too-new. Same for CI actions: resolve the current major tag before
+  pinning it.
 - **One verify entry point.** Create the stack's canonical chained command
   (`npm run verify`, a `verify` target, `nox`/`make verify`) that runs
   format-check, lint, typecheck, and tests. CI and developers run the same
